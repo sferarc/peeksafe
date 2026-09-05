@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # The published package must have no runtime dependencies. Checking
+      # package.json is not enough: a transitive dependency can arrive through a
+      # bundled file or a postinstall. Pack it, install it somewhere clean, and
+      # ask npm what it resolved.
+      - name: No runtime dependencies
+        run: |
+          set -euo pipefail
+          npm pack
+          TARBALL="$(ls peeksafe-*.tgz)"
+          WORK="$(mktemp -d)"
+          cd "$WORK"
+          npm init -y > /dev/null
+          npm install "$GITHUB_WORKSPACE/$TARBALL" --silent
+          TREE="$(npm ls --omit=dev --all --parseable | wc -l)"
+          npm ls --omit=dev --all
+          # Two lines: the scratch project itself, and peeksafe. Anything more is
+          # a runtime dependency that should not be there.
+          if [ "$TREE" -ne 2 ]; then
+            echo "::error title=Runtime dependency added::the packed tarball resolves $TREE packages, expected 2"
+            exit 1
+          fi

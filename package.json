@@ -1,0 +1,56 @@
+{
+  "name": "peeksafe",
+  "version": "0.1.0",
+  "description": "Statistically valid gates for non-deterministic eval suites. Stop early without losing error control.",
+  "keywords": [
+    "evals",
+    "sequential-testing",
+    "anytime-valid",
+    "e-values",
+    "false-discovery-rate",
+    "llm",
+    "statistics",
+    "ci"
+  ],
+  "license": "Apache-2.0",
+  "author": "Alexis Rico",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sferarc/peeksafe.git"
+  },
+  "homepage": "https://github.com/sferarc/peeksafe#readme",
+  "bugs": "https://github.com/sferarc/peeksafe/issues",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepack": "npm run clean && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
