@@ -34,6 +34,8 @@ import {
   mcnemarSamplesForEvidence,
   clusteredEffect,
   caseFamily,
+  shouldStop,
+  makeRand,
   type BaselineStat,
 } from '../src/index.js';
 
@@ -117,6 +119,74 @@ describe('README: stopping early', () => {
     );
     expect(result.verdict).toBe('FAIL');
     expect(result.regressed.map((c) => c.id)).toEqual(['routing/fallback']);
+  });
+});
+
+describe('README: stopping early with shouldStop', () => {
+  it('reproduces the four-line loop output the README prints', () => {
+    const baseline: Record<string, BaselineStat> = {
+      'parsing/nested': { caseId: 'parsing/nested', successes: 216, trials: 240 },
+      'routing/fallback': { caseId: 'routing/fallback', successes: 216, trials: 240 },
+      'summary/tone': { caseId: 'summary/tone', successes: 216, trials: 240 },
+    };
+    const truth: Record<string, number> = { 'parsing/nested': 0.9, 'routing/fallback': 0.6, 'summary/tone': 0.91 };
+    const rand = makeRand(3);
+    const ids = Object.keys(baseline);
+    const CAP = 200;
+    const state: Record<string, { successes: number; trials: number; stopped: string | null }> = Object.fromEntries(
+      ids.map((id) => [id, { successes: 0, trials: 0, stopped: null }])
+    );
+
+    while (ids.some((id) => !state[id]!.stopped)) {
+      for (const id of ids) {
+        const s = state[id]!;
+        if (s.stopped) continue;
+        for (let k = 0; k < 8; k++) {
+          s.trials++;
+          if (rand.bernoulli(truth[id]!)) s.successes++;
+        }
+        const d = shouldStop(s, baseline[id]!, { suiteSize: ids.length, maxTrials: CAP });
+        if (d.stop) s.stopped = d.reason;
+      }
+    }
+
+    expect(state['parsing/nested']).toMatchObject({ trials: 160, stopped: 'settled' });
+    expect(state['routing/fallback']).toMatchObject({ trials: 24, stopped: 'regressed' });
+    expect(state['summary/tone']).toMatchObject({ trials: 120, stopped: 'settled' });
+    expect(ids.reduce((n, id) => n + state[id]!.trials, 0)).toBe(304);
+  });
+
+  it('the four reasons in the table are the four the type allows', () => {
+    const fat: BaselineStat = { caseId: 'c', successes: 216, trials: 240 };
+    const thin: BaselineStat = { caseId: 'c', successes: 54, trials: 60 };
+    const o = { suiteSize: 3, mde: 0.15, fdr: 0.05 };
+    const reason = (rate: number, n: number, b: BaselineStat, extra = {}) =>
+      shouldStop({ successes: Math.round(rate * n), trials: n }, b, { ...o, ...extra }).reason;
+
+    expect(reason(0.6, 24, fat)).toBe('regressed');
+    expect(reason(0.9, 120, fat)).toBe('settled');
+    expect(reason(0.75, 4096, thin)).toBe('futile');
+    expect(reason(0.82, 40, fat, { maxTrials: 40 })).toBe('budget');
+  });
+
+  it('the ceiling range quoted in "why futility is hard to trigger" is real', () => {
+    // "for a 60-run baseline it ranges from 2.9 at a rate of 0.75 to 62 at 0.20"
+    expect(evidenceCeilingLogE(0.75, 54, 60, 0.15, 8)).toBeCloseTo(2.94, 1);
+    expect(evidenceCeilingLogE(0.2, 54, 60, 0.15, 8)).toBeCloseTo(62.15, 1);
+  });
+});
+
+describe('README: the CI headline', () => {
+  it('prints the sentence the README quotes', () => {
+    const r = gate([
+      { id: 'a', successes: 216, trials: 240, baseline: { caseId: 'a', successes: 216, trials: 240 } },
+      { id: 'thin', successes: 45, trials: 60, baseline: { caseId: 'thin', successes: 54, trials: 60 } },
+      { id: 'new', successes: 30, trials: 96 },
+    ]);
+    expect(r.headline).toContain('PASS: no case cleared the bar of 40 at 5% FDR over 2 gated case(s)');
+    expect(r.headline).toContain('too thin to certify a 15pt drop');
+    expect(r.headline).toContain('more baseline runs, not more candidate runs');
+    expect(r.headline).toContain('1 case(s) have no baseline and were not gated (new)');
   });
 });
 

@@ -99,6 +99,9 @@ import { gate, PeeksafeError } from 'peeksafe';
 try {
   const result = gate(cases, { mde: 0.15, fdr: 0.05 });
 
+  // One line that does not let a PASS hide what was never checked.
+  console.log(result.headline);
+
   for (const c of result.regressed) {
     console.error(
       `REGRESSED ${c.id}: ${c.observed.successes}/${c.observed.trials} ` +
@@ -118,34 +121,39 @@ try {
 }
 ```
 
-The `newCases` and `undetectable` lists are the two that matter for keeping a suite honest over time: the first tells you what is not being gated yet, the second tells you what *cannot* be gated until you spend more on a baseline.
+The `newCases` and `undetectable` lists are the two that matter for keeping a suite honest over time: the first tells you what is not being gated yet, the second tells you what *cannot* be gated until you spend more on a baseline. `result.headline` names both in a sentence, so a green check cannot quietly mean "nothing was checked":
+
+```
+PASS: no case cleared the bar of 40 at 5% FDR over 2 gated case(s). Read with care:
+1 of 2 gated case(s) have a baseline too thin to certify a 15pt drop at any candidate
+budget (thin) — more baseline runs, not more candidate runs; 1 case(s) have no baseline
+and were not gated (new).
+```
 
 ## Stopping early
 
 This is the reason the library exists. Stop each case whenever you like, for any reason, including "it already looks bad". The guarantee does not depend on the rule you used, because the statistic is an e-value rather than a p-value: it is a non-negative random variable with mean at most 1 under the null, and Ville's inequality bounds `P(sup_n E_n >= 1/a) <= a` over the whole trajectory. The multiplicity correction is e-BH (Wang and Ramdas), which consumes e-values directly and controls FDR under arbitrary dependence between cases.
 
-A case is certified on its own evidence once its e-value reaches `m / fdr`, whatever the other cases do. That is the stopping rule:
+`shouldStop` is that decision for one case, from the counts you have so far:
 
 ```ts
-import { gate, twoSampleLogE, ebhSoloThreshold } from 'peeksafe';
-
-const bar = ebhSoloThreshold(ids.length, 0.05);   // m / fdr
-const CAP = 120, BATCH = 8;
+import { shouldStop, gate } from 'peeksafe';
 
 while (ids.some((id) => !state[id].stopped)) {
   for (const id of ids) {
     const s = state[id];
     if (s.stopped) continue;
 
-    for (let k = 0; k < BATCH; k++) {
+    for (let k = 0; k < 8; k++) {
       s.trials++;
       if (await runCase(id)) s.successes++;
     }
 
-    const b = baseline[id];
-    const e = Math.exp(twoSampleLogE(s.successes, s.trials, b.successes, b.trials, 0.15, 8));
-    if (e >= bar) s.stopped = 'regressed';
-    else if (s.trials >= CAP) s.stopped = 'budget';
+    const d = shouldStop(s, baseline[id], { suiteSize: ids.length, maxTrials: 200 });
+    if (d.stop) {
+      s.stopped = d.reason;   // 'regressed' | 'settled' | 'futile' | 'budget'
+      console.log(d.detail);  // one line saying why
+    }
   }
 }
 
@@ -155,14 +163,32 @@ const result = gate(ids.map((id) => ({ id, ...state[id], baseline: baseline[id] 
 On a three-case suite where one case really did drop from 90% to 60%:
 
 ```
-parsing/nested     120 runs  (budget)
-routing/fallback    16 runs  (regressed)
-summary/tone       120 runs  (budget)
-spent 256 runs, cap would have been 360
-verdict FAIL, regressed: routing/fallback
+parsing/nested     160 runs  (settled)
+routing/fallback    24 runs  (regressed)
+summary/tone       120 runs  (settled)
+spent 304 runs, cap would have been 600
 ```
 
-**Be clear about which half this buys.** An e-value accumulates evidence *for* a regression, so a broken case stops fast — 16 runs instead of 120. A healthy case never accumulates evidence that it is fine, so it runs to whatever cap you set. The saving is on the cases that are broken, which is the direction you want, because those are the runs you would otherwise spend confirming something you already knew.
+### The four ways a case finishes
+
+| reason | what happened | what to do |
+| --- | --- | --- |
+| `regressed` | the e-value cleared `m / fdr`; certified on its own evidence | fix the regression |
+| `settled` | the counts have ruled out a certifiable drop; more runs cannot change the verdict | nothing, it passed |
+| `futile` | the **baseline** is too thin to certify an `mde`-sized drop at any candidate budget | record more baseline runs |
+| `budget` | `maxTrials` reached with no decision either way | raise the cap, or accept the ambiguity |
+
+`settled` is the one worth understanding, because an e-value on its own cannot produce it. Evidence accumulates *for* a regression, so a broken case reaches the bar fast — but a healthy case never accumulates evidence that it is healthy, and would run to your cap forever. What stops it is the **ceiling**: once even the worst rate the counts still permit could not produce enough evidence, further runs cannot change the answer. That is why both healthy cases above stopped at 160 and 120 rather than 200.
+
+`futile` and `settled` both mean "this can never be certified", and they are deliberately not one reason, because they call for opposite actions. `futile` is a defect in your baseline. `settled` is a pass.
+
+### Why futility is hard to trigger
+
+The ceiling depends on how bad the regression actually is, and early on that is barely known — for a 60-run baseline it ranges from 2.9 at a rate of 0.75 to 62 at a rate of 0.20. Declaring futility from a noisy point estimate would abandon cases that were about to be certified: a missed regression, reported as a green check, which is the exact failure this library exists to prevent.
+
+So `futile` and `settled` are judged at the **most pessimistic rate the counts still permit**, the lower end of a Wilson interval on the candidate. The question is "even if the truth is as bad as these counts plausibly allow, could more runs ever clear the bar?" Only a no stops the case. A catastrophic regression is therefore never stopped early at any sample size, which `test/stop.test.ts` pins across two baselines and eight sample sizes.
+
+The cost is that futility fires late. If you want to know a case is undetectable *before* spending anything, that is `makePlan`'s job — see below.
 
 ## When more runs will not help
 
@@ -309,7 +335,7 @@ A case with no baseline is not an error, though — it comes back in `newCases`,
 
 Three layers. Most callers need the first.
 
-**The decision.** `gate`, and the types around it.
+**The decision.** `gate` for a whole suite from final counts, `shouldStop` for one case mid-run, and the types around them.
 
 **The budget.** `makePlan`, `planCase`, `affordabilityGrid`, `computeFrontier`, `enumerateFrontier`.
 
@@ -326,7 +352,7 @@ npm test
 
 `test/paper.test.ts` produces the measured figures in this README and prints them. It is self-contained: seeded Bernoulli draws, no runner, no fixtures.
 
-`test/readme.test.ts` executes every example on this page and asserts every number quoted as output, including the run counts in the stopping loop, the four rows of the planning table, and the two intervals in the clustering section. Documentation drifts in a way code does not — a renamed field keeps compiling everywhere except in the prose — so the prose is tested. `test/gate.test.ts` pins the refusals. 93 tests in total.
+`test/readme.test.ts` executes every example on this page and asserts every number quoted as output, including the run counts in the stopping loop, the four rows of the planning table, and the two intervals in the clustering section. Documentation drifts in a way code does not — a renamed field keeps compiling everywhere except in the prose — so the prose is tested. `test/stop.test.ts` pins the stopping rules, including the property that a catastrophic regression is never stopped early. `test/gate.test.ts` pins the refusals. 116 tests in total.
 
 The generator is a fixed LCG with an integer avalanche, spelled out in `src/rand.ts` rather than imported, because replacing it would change every number above.
 

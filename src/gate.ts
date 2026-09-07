@@ -107,6 +107,15 @@ export interface GateResult {
   /** The e-value a case must reach to be certified whatever the others do. */
   soloThreshold: number;
   options: Required<GateOptions>;
+  /**
+   * One line an operator can read without knowing what an e-value is.
+   *
+   * Names the two things a passing suite can hide: cases with no baseline,
+   * which were not gated at all, and cases whose baseline is too thin to
+   * certify an `mde`-sized drop however many runs you add. A PASS that is
+   * really "nothing was checked" should not read like a PASS.
+   */
+  headline: string;
 }
 
 /**
@@ -184,6 +193,29 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
   });
 
   const regressed = verdicts.filter((v) => v.regressed);
+  const blind = verdicts.filter((v) => v.undetectable && !v.regressed);
+
+  const caveats: string[] = [];
+  if (blind.length > 0) {
+    caveats.push(
+      `${blind.length} of ${m} gated case(s) have a baseline too thin to certify a ` +
+      `${(opts.mde * 100).toFixed(0)}pt drop at any candidate budget (${blind.slice(0, 3).map((v) => v.id).join(', ')}` +
+      `${blind.length > 3 ? ', …' : ''}) — more baseline runs, not more candidate runs`
+    );
+  }
+  if (newCases.length > 0) {
+    caveats.push(
+      `${newCases.length} case(s) have no baseline and were not gated ` +
+      `(${newCases.slice(0, 3).join(', ')}${newCases.length > 3 ? ', …' : ''})`
+    );
+  }
+
+  const headline =
+    (regressed.length === 0
+      ? `PASS: no case cleared the bar of ${solo.toFixed(0)} at ${(opts.fdr * 100).toFixed(0)}% FDR over ${m} gated case(s)`
+      : `FAIL: ${regressed.length} of ${m} gated case(s) certified as regressed at ${(opts.fdr * 100).toFixed(0)}% FDR ` +
+        `(${regressed.slice(0, 3).map((v) => v.id).join(', ')}${regressed.length > 3 ? ', …' : ''})`) +
+    (caveats.length > 0 ? `. Read with care: ${caveats.join('; ')}.` : '');
 
   return {
     verdict: regressed.length === 0 ? 'PASS' : 'FAIL',
@@ -193,5 +225,6 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
     threshold: ebh.threshold,
     soloThreshold: solo,
     options: opts,
+    headline,
   };
 }

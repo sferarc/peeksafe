@@ -49,6 +49,14 @@ export {
 } from './gate.js';
 
 export {
+  shouldStop,
+  DEFAULT_STOP_OPTIONS,
+  type StopDecision,
+  type StopOptions,
+  type StopReason,
+} from './stop.js';
+
+export {
   baselineNullRate,
   toBaselineMap,
   type BaselineStat,

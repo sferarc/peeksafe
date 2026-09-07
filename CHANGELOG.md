@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- `shouldStop(observed, baseline, options)` — the per-case stopping decision, returning
+  `regressed` | `settled` | `futile` | `budget` | `continue` with the evidence behind it. This is
+  the loop every caller was writing by hand.
+- `settled` is the part an e-value cannot give you on its own: a healthy case never accumulates
+  evidence that it is healthy, so it would run to your cap forever. The evidence ceiling stops it
+  once the counts have ruled out a certifiable drop.
+- `futile` is kept separate from `settled` because they call for opposite actions — a thin baseline
+  is a defect to fix, a settled case is a pass.
+- `GateResult.headline`: one line an operator can read, naming the two things a PASS can hide
+  (cases with no baseline, and cases whose baseline is too thin to certify an `mde`-sized drop).
+
+### Notes
+
+Futility is judged at the most pessimistic rate the counts still permit, not at the point estimate,
+so it fires late and cannot abandon a case that was about to be certified. A catastrophic regression
+is never stopped early at any sample size.
+
+
 ## 0.1.0
 
 First release.
