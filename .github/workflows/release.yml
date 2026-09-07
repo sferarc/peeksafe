@@ -1,0 +1,99 @@
+name: Release
+
+# Publishing is deliberately manual: push a tag when you mean it. Nothing here
+# fires on a merge to main, so a release is always something a person decided.
+#
+#   npm version patch|minor|major   # writes package.json + CHANGELOG, tags
+#   git push --follow-tags
+#
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+# Actions are pinned to full commit SHAs because the sferarc organisation
+# requires it. A version tag is mutable, so a tag pin trusts whoever can move
+# the tag. Update the SHA and the trailing comment together.
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for npm provenance. It lets npm attest that this tarball was
+      # built by this workflow from this commit, which is the only part of the
+      # supply chain a consumer can check without trusting us.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      # The tag is the thing a human typed and package.json is the thing npm
+      # publishes under. They disagree exactly often enough to be worth a gate:
+      # a tag pushed before `npm version` ran publishes the previous version
+      # under a new tag, and nothing downstream ever notices.
+      - name: Tag matches package.json version
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p 'require("./package.json").version')"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error title=Version mismatch::tag is v$TAG, package.json is $PKG"
+            exit 1
+          fi
+          echo "publishing $PKG"
+
+      # The full CI gate again rather than trusting the run on main. A tag can
+      # point at any commit, including one CI never saw.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Same assertion CI makes on every pull request. A release is the worst
+      # place to discover a runtime dependency arrived.
+      - name: No runtime dependencies
+        run: |
+          set -euo pipefail
+          npm pack
+          TARBALL="$(ls peeksafe-*.tgz)"
+          WORK="$(mktemp -d)"
+          cd "$WORK"
+          npm init -y > /dev/null
+          npm install "$GITHUB_WORKSPACE/$TARBALL" --silent
+          TREE="$(npm ls --omit=dev --all --parseable | wc -l)"
+          npm ls --omit=dev --all
+          if [ "$TREE" -ne 2 ]; then
+            echo "::error title=Runtime dependency added::the packed tarball resolves $TREE packages, expected 2"
+            exit 1
+          fi
+
+      # Refuse to republish a version that already exists, rather than letting
+      # npm answer with a 403 that reads like an auth problem.
+      - name: Version is not already published
+        run: |
+          set -euo pipefail
+          PKG="$(node -p 'require("./package.json").version')"
+          if npm view "peeksafe@$PKG" version > /dev/null 2>&1; then
+            echo "::error title=Already published::peeksafe@$PKG is already on the registry"
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
