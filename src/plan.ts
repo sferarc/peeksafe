@@ -73,7 +73,7 @@ export interface PlanConfig {
    * recommendation. Measured against a real paired run of the bundled suite,
    * the headline was 2.1× too low, and it crossed the printed "affordable
    * (≤ $5/PR)" boundary. `peeksafe calibrate` never caught it because its own
-   * default design is unpaired. REVIEW.md F41.
+   * default design is unpaired.
    */
   design?: 'unpaired' | 'paired';
 
@@ -179,7 +179,7 @@ export interface PlanTotals {
    * requests move nothing, cases hit the H₀ wall early, and they stop costing
    * money. Measured against three real runs of this suite, `bestRuns`
    * over-predicts what the gate actually spends by 5 to 8×, and the numbers below
-   * predict it to within about 10%. See `calibrate.ts`.
+   * predict it to within about 10% when checked against real runs.
    */
   /** 1 unpaired, 2 paired, what one observation costs in runs */
   runsPerObservation: number;
@@ -507,7 +507,8 @@ export function makePlan(
       : Math.min(totals.screenedCostUsd, totals.bestCostUsd);
   // …and the honest *headline* is the expected cost, not the ceiling. Round 2
   // led with the ceiling and therefore over-stated the bill by 5 to 8× (measured;
-  // see `calibrate.ts`). The ceiling is still printed, labelled as a ceiling.
+  // measured against real runs). The ceiling is still printed, labelled as a
+  // ceiling.
   // Mirrors the ceiling's structure exactly, the cheapest plan of its kind, // so the two numbers are comparable. Comparing an unscreened expected cost
   // with a screened ceiling was the first version of this and it made the
   // "expected" figure look *larger* than the worst case.
@@ -592,7 +593,7 @@ export function affordabilityGrid(
         : cfg.maxTrials;
       // The ceiling above takes the cheaper of the two designs. The expected
       // bill has to be priced for the *same* design, or the cell quotes an
-      // unpaired price for a plan only pairing can execute (REVIEW.md F41).
+      // unpaired price for a plan only pairing can execute.
       const runsPerObs = Number.isFinite(perCase) && perCase <= pairs * 2 ? 1 : 2;
       const typicalRuns = Math.ceil(
         (m * cfg.screenRuns + Math.ceil(m * 0.1) * perCaseTypical) * runsPerObs

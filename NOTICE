@@ -1,0 +1,78 @@
+peeksafe
+Copyright 2026 Alexis Rico
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+--------------------------------------------------------------------------------
+Third-party code
+--------------------------------------------------------------------------------
+
+None. peeksafe has zero runtime dependencies, vendors no source, and ships no
+code it did not write. `.github/workflows/ci.yml` asserts the first of those on
+every pull request by packing the tarball, installing it into an empty project,
+and failing if `npm ls` resolves more than two packages.
+
+Development dependencies (TypeScript, vitest, @types/node) are not redistributed
+and are not part of the published package.
+
+--------------------------------------------------------------------------------
+Algorithms and published constants
+--------------------------------------------------------------------------------
+
+Everything statistical here is implemented from published closed forms and
+recurrences rather than ported from an existing implementation. Mathematical
+methods and tabulated constants are not anybody's intellectual property, but
+naming their sources is both good manners and the fastest way for a reader to
+check the arithmetic.
+
+  Regularized incomplete beta       Continued fraction: Abramowitz & Stegun,
+  src/stats.ts                      Handbook of Mathematical Functions, 26.5.8.
+                                    Evaluated by the modified Lentz algorithm:
+                                    Lentz (1976), amended by Thompson & Barnett
+                                    (1986).
+
+  log Γ(x)                          Lanczos approximation, g = 7, n = 9. The
+  src/stats.ts                      coefficient set is the widely reprinted one
+                                    originating with Lanczos (1964).
+
+  Φ⁻¹(p)                            Peter Acklam's algorithm for the inverse
+  src/stats.ts                      normal CDF, refined here by one Halley
+                                    step. Acklam released it for unrestricted
+                                    use.
+
+  Lower incomplete gamma            Standard series and continued-fraction
+  src/stats.ts                      expansions, Abramowitz & Stegun 6.5.
+
+  Linear congruential generator     Multiplier 1664525, increment 1013904223,
+  src/rand.ts                       modulus 2^32. Tabulated parameters from
+                                    Knuth, The Art of Computer Programming,
+                                    volume 2.
+
+  32-bit avalanche (mix32)          The `lowbias32` multipliers from Chris
+  src/rand.ts                       Wellons' hash function prospector, placed
+                                    by the author in the public domain.
+
+  hash32                            FNV-1a. Public domain by the authors'
+  src/rand.ts                       explicit statement.
+
+--------------------------------------------------------------------------------
+Statistical methods
+--------------------------------------------------------------------------------
+
+The procedures peeksafe implements are established results. README.md is
+explicit about which of this library's claims are new and which are not, and
+RESEARCH-NOTES.md records an adversarial literature check that withdrew two of
+four originally-claimed novelties.
+
+  e-values and testing by betting   Shafer; Grünwald, de Heide & Koolen (Safe
+                                    Testing); Waudby-Smith & Ramdas.
+  e-BH                              Wang & Ramdas, False discovery rate control
+                                    with e-values (2022).
+  Stopped e-BH                      Wang, Dandapanthula & Ramdas (2025).
+  Benjamini-Hochberg                Benjamini & Hochberg (1995).
+  Sequential probability ratio      Wald, Sequential Analysis (1945).
+  McNemar's test                    McNemar (1947).
+  Cluster-robust variance (CR2)     Liang & Zeger (1986); Bell & McCaffrey
+                                    (2002).
+  Bayes factor asymptotics          Kass & Raftery (1995).
+  Spectrum bias                     Ransohoff & Feinstein (1978).

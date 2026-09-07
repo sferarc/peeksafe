@@ -4,12 +4,14 @@
  * Everything stochastic in peeksafe (the Monte Carlo checks in `test/`, and any
  * simulation a caller wants to run) draws from here.
  *
- * The generator is a Numerical Recipes LCG with an integer avalanche applied to
- * each draw. The LCG alone is not good enough: consecutive outputs of a linear
- * congruential generator sit on a lattice, which visibly biases Bernoulli
- * streams, and a Bernoulli stream is the only thing this library ever simulates.
- * The mixer decorrelates without adding a dependency and without losing
- * determinism.
+ * The generator is a linear congruential generator feeding an integer avalanche.
+ * The LCG alone is not good enough: consecutive outputs of an LCG sit on a
+ * lattice, which visibly biases Bernoulli streams, and a Bernoulli stream is the
+ * only thing this library ever simulates. The mixer decorrelates without adding
+ * a dependency and without losing determinism.
+ *
+ * Both sets of constants are published parameters rather than anybody's source
+ * code, and both are named in NOTICE.
  *
  * The exact stream matters. The measurements in the README and in
  * `test/paper.test.ts` were produced by this generator, so replacing it with a
@@ -32,7 +34,13 @@ export interface Rand {
   normal(): number;
 }
 
-/** Numerical Recipes LCG. Exact in float64: 2^32 * 1664525 sits under 2^53. */
+/**
+ * LCG with Knuth's multiplier 1664525 and increment 1013904223, modulo 2^32.
+ *
+ * These are tabulated constants (Knuth, TAOCP vol. 2), reprinted in most
+ * numerical texts. Exact in float64: 2^32 * 1664525 sits under 2^53, so the
+ * product never loses a bit before the mask.
+ */
 function lcg(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
@@ -41,6 +49,11 @@ function lcg(seed: number): () => number {
   };
 }
 
+/**
+ * 32-bit avalanche: the `lowbias32` multipliers from Chris Wellons' hash
+ * function prospector, which he placed in the public domain. Two rounds of
+ * xor-shift-multiply, chosen by search for low bias rather than derived.
+ */
 function mix32(x: number): number {
   let h = x >>> 0;
   h ^= h >>> 16;

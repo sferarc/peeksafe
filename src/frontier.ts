@@ -32,8 +32,8 @@
  *
  *         cost(observation) = costPerRunUsd + costPerGradeUsd
  *
- *     and the second term is the *only* one a cheap proxy grader can reduce
- *     (`proxy.ts`). When `costPerGradeUsd` is 0, which is the default,
+ *     and the second term is the *only* one a cheap proxy grader can reduce.
+ *     When `costPerGradeUsd` is 0, which is the default,
  *     matching this package's own free graders, a proxy screen saves exactly
  *     nothing, and this module says so instead of offering it as an economy.
  *
@@ -52,7 +52,7 @@
  *
  * It will not recommend a screened configuration whose **recall cost has not
  * been measured**. Screening is the largest cost lever available and it is paid
- * for in missed regressions; `measureScreenRecall` in `proxy.ts` measures that
+ * for in missed regressions, which the caller supplies as `screenRecall`
  * against planted ground truth, and until someone has, the honest price of a
  * screened plan is unknown rather than low. Round 3's lesson, applied to the
  * one number this module would most like to assume.
@@ -73,7 +73,7 @@ export type FrontierDesign = 'unpaired' | 'paired';
  *  - `proxy`     the screen ranks on a cheap deterministic grader, so its runs
  *                cost `costPerRunUsd` and no grade. Sound, a screen chooses
  *                where to spend and cannot falsely certify, but it ranks on an
- *                effect attenuated by Youden's J (`proxy.ts`), so it costs
+ *                effect attenuated by Youden's J, so it costs
  *                power, and the power is what has to be measured.
  */
 export type FrontierScreen = 'none' | 'expensive' | 'proxy';
@@ -275,7 +275,7 @@ const graded = (runs: number, cfg: FrontierConfig): number =>
 /**
  * Observations per case on a pull request where nothing moved, clamped onto the
  * gate's own batch grid. Same model `peeksafe calibrate` scored to within ~10%
- * of three real runs, see `calibrate.ts`.
+ * of three real runs.
  */
 export function typicalObservationsPerCase(rate: number, mde: number, cfg: FrontierConfig, baselineRuns: number): number {
   const s = Math.round(rate * baselineRuns);
@@ -387,7 +387,7 @@ export function evaluatePoint(
   // phase too (`requestsFor` is design-aware and the screen's own budget guard
   // multiplies by `armsPerObs`). Charging the paired screen one run an
   // observation understated it by 2×, in the direction that makes pairing look
-  // cheaper, which is the conclusion this module publishes. REVIEW.md F42.
+  // cheaper, which is the conclusion this module publishes.
   const screenRuns = screen === 'none' ? 0 : cases * screenRunsPerCase * runsPerObs;
   const screenUsd =
     screen === 'none' ? 0

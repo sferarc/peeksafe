@@ -1,7 +1,7 @@
 /**
  * cluster.ts: the suite-level effect, with the cases treated as what they are.
  *
- * ## The bug this module exists to fix (REVIEW.md F16)
+ * ## The bug this module exists to fix
  *
  * Round 2 reported the suite effect as an ordinary normal interval over the
  * per-case prefix differences:

@@ -130,7 +130,7 @@ export function normalQuantile(p: number): number {
   }
   // One Halley refinement against our own Φ. Skipped in the far tails, where
   // exp(x²/2) overflows to Infinity and the refinement returns NaN, the
-  // Acklam value is already good to ~1e-9 there. (REVIEW.md F6.)
+  // Acklam value is already good to ~1e-9 there.
   const half = (x * x) / 2;
   if (half > 300) return x;
   const e = normalCdf(x) - p;
@@ -139,34 +139,61 @@ export function normalQuantile(p: number): number {
   return Number.isFinite(refined) ? refined : x;
 }
 
-/** Continued fraction for the incomplete beta (Lentz's method). */
-function betacf(a: number, b: number, x: number): number {
-  const TINY = 1e-30;
-  const qab = a + b, qap = a + 1, qam = a - 1;
-  let cf = 1, d = 1 - (qab * x) / qap;
-  if (Math.abs(d) < TINY) d = TINY;
-  d = 1 / d;
-  let h = d;
-  for (let m = 1; m <= 300; m++) {
-    const m2 = 2 * m;
-    let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2));
-    d = 1 + aa * d;
-    if (Math.abs(d) < TINY) d = TINY;
-    cf = 1 + aa / cf;
-    if (Math.abs(cf) < TINY) cf = TINY;
-    d = 1 / d;
-    h *= d * cf;
-    aa = (-(a + m) * (qab + m) * x) / ((a + m2) * (qap + m2));
-    d = 1 + aa * d;
-    if (Math.abs(d) < TINY) d = TINY;
-    cf = 1 + aa / cf;
-    if (Math.abs(cf) < TINY) cf = TINY;
-    d = 1 / d;
-    const del = d * cf;
-    h *= del;
-    if (Math.abs(del - 1) < 3e-16) break;
+/**
+ * Smallest magnitude a Lentz denominator is allowed to take.
+ *
+ * The recurrence divides by both running terms, so a coefficient that lands on
+ * zero would produce an infinity that never recovers. Clamping to a tiny
+ * non-zero value instead is the standard remedy and costs nothing in accuracy.
+ */
+const LENTZ_FLOOR = 1e-30;
+
+/** Keep a Lentz denominator away from zero. */
+const awayFromZero = (v: number): number => (Math.abs(v) < LENTZ_FLOOR ? LENTZ_FLOOR : v);
+
+/**
+ * The continued fraction for the regularized incomplete beta.
+ *
+ * The fraction itself is Abramowitz & Stegun 26.5.8; it is evaluated by the
+ * modified Lentz algorithm (Lentz 1976, as amended by Thompson & Barnett 1986),
+ * which advances the numerator and denominator convergents together so the
+ * fraction can be truncated as soon as one factor is within tolerance of 1.
+ *
+ * Both are published mathematics rather than anybody's source code, and this is
+ * written from the recurrence: the even and odd coefficients below are A&S
+ * 26.5.8 verbatim, and the loop is the textbook Lentz update. See NOTICE.
+ */
+function betaContinuedFraction(a: number, b: number, x: number): number {
+  const sum = a + b;
+  const aUp = a + 1;
+  const aDown = a - 1;
+
+  // Lentz starts from the zeroth convergent and multiplies in one factor per
+  // half-step; `frac` is the running value, `cTerm` and `dTerm` the convergents.
+  let cTerm = 1;
+  let dTerm = 1 / awayFromZero(1 - (sum * x) / aUp);
+  let frac = dTerm;
+
+  for (let j = 1; j <= 300; j++) {
+    const twoJ = 2 * j;
+
+    // even coefficient d_{2j}
+    const even = (j * (b - j) * x) / ((aDown + twoJ) * (a + twoJ));
+    dTerm = 1 / awayFromZero(1 + even * dTerm);
+    cTerm = awayFromZero(1 + even / cTerm);
+    frac *= dTerm * cTerm;
+
+    // odd coefficient d_{2j+1}
+    const odd = (-(a + j) * (sum + j) * x) / ((a + twoJ) * (aUp + twoJ));
+    dTerm = 1 / awayFromZero(1 + odd * dTerm);
+    cTerm = awayFromZero(1 + odd / cTerm);
+    const step = dTerm * cTerm;
+    frac *= step;
+
+    // Converged once a half-step multiplies the fraction by 1 to float64.
+    if (Math.abs(step - 1) < 3e-16) break;
   }
-  return h;
+  return frac;
 }
 
 /** Regularized incomplete beta Iₓ(a,b) = P(Beta(a,b) ≤ x). */
@@ -180,8 +207,8 @@ export function ibeta(a: number, b: number, x: number): number {
   if (x >= 1) return 1;
   const front = Math.exp(a * Math.log(x) + b * Math.log(1 - x) - logBeta(a, b));
   return x < (a + 1) / (a + b + 2)
-    ? (front * betacf(a, b, x)) / a
-    : 1 - (Math.exp(b * Math.log(1 - x) + a * Math.log(x) - logBeta(b, a)) * betacf(b, a, 1 - x)) / b;
+    ? (front * betaContinuedFraction(a, b, x)) / a
+    : 1 - (Math.exp(b * Math.log(1 - x) + a * Math.log(x) - logBeta(b, a)) * betaContinuedFraction(b, a, 1 - x)) / b;
 }
 
 /* ─────────────────────────────── estimation ──────────────────────────── */
@@ -645,7 +672,7 @@ export const ebhSoloThreshold = (m: number, q = 0.05): number => m / q;
  * whose baseline rate is 10% cannot lose 15 points, and no number of samples
  * will find a drop that is arithmetically impossible. The old version clamped
  * `p1` to 1e-6 and answered "44 runs", which is a plausible-looking lie
- * (REVIEW.md F5) and exactly the sort of thing a budget planner must not do.
+ * and exactly the sort of thing a budget planner must not do.
  */
 export function sampleSizeTwoProportion(p0: number, delta: number, alpha = 0.05, beta = 0.1): number {
   requireProbability(p0, 'p0', 'sampleSizeTwoProportion');
