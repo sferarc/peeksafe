@@ -93,6 +93,24 @@ jobs:
             exit 1
           fi
 
+      # Trusted publishing needs a newer npm than Node 24 ships. Pinned rather
+      # than `@latest` so a release is not at the mercy of whatever npm shipped
+      # this morning.
+      - name: npm new enough for trusted publishing
+        run: npm install -g npm@11.5.1
+
+      # Two ways in, on purpose, because they become available in that order.
+      #
+      # npm cannot configure a trusted publisher for a package that does not
+      # exist yet, so the first release is a manual `npm publish` from a laptop.
+      # After that, npmjs.com → peeksafe → Settings → Trusted Publisher, naming
+      # this repository and this workflow file, and CI can publish with no token
+      # at all: `id-token: write` above is what it uses.
+      #
+      # `NODE_AUTH_TOKEN` stays as the fallback so this workflow works before
+      # that switch is flipped as well as after. npm prefers OIDC when a trusted
+      # publisher is configured and the token is then unused — remove it once
+      # you have seen a green release without it, not before.
       - name: Publish
         run: npm publish --provenance --access public
         env:
