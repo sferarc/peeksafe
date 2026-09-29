@@ -68,18 +68,14 @@ export interface PlanConfig {
    * `undefined` means "price the design this plan recommends", which is the
    * only self-consistent answer: `makePlan` recommends pairing whenever more
    * than a quarter of the suite has an unpaired evidence ceiling under the bar,
-   * and until round 5 it then quoted the *unpaired* bill underneath that
-   * recommendation. Measured against a real paired run of the bundled suite,
-   * the headline was 2.1× too low, and it crossed the printed "affordable
-   * (≤ $5/PR)" boundary. `peeksafe calibrate` never caught it because its own
-   * default design is unpaired.
+   * and quoting the *unpaired* bill underneath that recommendation would price
+   * a design nobody runs.
    */
   design?: 'unpaired' | 'paired';
 
   /* ── the sequential design being priced ────────────────────────────────
    * Only the *expected* cost depends on these; the certify-all ceiling does
-   * not. They mirror `DEFAULT_GATE` and must be kept in step with whatever
-   * config the gate will actually run under, or the plan prices a design
+   * not. Keep them in step with the stopping rule you actually run, or the plan prices a design
    * nobody is going to execute.
    */
   alpha: number;
@@ -207,8 +203,7 @@ export interface Plan {
   verdict: string;
   /**
    * What a *typical* pull request costs, one in which nothing moved, so most
-   * cases stop at the H₀ wall. This is the headline number, and it is the one
-   * `peeksafe calibrate` measures the residual of.
+   * cases stop at the H₀ wall. This is the headline number.
    */
   expectedCostUsd: number;
   /** What a pull request in which *every* case regressed would cost. A ceiling. */
@@ -391,7 +386,7 @@ export function makePlan(
   requireProbability(cfg.pairCoupling, 'pairCoupling', 'makePlan');
   if (cases.length === 0) {
     throw new PeeksafeError('PEEKSAFE_E_SUITE_EMPTY', 'makePlan: no cases to plan for', {
-      hint: 'point --cases at a directory containing case files',
+      hint: 'pass at least one case; makePlan prices a suite, not an empty list',
     });
   }
   if (!(cfg.costPerRunUsd >= 0) || !(cfg.msPerRun >= 0)) {
@@ -440,11 +435,10 @@ export function makePlan(
 
   // The expected cost of a pull request that changed nothing, which is what a
   // pull request almost always is, and therefore the number a budget should be
-  // set from. Verified against real runs by `peeksafe calibrate`.
+  // set from.
   // `expectedSequentialSamples` counts *observations*. A paired observation is
   // two runs, the candidate and the reference revision on the same seed, and
-  // so is a paired screening run, because `GateSession` hands out both arms in
-  // the screen phase too.
+  // so is a paired screening run.
   const typical = expectedSequentialSamples(cases, baseline, cfg);
   const typicalRuns = typical.samples * runsPerObservation;
   const meanTypical = typical.perCase.size > 0 ? typical.samples / typical.perCase.size : 0;
@@ -580,8 +574,7 @@ export function affordabilityGrid(
       const costUsd = runs * cfg.costPerRunUsd;
       // The ceiling above prices a pull request in which every case regressed.
       // This prices one in which nothing did, which is what a pull request
-      // almost always is, the same expected-N model `peeksafe calibrate`
-      // measures to within ~10% of a real run.
+      // almost always is.
       const p0 = betaQuantile(1 + s, 1 + baselineTrials - s, cfg.nullQuantile);
       const p1 = Math.max(0.005, p0 - mde);
       const rawN = sprtExpectedN(baselineRate, p0, p1, cfg.alpha, cfg.beta);
