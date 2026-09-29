@@ -156,7 +156,7 @@ describe('README: stopping early with shouldStop', () => {
     expect(ids.reduce((n, id) => n + state[id]!.trials, 0)).toBe(304);
   });
 
-  it('the four reasons in the table are the four the type allows', () => {
+  it('the five reasons in the table are the five the type allows', () => {
     const fat: BaselineStat = { caseId: 'c', successes: 216, trials: 240 };
     const thin: BaselineStat = { caseId: 'c', successes: 54, trials: 60 };
     const o = { suiteSize: 3, mde: 0.15, fdr: 0.05 };
@@ -167,6 +167,7 @@ describe('README: stopping early with shouldStop', () => {
     expect(reason(0.9, 120, fat)).toBe('settled');
     expect(reason(0.75, 4096, thin)).toBe('futile');
     expect(reason(0.82, 40, fat, { maxTrials: 40 })).toBe('budget');
+    expect(reason(0, 8, { caseId: 'c', successes: 5, trials: 60 })).toBe('impossible');
   });
 
   it('the ceiling range quoted in "why futility is hard to trigger" is real', () => {

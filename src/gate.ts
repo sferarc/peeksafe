@@ -40,6 +40,13 @@ import { twoSampleLogE, ebhCorrect, ebhSoloThreshold, evidenceCeilingLogE } from
 import { type BaselineStat } from './baseline.js';
 import { PeeksafeError, requireCounts, requireOpenProbability } from './errors.js';
 
+/**
+ * True when the baseline's observed rate leaves no room for an `mde`-sized drop.
+ * `makePlan` calls the same cases IMPOSSIBLE, by the same rule.
+ */
+export const cannotDropBy = (baseline: { successes: number; trials: number }, mde: number): boolean =>
+  baseline.successes / baseline.trials <= mde;
+
 /** One case's candidate result, and the baseline it is measured against. */
 export interface GateCase {
   id: string;
@@ -87,6 +94,12 @@ export interface CaseVerdict {
   ceiling: number;
   /** True when `ceiling` is below the bar the case has to clear. */
   undetectable: boolean;
+  /**
+   * True when the baseline rate is at or below `mde`, so an `mde`-sized drop
+   * cannot happen. The case is not tested: its e-value is fixed at 1, which
+   * keeps it in the e-BH family without it ever being certified.
+   */
+  impossible: boolean;
   observed: { successes: number; trials: number };
   baseline: { successes: number; trials: number };
 }
@@ -159,8 +172,13 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
   }
 
   const m = gated.length;
-  const logEs = gated.map((c) =>
-    twoSampleLogE(c.successes, c.trials, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration)
+  const impossible = gated.map((c) => cannotDropBy(c.baseline!, opts.mde));
+  // Testing these anyway clamps the alternative onto a rate near zero, which is
+  // where the case already sits, and the false positive rate then exceeds `fdr`.
+  const logEs = gated.map((c, i) =>
+    impossible[i]
+      ? 0
+      : twoSampleLogE(c.successes, c.trials, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration)
   );
   // e-BH ranks on the e-value, and exp() of a large logE overflows to Infinity,
   // which ebhCorrect rejects because an infinite entry corrupts the ranking.
@@ -176,17 +194,17 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
     // the bar". Matches how plan.ts prices the same case.
     const bRate = c.baseline!.successes / c.baseline!.trials;
     const pAlt = Math.max(1e-6, Math.min(1 - 1e-6, bRate - opts.mde));
-    const ceilingLog = evidenceCeilingLogE(
-      pAlt, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration
-    );
-    const ceiling = Math.exp(ceilingLog);
+    const ceiling = impossible[i]
+      ? 1
+      : Math.exp(evidenceCeilingLogE(pAlt, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration));
     return {
       id: c.id,
       regressed: ebh.rejected[i]!,
       evalue: evalues[i]!,
       logE: logEs[i]!,
       ceiling,
-      undetectable: ceiling < solo,
+      undetectable: !impossible[i] && ceiling < solo,
+      impossible: impossible[i]!,
       observed: { successes: c.successes, trials: c.trials },
       baseline: { successes: c.baseline!.successes, trials: c.baseline!.trials },
     };
@@ -194,6 +212,7 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
 
   const regressed = verdicts.filter((v) => v.regressed);
   const blind = verdicts.filter((v) => v.undetectable && !v.regressed);
+  const untested = verdicts.filter((v) => v.impossible);
 
   const caveats: string[] = [];
   if (blind.length > 0) {
@@ -201,6 +220,13 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
       `${blind.length} of ${m} gated case(s) have a baseline too thin to certify a ` +
       `${(opts.mde * 100).toFixed(0)}pt drop at any candidate budget (${blind.slice(0, 3).map((v) => v.id).join(', ')}` +
       `${blind.length > 3 ? ', …' : ''}) — more baseline runs, not more candidate runs`
+    );
+  }
+  if (untested.length > 0) {
+    caveats.push(
+      `${untested.length} case(s) pass at or below ${(opts.mde * 100).toFixed(0)}% and cannot drop by ` +
+      `${(opts.mde * 100).toFixed(0)}pts, so they were not tested (${untested.slice(0, 3).map((v) => v.id).join(', ')}` +
+      `${untested.length > 3 ? ', …' : ''})`
     );
   }
   if (newCases.length > 0) {

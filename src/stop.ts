@@ -47,7 +47,7 @@
 import { twoSampleLogE, evidenceCeilingLogE, ebhSoloThreshold, wilsonInterval } from './stats.js';
 import { type BaselineStat } from './baseline.js';
 import { PeeksafeError, requireCounts, requireOpenProbability } from './errors.js';
-import { DEFAULT_GATE_OPTIONS } from './gate.js';
+import { DEFAULT_GATE_OPTIONS, cannotDropBy } from './gate.js';
 
 export type StopReason =
   /** certified on its own evidence: the e-value cleared `m / fdr` */
@@ -63,6 +63,11 @@ export type StopReason =
    * budget. Nothing about this run can fix that; more baseline runs can.
    */
   | 'futile'
+  /**
+   * The baseline passes at or below `mde`, so an `mde`-sized drop cannot
+   * happen and the case is not tested. `gate` fixes its e-value at 1.
+   */
+  | 'impossible'
   /** `maxTrials` reached without a decision */
   | 'budget'
   /** keep running */
@@ -174,6 +179,15 @@ export function shouldStop(
 
   const bar = ebhSoloThreshold(opts.suiteSize, opts.fdr);
   const logBar = Math.log(bar);
+
+  if (cannotDropBy(baseline, opts.mde)) {
+    return {
+      stop: true, reason: 'impossible', evalue: 1, logE: 0, bar, ceiling: 1, trials: observed.trials,
+      detail:
+        `impossible: the baseline passes ${baseline.successes}/${baseline.trials}, which cannot drop by ` +
+        `${(opts.mde * 100).toFixed(0)}pts. Not tested; lower mde for this case if smaller drops matter.`,
+    };
+  }
 
   const logE = twoSampleLogE(
     observed.successes, observed.trials, baseline.successes, baseline.trials, opts.mde, opts.altConcentration
