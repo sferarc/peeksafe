@@ -137,9 +137,11 @@ This is the reason the library exists. Stop each case whenever you like, for any
 
 ### What that guarantee rests on
 
-Read this before relying on the gate outside its defaults. The per-case statistic is a Bayes factor whose null is the baseline's posterior, and the martingale argument gives it mean exactly 1 when the shared rate is drawn from the uniform prior that posterior starts from. It does not give mean at most 1 at every fixed rate, and there are rates where it is not: at 99% with a 1-point `mde`, the fixed-rate mean after 1,000 runs is 1.87.
+Read this before relying on the gate outside its defaults. The per-case statistic is a Bayes factor whose null is the baseline's posterior, and the martingale argument gives it mean exactly 1 when the shared rate is drawn from the uniform prior that posterior starts from. It does not give mean at most 1 at every fixed rate, and there are rates where it is not: at a true rate of 0.5% with a 30-run baseline and `mde` 0.05, the fixed-rate mean after 1,000 runs is above 2.5.
 
-So the property you actually rely on, that a case which did not move clears `1/a` with probability at most `a` however long it runs, is computed rather than inferred. `test/error-control.test.ts` computes it exactly, with no sampling error, at the default `altConcentration` over baselines of 10 to 240 runs, rates from 0.05 to 0.99, `mde` from 0.05 to 0.3, `a` of 0.05 and 1/4000, and up to 600 candidate runs. The worst cell is 0.84 of `a`. It also runs the loop above end to end, `shouldStop` then `gate`, on 400 simulated pull requests with nothing moved and 400 with three real regressions out of ten, and checks the false alarm rate and the mean false discovery proportion stay under `fdr`.
+The null is "not worse", so a candidate that improved is a null case too. The Bayes factor alone also grows for a candidate far above its baseline, because the alternative is wider than the null, so the statistic is capped at 1 whenever the candidate's observed rate is at or above the baseline's. Lowering an e-value never breaks one.
+
+So the property you actually rely on, that a case which did not move clears `1/a` with probability at most `a` however long it runs, is computed rather than inferred. `test/error-control.test.ts` computes it exactly, with no sampling error, at the default `altConcentration` over baselines of 10 to 240 runs, rates from 0.05 to 0.99, `mde` from 0.05 to 0.3, `a` of 0.05 and 1/4000, and up to 600 candidate runs. The worst cell is 0.84 of `a`. It checks improved candidates the same way, from 30% to 50% up to 90% to 99%. It also runs the loop above end to end, `shouldStop` then `gate`, on 400 simulated pull requests with nothing moved and 400 with three real regressions out of ten, and checks the false alarm rate and the mean false discovery proportion stay under `fdr`.
 
 Outside that grid it is not proven, and the same test pins three places it fails: 1.09 times `a` for a 30-run baseline at a true rate of 0.5% with `mde` 0.05; 2.42 times `a` with an `altConcentration` of 2 and a 5-run baseline; and 1.14 times `a` with an `altConcentration` of 100 at a true rate equal to `mde`. If your suite lives near those corners, run the same computation on your own rates before trusting a verdict:
 
@@ -153,7 +155,7 @@ typeOneError({ rate: 0.5, baselineTrials: 60, alpha: 0.05 / 10, horizon: 200 });
 typeOneError({ rate: 0.005, baselineTrials: 30, mde: 0.05, alpha: 1 / 4000, horizon: 1000 });   // 0.00027, over 0.00025
 ```
 
-It is exact, not simulated, and takes milliseconds. `alpha` is `fdr / suiteSize`, the bar a case clears on its own evidence.
+It is exact, not simulated, and takes milliseconds. `alpha` is `fdr / suiteSize`, the bar a case clears on its own evidence. `certifyProbability` is the same computation with separate baseline and candidate rates: the power when the candidate is lower, the type I error when it is not.
 
 `shouldStop` is that decision for one case, from the counts you have so far:
 
@@ -363,7 +365,7 @@ Four layers. Most callers need the first.
 
 **The budget.** `makePlan`, `planCase`, `affordabilityGrid`, `computeFrontier`, `enumerateFrontier`.
 
-**The check.** `typeOneError`, the error rate the gate delivers at a rate and baseline size you name.
+**The check.** `typeOneError` and `certifyProbability`, the error rate and power the gate delivers at rates and a baseline size you name.
 
 **The statistics.** Everything the first two are built from, exported so you can check the arithmetic or build a different gate: special functions (`logGamma`, `ibeta`, `normalQuantile`), intervals (`wilsonInterval`, `betaCredibleInterval`, `diffInterval`), fixed-sample tests for comparison (`fisherExact2x2`, `twoProportionZTest`), sequential (`sprtDecision`, `sprtExpectedN`), multiplicity (`bhCorrect`, `ebhCorrect`, `ebhSoloThreshold`), e-values (`twoSampleLogE`, `evidenceCeilingLogE`, `samplesForEvidence`), paired designs (`pairedLogE`, `mcnemarSamplesForEvidence`), and clustering.
 

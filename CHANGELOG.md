@@ -16,6 +16,8 @@ All notable changes to this project are documented here. The format follows
   once the counts have ruled out a certifiable drop.
 - `futile` is kept separate from `settled` because they call for opposite actions: a thin baseline
   is a defect to fix, a settled case is a pass.
+- `certifyProbability(options)`: the exact probability a case is certified at separate baseline
+  and candidate rates, which is the power when the candidate is lower.
 - `typeOneError(options)`: the exact probability that a case which did not move is ever
   certified, at a rate, baseline size and bar you name. The README's error-control grid is built
   on it, and it is what to run when your suite sits outside that grid.
@@ -29,6 +31,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `gate` certified large improvements as regressions. The Bayes factor behind `twoSampleLogE` has
+  a wider alternative than null, so it also grows for a candidate far above its baseline: 96/96
+  against 30/60 scored e^19.5. Against a 60-run baseline in a 10-case suite, within 400 runs, a
+  case that went from 50% to 95% was certified every time, and one that went from 85% to 99%,
+  64% of the time. The statistic is now
+  capped at 1 whenever the candidate's observed rate is at or above the baseline's, and
+  `test/error-control.test.ts` checks improved candidates stay under alpha.
 - `toBaselineMap` threw a bare `Error` on a duplicate case id. It now throws `PeeksafeError` with
   `PEEKSAFE_E_CASE_DUPLICATE`, like `gate` does for the same mistake.
 - `gate` tested a case whose baseline passes at or below `mde` against an alternative clamped onto

@@ -56,7 +56,9 @@ export {
   type StopReason,
 } from './stop.js';
 
-export { typeOneError, type TypeOneErrorOptions } from './check.js';
+export {
+  typeOneError, certifyProbability, type TypeOneErrorOptions, type CertifyProbabilityOptions,
+} from './check.js';
 
 export {
   baselineNullRate,
