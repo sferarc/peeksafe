@@ -133,7 +133,15 @@ and were not gated (new).
 
 ## Stopping early
 
-This is the reason the library exists. Stop each case whenever you like, for any reason, including "it already looks bad". The guarantee does not depend on the rule you used, because the statistic is an e-value rather than a p-value: it is a non-negative random variable with mean at most 1 under the null, and Ville's inequality bounds `P(sup_n E_n >= 1/a) <= a` over the whole trajectory. The multiplicity correction is e-BH (Wang and Ramdas), which consumes e-values directly and controls FDR under arbitrary dependence between cases.
+This is the reason the library exists. Stop each case whenever you like, for any reason, including "it already looks bad". The guarantee does not depend on the rule you used, because the statistic is an e-value rather than a p-value: a non-negative statistic with mean at most 1 under the null, so Ville's inequality bounds `P(sup_n E_n >= 1/a) <= a` over the whole trajectory. The multiplicity correction is e-BH (Wang and Ramdas), which consumes e-values directly and controls FDR under arbitrary dependence between cases.
+
+### What that guarantee rests on
+
+Read this before relying on the gate outside its defaults. The per-case statistic is a Bayes factor whose null is the baseline's posterior, and the martingale argument gives it mean exactly 1 when the shared rate is drawn from the uniform prior that posterior starts from. It does not give mean at most 1 at every fixed rate, and there are rates where it is not: at 99% with a 1-point `mde`, the fixed-rate mean after 1,000 runs is 1.87.
+
+So the property you actually rely on, that a case which did not move clears `1/a` with probability at most `a` however long it runs, is computed rather than inferred. `test/error-control.test.ts` computes it exactly, with no sampling error, at the default `altConcentration` over baselines of 10 to 240 runs, rates from 0.05 to 0.99, `mde` from 0.05 to 0.3, `a` of 0.05 and 1/4000, and up to 600 candidate runs. The worst cell is 0.84 of `a`. It also runs the loop above end to end, `shouldStop` then `gate`, on 400 simulated pull requests with nothing moved and 400 with three real regressions out of ten, and checks the false alarm rate and the mean false discovery proportion stay under `fdr`.
+
+Outside that grid it is not proven, and the same test pins three places it fails: 1.09 times `a` for a 30-run baseline at a true rate of 0.5% with `mde` 0.05; 2.42 times `a` with an `altConcentration` of 2 and a 5-run baseline; and 1.14 times `a` with an `altConcentration` of 100 at a true rate equal to `mde`. If your suite lives near those corners, run the same computation on your own rates before trusting a verdict.
 
 `shouldStop` is that decision for one case, from the counts you have so far:
 
@@ -356,7 +364,7 @@ npm test
 
 `test/paper.test.ts` produces the measured figures in this README and prints them. It is self-contained: seeded Bernoulli draws, no runner, no fixtures.
 
-`test/readme.test.ts` executes every example on this page and asserts every number quoted as output, including the run counts in the stopping loop, the four rows of the planning table, and the two intervals in the clustering section. Documentation drifts in a way code does not (a renamed field keeps compiling everywhere except in the prose), so the prose is tested. `test/stop.test.ts` pins the stopping rules, including the property that a catastrophic regression is never stopped early. `test/gate.test.ts` pins the refusals.
+`test/readme.test.ts` executes every example on this page and asserts every number quoted as output, including the run counts in the stopping loop, the four rows of the planning table, and the two intervals in the clustering section. Documentation drifts in a way code does not (a renamed field keeps compiling everywhere except in the prose), so the prose is tested. `test/error-control.test.ts` checks the type I error and false discovery rate the gate actually delivers, as described under "What that guarantee rests on". `test/stop.test.ts` pins the stopping rules, including the property that a catastrophic regression is never stopped early. `test/gate.test.ts` pins the refusals.
 
 The generator is a fixed LCG with an integer avalanche, spelled out in `src/rand.ts` rather than imported, because replacing it would change every number above.
 

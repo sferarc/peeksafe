@@ -576,8 +576,9 @@ export function logMarginalBetaBinomial(s: number, n: number, a: number, b: numb
  * alternative is the same amount of information centred `mde` lower. The ratio
  * of the two marginal likelihoods is a Bayes factor, and a Bayes factor between
  * two joint distributions of the same sequence is a non-negative martingale
- * with mean 1 under the null, an e-value that stays valid however long you
- * choose to keep sampling.
+ * with mean 1 under the null's own marginal, here the shared rate drawn from
+ * the uniform prior. At a fixed rate the mean can exceed 1, so the frequentist
+ * type I error is checked exactly in `test/error-control.test.ts` instead.
  */
 export function twoSampleLogE(
   candidateSuccesses: number,
