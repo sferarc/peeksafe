@@ -219,24 +219,34 @@ const medianTrials = (ps: PlanCase[]): number => {
 
 /**
  * How many baseline runs would lift this case's evidence ceiling over the bar?
- * Doubling search on the baseline trial count, holding the baseline *rate*
- * fixed, "if I keep measuring main at the same quality, how long until this
- * case becomes decidable at all?"
+ * The *smallest* such number, holding the baseline *rate* fixed, "if I keep
+ * measuring main at the same quality, how long until this case becomes
+ * decidable at all?"
+ *
+ * Smallest, and not a level the case stays decidable above: the ceiling is a
+ * sawtooth in the baseline size (see the comment in the body), so a baseline a
+ * few runs longer than this can fall back under the bar. Treat it as the floor
+ * it is rather than a promise about a bigger baseline.
  */
 function baselineRunsToClear(rate: number, mde: number, barLogE: number, cap = 100_000): number | null {
   const at = (n: number) => {
     const s = Math.round(rate * n);
     return evidenceCeilingLogE(Math.max(1e-6, Math.min(1 - 1e-6, rate - mde)), s, n, mde);
   };
-  let hi = 8;
-  while (hi <= cap && at(hi) < barLogE) hi *= 2;
+  // `at` is not monotone in `n`, so this cannot bisect the way
+  // `samplesForEvidence` does. Holding the rate fixed still forces an integer
+  // success count, so the implied rate jitters around `rate` and the ceiling
+  // drops hard every time the count ticks over: at 99% losing 10 points it
+  // clears the bar at 49 runs, falls back under it at 51, and does not clear
+  // again until 71. Bisecting that returns whichever crossing the doubling
+  // happened to bracket, which is no particular quantity at all; it answered 81
+  // for the README's own case where 75 is enough, and 5 for every case that
+  // needed fewer, because it bisected (4, 8]. Doubling now only bounds the
+  // scan, and never steps past `cap`, so the answer is one this search checked.
+  let hi = 1;
+  while (hi < cap && at(hi) < barLogE) hi = Math.min(cap, hi * 2);
   if (at(hi) < barLogE) return null;
-  let lo = Math.floor(hi / 2);
-  while (hi - lo > 1) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (at(mid) >= barLogE) hi = mid;
-    else lo = mid;
-  }
+  for (let n = 1; n < hi; n++) if (at(n) >= barLogE) return n;
   return hi;
 }
 

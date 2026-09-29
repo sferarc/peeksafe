@@ -303,12 +303,12 @@ Four baselines, one plan:
 
 ```
 parsing/nested     UNPAIRED       unpaired=    93 paired=   59 needBaseline=-
-routing/fallback   PAIRED_ONLY    unpaired=Infinity paired=   59 needBaseline=81
+routing/fallback   PAIRED_ONLY    unpaired=Infinity paired=   59 needBaseline=75
 summary/tone       IMPOSSIBLE     unpaired=Infinity paired=Infinity needBaseline=-
 search/rerank      PAIRED_ONLY    unpaired=Infinity paired=   53 needBaseline=63
 ```
 
-Read that as four different answers, not one number. `parsing/nested` has a 240-run baseline and needs 93 candidate runs. `routing/fallback` and `search/rerank` have thin baselines, so the unpaired design cannot do them at any budget, but 81 and 63 more baseline runs respectively would fix that, and pairing works today. `summary/tone` passes 10% of the time and cannot lose 15 points at all, so `sampleSizeTwoProportion(0.1, 0.15)` is `Infinity` rather than a plausible-looking 44.
+Read that as four different answers, not one number. `parsing/nested` has a 240-run baseline and needs 93 candidate runs. `routing/fallback` and `search/rerank` have thin baselines, so the unpaired design cannot do them at any budget, but 75 and 63 more baseline runs respectively would fix that, and pairing works today. `summary/tone` passes 10% of the time and cannot lose 15 points at all, so `sampleSizeTwoProportion(0.1, 0.15)` is `Infinity` rather than a plausible-looking 44.
 
 `plan.totals` carries the suite-level roll-up, including `decidableUnpaired` and `decidableBest`: how many cases each design can decide at all.
 

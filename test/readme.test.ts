@@ -267,7 +267,7 @@ describe('README: planning', () => {
 
     expect(byId['routing/fallback']!.detectability).toBe('PAIRED_ONLY');
     expect(byId['routing/fallback']!.unpaired.runs).toBe(Infinity);
-    expect(byId['routing/fallback']!.baselineRunsNeeded).toBe(81);
+    expect(byId['routing/fallback']!.baselineRunsNeeded).toBe(75);
 
     expect(byId['summary/tone']!.detectability).toBe('IMPOSSIBLE');
 

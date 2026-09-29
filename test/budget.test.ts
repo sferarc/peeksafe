@@ -10,6 +10,7 @@ import {
   makePlan, planCase, DEFAULT_PLAN, affordabilityGrid,
   computeFrontier, DEFAULT_FRONTIER, typicalObservationsPerCase,
   toBaselineMap, sampleSizeTwoProportion,
+  evidenceCeilingLogE, ebhSoloThreshold,
   type CaseRef, type BaselineStat,
 } from '../src/index.js';
 
@@ -76,5 +77,54 @@ describe('the frontier', () => {
 
   it('reports observations per case as a positive number', () => {
     expect(typicalObservationsPerCase(0.85, 0.15, DEFAULT_FRONTIER, 240)).toBeGreaterThan(0);
+  });
+});
+
+describe('baselineRunsNeeded is the smallest baseline that clears the bar', () => {
+  // The evidence ceiling is not monotone in the baseline size, because forcing
+  // an integer success count makes the implied rate jitter around the real one.
+  // So the answer has to be scanned for. A bisection returns whichever crossing
+  // the doubling search happened to bracket, which is not a defined quantity.
+  const firstClearing = (rate: number, mde: number, m: number, cap = 100_000): number | null => {
+    const bar = Math.log(ebhSoloThreshold(m, 0.05));
+    const alt = Math.max(1e-6, Math.min(1 - 1e-6, rate - mde));
+    for (let n = 1; n <= cap; n++) {
+      if (evidenceCeilingLogE(alt, Math.round(rate * n), n, mde) >= bar) return n;
+    }
+    return null;
+  };
+
+  const needed = (successes: number, trials: number, mde: number, m: number): number | null =>
+    planCase({ id: 'a' }, { caseId: 'a', successes, trials }, { ...DEFAULT_PLAN, mde }, m).baselineRunsNeeded;
+
+  it('answers a baseline under 5 runs when that is enough', () => {
+    // The doubling search started at 8 and then bisected (4, 8], so no case
+    // could ever be told it needed fewer than 5 baseline runs. This one needs 3.
+    expect(firstClearing(0.5, 0.4, 1)).toBe(3);
+    expect(needed(1, 2, 0.4, 1)).toBe(3);
+  });
+
+  it('agrees with a scan over a grid of baselines and effects', () => {
+    for (const m of [1, 4, 20, 200]) {
+      for (const rate of [0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 0.99]) {
+        for (const mde of [0.05, 0.1, 0.15, 0.2]) {
+          if (rate <= mde) continue;
+          const trials = 60;
+          const successes = Math.round(rate * trials);
+          const observed = needed(successes, trials, mde, m);
+          if (observed === null) continue;
+          const scanned = firstClearing(successes / trials, mde, m, 5000);
+          expect(observed, `m=${m} rate=${rate} mde=${mde}`).toBe(scanned);
+        }
+      }
+    }
+  });
+
+  it('never answers past the 100k baseline the search is allowed to reach', () => {
+    // Doubling ran `while (hi <= cap)` and so stepped to 131072 with a cap of
+    // 100000, then bisected inside a bracket that started above the cap. This
+    // case was answered 126037: a baseline size the search never established.
+    const answer = needed(95, 100, 0.0025, 1);
+    expect(answer === null || answer <= 100_000).toBe(true);
   });
 });
