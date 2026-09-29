@@ -10,53 +10,20 @@
  * probability at most alpha however long it runs, is computed here directly
  * rather than inferred.
  *
- * The crossing probabilities are exact, not simulated: the e-value depends on
- * the candidate only through (successes, trials), so a dynamic program over the
- * success count gives P(sup_n E_n >= 1/alpha) with no sampling error.
+ * The crossing probabilities come from `typeOneError`, which is exact rather
+ * than simulated.
  */
 import { describe, it, expect } from 'vitest';
 import {
-  twoSampleLogE, logGamma, logBeta, gate, shouldStop, makeRand, type BaselineStat, type GateCase,
+  twoSampleLogE, logGamma, logBeta, gate, shouldStop, makeRand, typeOneError, type BaselineStat, type GateCase,
 } from '../src/index.js';
-import { cannotDropBy } from '../src/gate.js';
 
 const logChoose = (n: number, k: number): number => logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1);
 const logBinom = (n: number, k: number, p: number): number =>
   logChoose(n, k) + k * Math.log(p) + (n - k) * Math.log(1 - p);
 
-/** Exact P(sup_{n <= horizon} E_n >= 1/alpha) when baseline and candidate share rate `p`. */
-function typeOneError(p: number, nb: number, mde: number, alpha: number, horizon: number, concentration = 8): number {
-  const bar = Math.log(1 / alpha);
-  let total = 0;
-  for (let sb = 0; sb <= nb; sb++) {
-    const weight = Math.exp(logBinom(nb, sb, p));
-    if (weight < 1e-12 || cannotDropBy({ successes: sb, trials: nb }, mde)) continue;
-    let alive = new Float64Array(horizon + 1);
-    alive[0] = 1;
-    let crossed = 0;
-    // Only the band of success counts still carrying mass is stepped.
-    let lo = 0;
-    let hi = 0;
-    for (let n = 1; n <= horizon; n++) {
-      const next = new Float64Array(horizon + 1);
-      for (let s = lo; s <= hi; s++) {
-        next[s + 1]! += alive[s]! * p;
-        next[s]! += alive[s]! * (1 - p);
-      }
-      hi++;
-      // logE falls as successes rise, so the paths that cross are a prefix.
-      for (let s = lo; s <= hi && twoSampleLogE(s, n, sb, nb, mde, concentration) >= bar; s++) {
-        crossed += next[s]!;
-        next[s] = 0;
-      }
-      while (lo < hi && next[lo]! < 1e-18) lo++;
-      while (hi > lo && next[hi]! < 1e-18) hi--;
-      alive = next;
-    }
-    total += weight * crossed;
-  }
-  return total;
-}
+const typeOne = (rate: number, baselineTrials: number, mde: number, alpha: number, horizon: number, altConcentration = 8) =>
+  typeOneError({ rate, baselineTrials, mde, alpha, horizon, altConcentration });
 
 describe('what the martingale argument does guarantee', () => {
   it('has mean exactly 1 when the shared rate is drawn from the uniform prior', () => {
@@ -83,7 +50,7 @@ describe('what the gate promises at every fixed rate', () => {
       for (const nb of [10, 30, 60, 240]) {
         for (const mde of [0.05, 0.15, 0.3]) {
           for (const p of [0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 0.95, 0.99]) {
-            const ratio = typeOneError(p, nb, mde, alpha, 600) / alpha;
+            const ratio = typeOne(p, nb, mde, alpha, 600) / alpha;
             if (ratio > worst.ratio) worst = { ratio, cell: `alpha=${alpha} nb=${nb} mde=${mde} p=${p}` };
             expect(ratio, `alpha=${alpha} nb=${nb} mde=${mde} p=${p}`).toBeLessThanOrEqual(1);
           }
@@ -104,7 +71,16 @@ describe('what the gate promises at every fixed rate', () => {
       for (let s = 0; s <= n; s++) mean += weight * Math.exp(logBinom(n, s, p) + twoSampleLogE(s, n, sb, nb, mde));
     }
     expect(mean).toBeGreaterThan(1.5);
-    expect(typeOneError(p, nb, mde, 0.05, 1000)).toBeLessThan(0.05 * 0.05);
+    expect(typeOne(p, nb, mde, 0.05, 1000)).toBeLessThan(0.05 * 0.05);
+  });
+});
+
+describe('typeOneError refuses what it cannot compute', () => {
+  it('throws on a horizon or baseline that is not a positive integer, and on a rate at 0 or 1', () => {
+    const ok = { rate: 0.5, baselineTrials: 60, alpha: 0.05, horizon: 100 };
+    expect(() => typeOneError({ ...ok, horizon: 0 })).toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_CONFIG' }));
+    expect(() => typeOneError({ ...ok, baselineTrials: 2.5 })).toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_CONFIG' }));
+    expect(() => typeOneError({ ...ok, rate: 1 })).toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_STAT_DOMAIN' }));
   });
 });
 
@@ -112,9 +88,9 @@ describe('where the bound is known not to hold', () => {
   // Pinned so the README's list of exceptions stays true; a fix should flip these.
   it('exceeds alpha in the corners the README names', () => {
     const cells = [
-      { label: '30-run baseline at 0.5%, mde 0.05', ratio: typeOneError(0.005, 30, 0.05, 1 / 4000, 1000) * 4000 },
-      { label: 'altConcentration 2, 5-run baseline', ratio: typeOneError(0.005, 5, 0.15, 0.005, 600, 2) / 0.005 },
-      { label: 'altConcentration 100, rate at mde', ratio: typeOneError(0.15, 240, 0.15, 1 / 4000, 600, 100) * 4000 },
+      { label: '30-run baseline at 0.5%, mde 0.05', ratio: typeOne(0.005, 30, 0.05, 1 / 4000, 1000) * 4000 },
+      { label: 'altConcentration 2, 5-run baseline', ratio: typeOne(0.005, 5, 0.15, 0.005, 600, 2) / 0.005 },
+      { label: 'altConcentration 100, rate at mde', ratio: typeOne(0.15, 240, 0.15, 1 / 4000, 600, 100) * 4000 },
     ];
     for (const c of cells) console.log(`type I error ${c.ratio.toFixed(2)} x alpha: ${c.label}`);
     for (const c of cells) expect(c.ratio, c.label).toBeGreaterThan(1);

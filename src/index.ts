@@ -56,6 +56,8 @@ export {
   type StopReason,
 } from './stop.js';
 
+export { typeOneError, type TypeOneErrorOptions } from './check.js';
+
 export {
   baselineNullRate,
   toBaselineMap,

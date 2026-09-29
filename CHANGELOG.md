@@ -16,6 +16,9 @@ All notable changes to this project are documented here. The format follows
   once the counts have ruled out a certifiable drop.
 - `futile` is kept separate from `settled` because they call for opposite actions: a thin baseline
   is a defect to fix, a settled case is a pass.
+- `typeOneError(options)`: the exact probability that a case which did not move is ever
+  certified, at a rate, baseline size and bar you name. The README's error-control grid is built
+  on it, and it is what to run when your suite sits outside that grid.
 - `GateResult.headline`: one line an operator can read, naming the two things a PASS can hide
   (cases with no baseline, and cases whose baseline is too thin to certify an `mde`-sized drop).
 
