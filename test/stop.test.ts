@@ -85,9 +85,21 @@ describe('it does not abandon a case that was going to be caught', () => {
   });
 
   it('a higher futilityConfidence only ever makes it more reluctant to stop', () => {
-    const stops = (confidence: number): boolean => at(0.75, 512, THIN, { futilityConfidence: confidence }).stop;
-    // 0.99 is stricter than 0.95, so anything it stops, 0.95 stops too.
-    if (stops(0.99)) expect(stops(0.95)).toBe(true);
+    const levels = [0.5, 0.8, 0.9, 0.95, 0.975, 0.99, 0.999];
+    for (const rate of [0.6, 0.75, 0.9]) {
+      for (const n of [16, 64, 256, 1024, 4096]) {
+        const stops = levels.map((c) => at(rate, n, THIN, { futilityConfidence: c }).stop);
+        // Once a stricter level keeps running, every level above it does too.
+        for (let i = 1; i < stops.length; i++) if (stops[i]) expect(stops[i - 1], `rate=${rate} n=${n}`).toBe(true);
+      }
+    }
+  });
+
+  it('accepts any level strictly between 0 and 1', () => {
+    const d = (c: number) => at(0.75, 4096, THIN, { futilityConfidence: c });
+    expect(d(0.95).reason).toBe('futile');
+    expect(d(0.97).reason).toBe('futile');
+    expect(d(0.8).ceiling).toBeLessThan(d(0.999).ceiling);
   });
 
   it('agrees with gate: anything it stops as `regressed`, gate certifies', () => {
@@ -110,7 +122,8 @@ describe('it refuses the same things gate refuses', () => {
     ['PEEKSAFE_E_STAT_DOMAIN', () => shouldStop({ successes: 9, trials: 2 }, FAT, opts)],
     ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, suiteSize: 0 })],
     ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, maxTrials: 0 })],
-    ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, futilityConfidence: 0.5 })],
+    ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, futilityConfidence: 1 })],
+    ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, futilityConfidence: 0 })],
     ['PEEKSAFE_E_STAT_DOMAIN', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, fdr: 0 })],
   ];
   for (const [code, fn] of bad) {
