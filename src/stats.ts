@@ -570,8 +570,7 @@ export function logMarginalBetaBinomial(s: number, n: number, a: number, b: numb
  * The one-sample alternative, test the candidate against the baseline's point
  * estimate, quietly assumes the baseline rate is known. It is not: it came
  * from 24 noisy runs, and a baseline that got lucky manufactures regressions
- * that were never there. (The demo's own Monte Carlo shows that mistake turning
- * a 5% false-discovery budget into 79% of runs.)
+ * that were never there.
  *
  * So the null keeps the baseline's uncertainty: p ~ Beta(1+s_b, 1+f_b), and the
  * alternative is the same amount of information centred `mde` lower. The ratio
@@ -749,7 +748,7 @@ export function twoSamplePriors(
  *
  *     lim_{n→∞} log E  =  log f_alt(p) − log f_null(p)
  *
- * Consequences the CLI reports directly:
+ * Consequences `gate` and `makePlan` report directly:
  *   - a case whose ceiling sits below the e-BH bar `m/(q·k)` is **undetectable
  *     at any budget**: buying more candidate runs cannot certify it;
  *   - the remedy is more *baseline* runs, which sharpen f_null and raise the
@@ -811,7 +810,7 @@ export function evidenceCeilingSlope(pBaseline: number, pCandidate: number): num
  *    `log(m/q) / KL(p̄_b ‖ p̄_b − δ)`, an O(1) formula where `plan.ts` searches.
  *    It is a *lower* bound: the two lower-order terms are negative at realistic
  *    `n_b`, so the honest quote is that rule of thumb plus about 20%, and
- *    `peeksafe plan` keeps reporting the exact search.
+ *    `makePlan` keeps reporting the exact search.
  *
  * Matches `evidenceCeilingLogE` to better than 0.1% for `n_b ≥ 240`; checked in
  * `test/paper.test.ts`.
@@ -863,9 +862,7 @@ export function evidenceCeilingAsymptotic(
  * of Beta functions, which is defined on the reals.
  *
  * This is a plug-in for E[log E], not E[log E] itself. `expectedLogEExact`
- * computes the true expectation by summing over the binomial, and
- * `test/plan.test.ts` checks the two agree to within a few percent over the
- * range the planner actually uses.
+ * computes the true expectation by summing over the binomial.
  */
 export function expectedLogE(
   pTrue: number,

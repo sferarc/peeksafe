@@ -30,8 +30,7 @@
  *
  * Everything here is a *plan*: it evaluates the mean trajectory (the candidate
  * scores exactly its expected successes). Realised sample counts vary around
- * it, and `test/plan.test.ts` checks the plan against what the gate actually
- * spends.
+ * it.
  */
 import {
   evidenceCeilingLogE, samplesForEvidence, mcnemarSamplesForEvidence,
@@ -54,8 +53,8 @@ export interface PlanConfig {
   /**
    * Measured coupling between the paired arms, in [0,1]. 0 means the seeds
    * bought nothing; 1 means perfect common-random-numbers coupling. Measure it
-   * with `pairPhi` on a pilot rather than assuming it, `peeksafe plan` prints
-   * the plan at the measured value and at 0 so the sensitivity is visible.
+   * with `pairPhi` on a pilot rather than assuming it, and plan at 0 as well
+   * so the sensitivity is visible.
    */
   pairCoupling: number;
   /** how many runs to fan out in parallel, only affects wall time */
@@ -94,10 +93,8 @@ export interface PlanConfig {
 export const DEFAULT_PLAN: PlanConfig = {
   mde: 0.15,
   fdr: 0.05,
-  // These three are *assumptions* until something measures them. `peeksafe
-  // calibrate` fits the first two from a real run and `peeksafe harness verify`
-  // measures the third; `peeksafe plan --coupling auto --cost-per-run auto`
-  // reads them back. A plan built on this block alone should say so, and does.
+  // These three are *assumptions* until you measure them on a real run: cost
+  // and latency from your runner, coupling with `pairPhi` on a pilot.
   costPerRunUsd: 0.0021,
   msPerRun: 780,
   pairCoupling: 0.9,

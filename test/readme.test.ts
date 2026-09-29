@@ -10,7 +10,7 @@
  * This file exists because that already happened. Before Round 6 the README's
  * clustering example read `eff.designEffect` off a call it introduced as
  * `clusteredEffect(observations)` and showed no other field, while the object's
- * actual headline is `cr2` — and a snippet for `samplesForEvidence` had the
+ * actual headline is `cr2`, and a snippet for `samplesForEvidence` had the
  * argument list wrong, so the documented call threw. Neither was caught by 71
  * passing tests, because no test read the README.
  *
@@ -315,7 +315,7 @@ describe('README: suites are not independent draws', () => {
     expect(eff.cr2.high).toBeCloseTo(0.0773, 3);
     expect(eff.designEffect).toBeCloseTo(5.43, 2);
     expect(eff.signFlippedByClustering).toBe(true);
-    // the naive interval excludes zero and the honest one does not — the finding
+    // the naive interval excludes zero and the honest one does not: the finding
     expect(eff.naive.low).toBeGreaterThan(0);
     expect(eff.cr2.low).toBeLessThan(0);
   });
