@@ -27,6 +27,13 @@ All notable changes to this project are documented here. The format follows
   matching what `makePlan` already reported, and `shouldStop` stops them at once with the new
   reason `impossible`.
 
+- The README claimed the two-sample e-value has mean at most 1 under the null at every rate. It
+  has mean exactly 1 averaged over the shared rate, and at some fixed rates more than 1. The
+  README now says so, and `test/error-control.test.ts` computes the type I error exactly over a
+  grid of baselines, rates and `mde`, and runs `shouldStop` and `gate` end to end on simulated
+  suites. At the defaults the worst cell found is 0.84 of alpha; the cells outside the defaults
+  where it exceeds alpha are pinned by the same test and listed in the README.
+
 ### Notes
 
 Futility is judged at the most pessimistic rate the counts still permit, not at the point estimate,

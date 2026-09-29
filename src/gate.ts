@@ -20,7 +20,9 @@
  * This module never computes a p-value. It computes an e-value, which is a
  * non-negative statistic with mean at most 1 under the null. Ville's inequality
  * bounds `P(sup_n E_n >= 1/a) <= a` over the whole trajectory, so an e-value is
- * valid at any stopping time, including one chosen after looking. The
+ * valid at any stopping time, including one chosen after looking. (The mean is
+ * exactly 1 averaged over the shared rate, not at every fixed rate; the README
+ * section "What that guarantee rests on" says where the bound is checked.) The
  * multiplicity correction is e-BH (Wang and Ramdas), which takes e-values
  * directly and controls FDR under arbitrary dependence between cases.
  *
