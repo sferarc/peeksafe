@@ -23,7 +23,7 @@ All notable changes to this project are documented here. The format follows
 
 - `gate` tested a case whose baseline passes at or below `mde` against an alternative clamped onto
   a rate near zero, where such a case already sits. Its type I error then exceeded the nominal
-  level, by up to 3x at a 10-run baseline. These cases are now marked `impossible` and not tested,
+  level, by more than 2.5x at a 10-run baseline. These cases are now marked `impossible` and not tested,
   matching what `makePlan` already reported, and `shouldStop` stops them at once with the new
   reason `impossible`.
 
