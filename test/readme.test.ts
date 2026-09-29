@@ -36,6 +36,7 @@ import {
   caseFamily,
   shouldStop,
   makeRand,
+  typeOneError,
   type BaselineStat,
 } from '../src/index.js';
 
@@ -368,5 +369,14 @@ describe('README: what it refuses to do', () => {
     ]);
     expect(r.newCases).toEqual(['b']);
     expect(r.cases.map((c) => c.id)).toEqual(['a']);
+  });
+});
+
+describe('What that guarantee rests on', () => {
+  it('typeOneError returns the two figures quoted', () => {
+    expect(typeOneError({ rate: 0.5, baselineTrials: 60, alpha: 0.05 / 10, horizon: 200 })).toBeCloseTo(0.0014, 4);
+    const corner = typeOneError({ rate: 0.005, baselineTrials: 30, mde: 0.05, alpha: 1 / 4000, horizon: 1000 });
+    expect(corner).toBeCloseTo(0.00027, 5);
+    expect(corner).toBeGreaterThan(1 / 4000);
   });
 });
