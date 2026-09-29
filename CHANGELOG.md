@@ -16,6 +16,10 @@ All notable changes to this project are documented here. The format follows
   once the counts have ruled out a certifiable drop.
 - `futile` is kept separate from `settled` because they call for opposite actions: a thin baseline
   is a defect to fix, a settled case is a pass.
+- `universalTwoSampleLogE` and `evidence: 'universal'` on `gate`, `shouldStop`, `typeOneError` and
+  `certifyProbability`: a two-sample e-value valid at every rate by construction, for anyone who
+  wants a proof rather than a computation. It needs roughly four times the baseline runs to match
+  the default's power, so the default stays. `universalCeilingLogE` bounds it for `shouldStop`.
 - `certifyProbability(options)`: the exact probability a case is certified at separate baseline
   and candidate rates, which is the power when the candidate is lower.
 - `typeOneError(options)`: the exact probability that a case which did not move is ever

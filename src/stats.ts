@@ -954,6 +954,89 @@ export function samplesForEvidence(
   return hi;
 }
 
+/* ──────────────── the always-valid two-sample e-value ───────────────────
+ *
+ * `twoSampleLogE` has mean 1 averaged over the shared rate, not at every fixed
+ * rate. This one is valid at every rate by construction (universal inference,
+ * Wasserman, Ramdas and Balakrishnan 2020): the numerator is a single joint
+ * distribution of baseline and candidate, the uniform mixture for the baseline
+ * followed by the same alternative `twoSampleLogE` uses for the candidate, and
+ * the denominator is the largest likelihood any null rate pair gives the data.
+ * For every null pair the numerator over that pair's likelihood is a test
+ * martingale, and the maximum only lowers it, so Ville's inequality holds.
+ *
+ * It equals `twoSampleLogE` times the uniform mixture of all the data over its
+ * maximum likelihood, so it is never larger, and the price is roughly
+ * ½·log(runs) of evidence. Blocked designs (Turner, Ly and Grünwald's 2x2
+ * e-values) avoid that price but need both arms in every block; a stored
+ * baseline followed by candidate-only runs gives them nothing to work with.
+ */
+
+const xlogy = (x: number, y: number): number => (x === 0 ? 0 : x * Math.log(y));
+const logLik = (s: number, n: number, p: number): number => xlogy(s, p) + xlogy(n - s, 1 - p);
+
+/** Largest log likelihood of the data under the null "candidate rate ≥ baseline rate". */
+function logNullSup(cs: number, cn: number, bs: number, bn: number): number {
+  const pb = bs / bn;
+  const pc = cn > 0 ? cs / cn : 1;
+  return pc >= pb
+    ? logLik(bs, bn, pb) + logLik(cs, cn, pc)
+    : logLik(bs + cs, bn + cn, (bs + cs) / (bn + cn));
+}
+
+/**
+ * The two-sample e-value for "the candidate is worse than the baseline", valid
+ * at every pair of rates and at any stopping time. Same arguments as
+ * `twoSampleLogE`, which it never exceeds.
+ */
+export function universalTwoSampleLogE(
+  candidateSuccesses: number,
+  candidateTrials: number,
+  baselineSuccesses: number,
+  baselineTrials: number,
+  mde: number,
+  altConcentration = 8
+): number {
+  requireCounts(candidateSuccesses, candidateTrials, 'universalTwoSampleLogE(candidate)');
+  requireCounts(baselineSuccesses, baselineTrials, 'universalTwoSampleLogE(baseline)');
+  if (baselineTrials === 0) {
+    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'universalTwoSampleLogE: needs at least one baseline trial', {
+      detail: { baselineTrials },
+    });
+  }
+  const { altPrior } = twoSamplePriors(baselineSuccesses, baselineTrials, mde, altConcentration);
+  const logQ =
+    logBeta(1 + baselineSuccesses, 1 + baselineTrials - baselineSuccesses) +
+    logMarginalBetaBinomial(candidateSuccesses, candidateTrials, altPrior.a, altPrior.b);
+  return logQ - logNullSup(candidateSuccesses, candidateTrials, baselineSuccesses, baselineTrials);
+}
+
+/**
+ * An upper bound on `universalTwoSampleLogE` over every future candidate run
+ * count, for a candidate observed at rate `pTrue`. It plays the part
+ * `evidenceCeilingLogE` plays for the default statistic.
+ *
+ * The alternative's marginal is at most the candidate's maximum likelihood, and
+ * the pooled likelihood ratio is at most `n_b · KL(p̂_b ‖ pTrue)`, so the bound
+ * is the baseline's mixture over its maximum likelihood plus that term.
+ */
+export function universalCeilingLogE(pTrue: number, baselineSuccesses: number, baselineTrials: number): number {
+  requireProbability(pTrue, 'pTrue', 'universalCeilingLogE');
+  requireCounts(baselineSuccesses, baselineTrials, 'universalCeilingLogE');
+  if (baselineTrials === 0) {
+    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'universalCeilingLogE: needs at least one baseline trial', {
+      detail: { baselineTrials },
+    });
+  }
+  const pb = baselineSuccesses / baselineTrials;
+  const occam =
+    logBeta(1 + baselineSuccesses, 1 + baselineTrials - baselineSuccesses) -
+    logLik(baselineSuccesses, baselineTrials, pb);
+  if (pTrue >= pb) return occam;
+  const p = Math.max(1e-12, pTrue);
+  return occam + baselineTrials * (xlogy(pb, pb / p) + xlogy(1 - pb, (1 - pb) / (1 - p)));
+}
+
 /* ─────────────────── paired (matched) comparison, McNemar ────────────────
  *
  * Run the candidate and the baseline on the *same* input and the *same* seed

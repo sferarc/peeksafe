@@ -38,7 +38,8 @@
  * large improvement against nothing at all. Cases without a baseline come back
  * in `newCases` and take no part in the verdict or the e-BH family.
  */
-import { twoSampleLogE, ebhCorrect, ebhSoloThreshold, evidenceCeilingLogE } from './stats.js';
+import { ebhCorrect, ebhSoloThreshold } from './stats.js';
+import { logEvidence, ceilingLogEvidence, requireEvidence, type Evidence } from './evidence.js';
 import { type BaselineStat } from './baseline.js';
 import { PeeksafeError, requireCounts, requireOpenProbability } from './errors.js';
 
@@ -71,12 +72,19 @@ export interface GateOptions {
    * than a point mass exactly `mde` below the baseline.
    */
   altConcentration?: number;
+  /**
+   * Which e-value decides. `bayes` has more power and error control checked
+   * numerically; `universal` is valid at every rate by construction and needs
+   * more runs. See the README section "What that guarantee rests on".
+   */
+  evidence?: Evidence;
 }
 
 export const DEFAULT_GATE_OPTIONS = {
   mde: 0.15,
   fdr: 0.05,
   altConcentration: 8,
+  evidence: 'bayes',
 } as const;
 
 export interface CaseVerdict {
@@ -144,6 +152,7 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
   const opts: Required<GateOptions> = { ...DEFAULT_GATE_OPTIONS, ...options };
   requireOpenProbability(opts.mde, 'mde', 'gate');
   requireOpenProbability(opts.fdr, 'fdr', 'gate');
+  requireEvidence(opts.evidence, 'gate');
   if (!Number.isFinite(opts.altConcentration) || opts.altConcentration <= 0) {
     throw new PeeksafeError('PEEKSAFE_E_CONFIG', `gate: altConcentration must be positive, got ${opts.altConcentration}`, {
       detail: { altConcentration: opts.altConcentration },
@@ -180,7 +189,7 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
   const logEs = gated.map((c, i) =>
     impossible[i]
       ? 0
-      : twoSampleLogE(c.successes, c.trials, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration)
+      : logEvidence(opts.evidence, c.successes, c.trials, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration)
   );
   // e-BH ranks on the e-value, and exp() of a large logE overflows to Infinity,
   // which ebhCorrect rejects because an infinite entry corrupts the ranking.
@@ -198,7 +207,7 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
     const pAlt = Math.max(1e-6, Math.min(1 - 1e-6, bRate - opts.mde));
     const ceiling = impossible[i]
       ? 1
-      : Math.exp(evidenceCeilingLogE(pAlt, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration));
+      : Math.exp(ceilingLogEvidence(opts.evidence, pAlt, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration));
     return {
       id: c.id,
       regressed: ebh.rejected[i]!,

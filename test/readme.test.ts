@@ -37,6 +37,7 @@ import {
   shouldStop,
   makeRand,
   typeOneError,
+  universalTwoSampleLogE,
   type BaselineStat,
 } from '../src/index.js';
 
@@ -378,5 +379,15 @@ describe('What that guarantee rests on', () => {
     const corner = typeOneError({ rate: 0.005, baselineTrials: 30, mde: 0.05, alpha: 1 / 4000, horizon: 1000 });
     expect(corner).toBeCloseTo(0.00027, 5);
     expect(corner).toBeGreaterThan(1 / 4000);
+  });
+});
+
+describe('An always-valid alternative', () => {
+  it('the e-value table matches both statistics', () => {
+    const rows = [[54, 60, 72, 96, 5.91, 0.466], [216, 240, 72, 96, 89.1, 4.26], [216, 240, 3600, 4800, 2.25e6, 3.40e4], [57, 60, 20, 96, 2.03e17, 2.02e16]] as const;
+    for (const [sb, nb, s, n, bayes, universal] of rows) {
+      expect(Math.exp(twoSampleLogE(s, n, sb, nb, 0.15)) / bayes).toBeCloseTo(1, 2);
+      expect(Math.exp(universalTwoSampleLogE(s, n, sb, nb, 0.15)) / universal).toBeCloseTo(1, 2);
+    }
   });
 });

@@ -157,6 +157,35 @@ typeOneError({ rate: 0.005, baselineTrials: 30, mde: 0.05, alpha: 1 / 4000, hori
 
 It is exact, not simulated, and takes milliseconds. `alpha` is `fdr / suiteSize`, the bar a case clears on its own evidence. `certifyProbability` is the same computation with separate baseline and candidate rates: the power when the candidate is lower, the type I error when it is not.
 
+### An always-valid alternative
+
+If you would rather have a proof than a computation, pass `evidence: 'universal'` to `gate` and `shouldStop` (and to `typeOneError` and `certifyProbability` when you plan). It uses `universalTwoSampleLogE`, which is valid at every pair of rates and at any stopping time by construction: universal inference (Wasserman, Ramdas and Balakrishnan 2020), a joint alternative for baseline and candidate over the largest likelihood any null pair of rates gives the data. It holds in all three corners above.
+
+It is not the default because it costs evidence. It is the default statistic times the pooled data's uniform mixture over its maximum likelihood, so it is never larger, and the gap grows like half the log of the run count. On this page's examples, with `mde` 0.15:
+
+| baseline | candidate | default e | `universal` e |
+| --- | --- | ---: | ---: |
+| 54/60 | 72/96 | 5.91 | 0.466 |
+| 216/240 | 72/96 | 89.1 | 4.26 |
+| 216/240 | 3600/4800 | 2.25e+6 | 3.40e+4 |
+| 57/60 | 20/96 | 2.03e+17 | 2.02e+16 |
+
+As power, the exact probability of certifying a case that really dropped by `mde` within 200 candidate runs:
+
+| suite | baseline runs | rate | `mde` | default | `universal` |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 10 cases | 60 | 0.75 | 0.15 | 0.126 | 0.030 |
+| 10 cases | 240 | 0.75 | 0.15 | 0.502 | 0.223 |
+| 10 cases | 960 | 0.75 | 0.15 | 0.771 | 0.455 |
+| 10 cases | 240 | 0.95 | 0.15 | 0.935 | 0.746 |
+| 10 cases | 240 | 0.75 | 0.25 | 0.979 | 0.903 |
+| 200 cases | 240 | 0.75 | 0.15 | 0.212 | 0.074 |
+| 200 cases | 960 | 0.95 | 0.15 | 0.977 | 0.892 |
+
+Roughly, `universal` needs four times the baseline runs to match the default's power. `test/universal.test.ts` computes the full grid and checks that.
+
+Turner, Ly and Grünwald's e-values for 2x2 tables are the other always-valid construction, and they lose less. They need both arms in every block of data, though, and a stored baseline followed by candidate-only runs has one block with both and then none: a block with one arm carries no evidence against a null that leaves the baseline rate free. Measured as a single block at a fixed 200 runs, which is valid only if you never stop early, they land between the two, much closer to `universal` than to the default. Re-running the baseline alongside the candidate would let them work; that is the paired design's territory.
+
 `shouldStop` is that decision for one case, from the counts you have so far:
 
 ```ts
