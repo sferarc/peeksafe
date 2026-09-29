@@ -7,7 +7,8 @@
  * or options sit outside the grid the tests check. Moving the candidate below
  * the baseline turns the same computation into the power.
  */
-import { twoSampleLogE, twoSamplePriors, logGamma } from './stats.js';
+import { twoSamplePriors, logGamma, logBeta } from './stats.js';
+import { requireEvidence, type Evidence } from './evidence.js';
 import { cannotDropBy, DEFAULT_GATE_OPTIONS } from './gate.js';
 import { PeeksafeError, requireOpenProbability } from './errors.js';
 
@@ -22,6 +23,8 @@ export interface TypeOneErrorOptions {
   horizon: number;
   mde?: number;
   altConcentration?: number;
+  /** Which e-value `gate` will use. */
+  evidence?: Evidence;
 }
 
 export interface CertifyProbabilityOptions extends Omit<TypeOneErrorOptions, 'rate'> {
@@ -44,6 +47,8 @@ export function certifyProbability(options: CertifyProbabilityOptions): number {
   const { baselineRate, candidateRate: pc, baselineTrials: nb, alpha, horizon } = options;
   const mde = options.mde ?? DEFAULT_GATE_OPTIONS.mde;
   const concentration = options.altConcentration ?? DEFAULT_GATE_OPTIONS.altConcentration;
+  const evidence = options.evidence ?? DEFAULT_GATE_OPTIONS.evidence;
+  requireEvidence(evidence, 'certifyProbability');
   requireOpenProbability(baselineRate, 'baselineRate', 'certifyProbability');
   requireOpenProbability(pc, 'candidateRate', 'certifyProbability');
   requireOpenProbability(alpha, 'alpha', 'certifyProbability');
@@ -79,14 +84,17 @@ export function certifyProbability(options: CertifyProbabilityOptions): number {
       // Every count in the band is tested: logE is not monotone in s, so the
       // crossing set need not be a prefix. Successive counts differ by a ratio
       // of Beta functions, which keeps this cheap.
-      let logE = twoSampleLogE(lo, n, sb, nb, mde, concentration);
+      let logE = rawLogE(lo, n, sb, nb, n0, a1);
       for (let s = lo; s <= hi; s++) {
         if (s > lo) {
           const f = n - s + 1;
           logE += Math.log((a1.a + s - 1) / (a1.b + f - 1)) - Math.log((n0.a + s - 1) / (n0.b + f - 1));
         }
-        const capped = s / n >= sb / nb ? Math.min(0, logE) : logE;
-        if (capped >= bar) {
+        const decided =
+          evidence === 'universal'
+            ? universalFromBayes(logE, s, n, sb, nb)
+            : s / n >= sb / nb ? Math.min(0, logE) : logE;
+        if (decided >= bar) {
           crossed += next[s]!;
           next[s] = 0;
         }
@@ -98,6 +106,27 @@ export function certifyProbability(options: CertifyProbabilityOptions): number {
     total += weight * crossed;
   }
   return total;
+}
+
+const xlogy = (x: number, y: number): number => (x === 0 ? 0 : x * Math.log(y));
+
+/** The uncapped Bayes factor, which both statistics are built from. */
+const rawLogE = (
+  s: number, n: number, sb: number, nb: number,
+  n0: { a: number; b: number }, a1: { a: number; b: number }
+): number =>
+  logBeta(a1.a + s, a1.b + n - s) - logBeta(a1.a, a1.b) - (logBeta(n0.a + s, n0.b + n - s) - logBeta(n0.a, n0.b));
+
+/** `universalTwoSampleLogE`, from the uncapped Bayes factor: times the pooled mixture over the null maximum. */
+function universalFromBayes(rawLog: number, s: number, n: number, sb: number, nb: number): number {
+  const S = sb + s;
+  const N = nb + n;
+  const pb = sb / nb;
+  const pc = s / n;
+  const sup = pc >= pb
+    ? xlogy(sb, pb) + xlogy(nb - sb, 1 - pb) + xlogy(s, pc) + xlogy(n - s, 1 - pc)
+    : xlogy(S, S / N) + xlogy(N - S, 1 - S / N);
+  return rawLog + logBeta(1 + S, 1 + N - S) - sup;
 }
 
 /**

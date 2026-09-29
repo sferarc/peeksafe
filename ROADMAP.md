@@ -3,21 +3,12 @@
 What comes next, in order. Each item says why it matters and what done looks like. Numbers
 quoted here come from `test/`, as CONTRIBUTING asks.
 
-## 1. A two-sample e-value that is valid at every rate
+## 1. Close the gap between the two statistics
 
-The gate's statistic is a Bayes factor whose null is the baseline's posterior. It has mean 1
-averaged over the shared rate, not at every fixed rate, so its type I error is checked
-numerically rather than proven (README, "What that guarantee rests on"). Inside the checked grid
-the worst cell is 0.84 of alpha; three corners outside it exceed alpha.
-
-Candidates, to be measured against the current statistic on the README's own examples:
-
-- the GROW e-variables for 2x2 tables of Turner, Ly and Grünwald, built for exactly this null;
-- a universal-inference denominator (the pooled maximum likelihood), which is valid by
-  construction and pays for it with a penalty that grows with the log of the total run count.
-
-Done when one of them is valid at every rate and loses little enough power to become the
-default, or when the comparison is written down and says why neither should be.
+`evidence: 'universal'` is valid at every rate and needs about four times the baseline runs of
+the default to match its power. Either a construction that loses less for a stored baseline, or
+a concurrent-baseline design where Turner, Ly and Grünwald's blocked e-values apply, would let
+the proven statistic become the default.
 
 ## 2. Paired cases in `gate`
 

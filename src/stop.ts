@@ -44,7 +44,8 @@
  * is `makePlan`'s job, and `PlanCase.baselineRunsNeeded` tells you what to do
  * about it. This is the safety net, not the plan.
  */
-import { twoSampleLogE, evidenceCeilingLogE, ebhSoloThreshold, wilsonInterval, normalQuantile } from './stats.js';
+import { ebhSoloThreshold, wilsonInterval, normalQuantile } from './stats.js';
+import { logEvidence, ceilingLogEvidence, requireEvidence, type Evidence } from './evidence.js';
 import { type BaselineStat } from './baseline.js';
 import { PeeksafeError, requireCounts, requireOpenProbability } from './errors.js';
 import { DEFAULT_GATE_OPTIONS, cannotDropBy } from './gate.js';
@@ -107,6 +108,8 @@ export interface StopOptions {
   /** Stop at this many trials whatever the evidence says. */
   maxTrials?: number;
   altConcentration?: number;
+  /** Which e-value decides; pass the same one you pass to `gate`. */
+  evidence?: Evidence;
   /**
    * Confidence level for the pessimistic rate `futile` and `settled` are
    * judged at, strictly between 0 and 1. Higher is more conservative:
@@ -121,6 +124,7 @@ export const DEFAULT_STOP_OPTIONS = {
   mde: DEFAULT_GATE_OPTIONS.mde,
   fdr: DEFAULT_GATE_OPTIONS.fdr,
   altConcentration: DEFAULT_GATE_OPTIONS.altConcentration,
+  evidence: DEFAULT_GATE_OPTIONS.evidence,
   futilityConfidence: 0.95,
 } as const;
 
@@ -157,6 +161,7 @@ export function shouldStop(
   requireCounts(baseline.successes, baseline.trials, 'shouldStop.baseline');
   requireOpenProbability(opts.mde, 'mde', 'shouldStop');
   requireOpenProbability(opts.fdr, 'fdr', 'shouldStop');
+  requireEvidence(opts.evidence, 'shouldStop');
   if (!Number.isInteger(opts.suiteSize) || opts.suiteSize < 1) {
     throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStop: suiteSize must be a positive integer, got ${opts.suiteSize}`, {
       detail: { suiteSize: opts.suiteSize },
@@ -187,8 +192,8 @@ export function shouldStop(
     };
   }
 
-  const logE = twoSampleLogE(
-    observed.successes, observed.trials, baseline.successes, baseline.trials, opts.mde, opts.altConcentration
+  const logE = logEvidence(
+    opts.evidence, observed.successes, observed.trials, baseline.successes, baseline.trials, opts.mde, opts.altConcentration
   );
   const evalue = Math.exp(logE);
 
@@ -198,8 +203,8 @@ export function shouldStop(
   // behaviour: futility is a statement about evidence, not about intentions.
   const low = observed.trials === 0 ? 0 : wilsonInterval(observed.successes, observed.trials, zFor(opts.futilityConfidence)).low;
   const pessimistic = Math.max(1e-6, Math.min(1 - 1e-6, low));
-  const ceilingLog = evidenceCeilingLogE(
-    pessimistic, baseline.successes, baseline.trials, opts.mde, opts.altConcentration
+  const ceilingLog = ceilingLogEvidence(
+    opts.evidence, pessimistic, baseline.successes, baseline.trials, opts.mde, opts.altConcentration
   );
   const ceiling = Math.exp(ceilingLog);
 
@@ -221,7 +226,7 @@ export function shouldStop(
     const bRate = baseline.successes / baseline.trials;
     const pAlt = Math.max(1e-6, Math.min(1 - 1e-6, bRate - opts.mde));
     const baselineLimited =
-      evidenceCeilingLogE(pAlt, baseline.successes, baseline.trials, opts.mde, opts.altConcentration) < logBar;
+      ceilingLogEvidence(opts.evidence, pAlt, baseline.successes, baseline.trials, opts.mde, opts.altConcentration) < logBar;
 
     return baselineLimited
       ? {

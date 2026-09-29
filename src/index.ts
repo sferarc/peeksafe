@@ -56,6 +56,8 @@ export {
   type StopReason,
 } from './stop.js';
 
+export { type Evidence } from './evidence.js';
+
 export {
   typeOneError, certifyProbability, type TypeOneErrorOptions, type CertifyProbabilityOptions,
 } from './check.js';
@@ -118,6 +120,7 @@ export {
   bhCorrect, ebhCorrect, ebhSoloThreshold, type BhResult, type EbhResult,
   /* e-values */
   logMarginalBetaBinomial, twoSampleLogE, twoSamplePriors, logBetaPdf,
+  universalTwoSampleLogE, universalCeilingLogE,
   evidenceCeilingLogE, evidenceCeilingSlope, evidenceCeilingAsymptotic,
   expectedLogE, expectedLogEExact, samplesForEvidence,
   /* paired designs */
