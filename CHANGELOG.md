@@ -8,13 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- `shouldStop(observed, baseline, options)` — the per-case stopping decision, returning
+- `shouldStop(observed, baseline, options)`: the per-case stopping decision, returning
   `regressed` | `settled` | `futile` | `budget` | `continue` with the evidence behind it. This is
   the loop every caller was writing by hand.
 - `settled` is the part an e-value cannot give you on its own: a healthy case never accumulates
   evidence that it is healthy, so it would run to your cap forever. The evidence ceiling stops it
   once the counts have ruled out a certifiable drop.
-- `futile` is kept separate from `settled` because they call for opposite actions — a thin baseline
+- `futile` is kept separate from `settled` because they call for opposite actions: a thin baseline
   is a defect to fix, a settled case is a pass.
 - `GateResult.headline`: one line an operator can read, naming the two things a PASS can hide
   (cases with no baseline, and cases whose baseline is too thin to certify an `mde`-sized drop).

@@ -2,7 +2,7 @@
  * stop.ts: should this case keep running?
  *
  * `gate` decides a whole suite from final counts. This decides one case, now,
- * from the counts you have so far — the loop every caller of this library ends
+ * from the counts you have so far: the loop every caller of this library ends
  * up writing, with the two ways of finishing early that are actually valid.
  *
  * ## Why there are two
@@ -17,7 +17,7 @@
  * certify this case, and continuing spends money on an outcome that cannot
  * happen. Two different facts produce that, and they need different names:
  *
- *   `futile`   the BASELINE is too thin — an `mde`-sized drop could not be
+ *   `futile`   the BASELINE is too thin: an `mde`-sized drop could not be
  *              certified here however long you ran. Get more baseline runs.
  *   `settled`  the baseline is fine and the CASE is not bad enough. The counts
  *              have ruled out a certifiable regression. This is a pass, and it
@@ -28,7 +28,7 @@
  * The ceiling depends on how bad the regression actually is, and early on that
  * is barely known: for a 60-run baseline the ceiling ranges from 2.9 at a rate
  * of 0.75 to 62 at a rate of 0.20. Declaring futility off a noisy point
- * estimate would abandon cases that were about to be certified — a missed
+ * estimate would abandon cases that were about to be certified: a missed
  * regression, reported as a green check, which is the exact failure this
  * library exists to prevent.
  *
@@ -55,7 +55,7 @@ export type StopReason =
   /**
    * The case is not regressing hard enough to ever be certified, and the data
    * is now good enough to say so. Good news, and an early exit for a healthy
-   * case — which an e-value alone cannot give you.
+   * case, which an e-value alone cannot give you.
    */
   | 'settled'
   /**
@@ -110,7 +110,7 @@ export interface StopOptions {
   /**
    * Confidence level for the pessimistic rate `futile` and `settled` are
    * judged at. Higher is
-   * more conservative — futility fires later and less often. The default of
+   * more conservative: futility fires later and less often. The default of
    * 0.95 is already conservative; lowering it trades a missed-regression risk
    * for runs saved, and you should have a reason.
    */
@@ -173,7 +173,7 @@ export function shouldStop(
   if (baseline.trials === 0) {
     throw new PeeksafeError('PEEKSAFE_E_BASELINE_MISSING', 'shouldStop: this case has no baseline, so there is nothing to test against', {
       detail: { trials: observed.trials },
-      hint: 'a case with no baseline is not gated at all — gate() returns it in newCases; do not run it against an invented null',
+      hint: 'a case with no baseline is not gated at all; gate() returns it in newCases; do not run it against an invented null',
     });
   }
 
@@ -219,7 +219,7 @@ export function shouldStop(
     // *mde*-sized drop be certified against this baseline at all? If not, the
     // baseline is the problem and no run of any length fixes it. If it could,
     // then the baseline is fine and what stopped this case is that its own
-    // counts are not bad enough — which is a pass, not a defect.
+    // counts are not bad enough, which is a pass, not a defect.
     const bRate = baseline.successes / baseline.trials;
     const pAlt = Math.max(1e-6, Math.min(1 - 1e-6, bRate - opts.mde));
     const baselineLimited =

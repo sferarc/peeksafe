@@ -86,11 +86,10 @@ export type FrontierScreen = 'none' | 'expensive' | 'proxy';
  *  `'typical'`, a pull request that changed nothing. Almost every pull request
  *  is this one, and `peeksafe calibrate` scored this model to within ~10% of
  *  three real runs. Budget from it and a genuine regression overruns and comes
- *  back INCONCLUSIVE rather than uncertified, which is what `peeksafe run
- *  --budget` already does, and it is a survivable failure.
+ *  back INCONCLUSIVE rather than uncertified, which is a survivable failure.
  *
  *  `'certify-all'`, every case regressed by exactly the MDE and every one had
- *  to be certified. This is the number `peeksafe plan` calls "the ceiling", and
+ *  to be certified. It was once called "the ceiling", and
  *  it is **not** an upper bound: at a large MDE against a sharp baseline,
  *  certifying a real regression is *cheaper* than clearing a case that did not
  *  move, so this bill can come in under the typical one. The arithmetic was

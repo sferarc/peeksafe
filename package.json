@@ -40,7 +40,7 @@
     "RESEARCH-NOTES.md"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

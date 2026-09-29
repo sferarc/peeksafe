@@ -219,7 +219,7 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
     caveats.push(
       `${blind.length} of ${m} gated case(s) have a baseline too thin to certify a ` +
       `${(opts.mde * 100).toFixed(0)}pt drop at any candidate budget (${blind.slice(0, 3).map((v) => v.id).join(', ')}` +
-      `${blind.length > 3 ? ', …' : ''}) — more baseline runs, not more candidate runs`
+      `${blind.length > 3 ? ', …' : ''}), which needs more baseline runs, not more candidate runs`
     );
   }
   if (untested.length > 0) {

@@ -278,7 +278,7 @@ export function clusterRobustMean(obs: ClusterObservation[], level = 0.95): Clus
     // n / DEFF, **capped at n**. When the families happen to disagree less than
     // the cases within them, the CR2 standard error lands below the iid one and
     // DEFF comes out under 1, a finite-sample fact about this sample, not
-    // information the clustering created. Uncapped, the demo printed "worth
+    // information the clustering created. Uncapped, this read "worth
     // 222 independent cases / 200", which claims a suite of 200 carries more
     // than 200 cases' worth of evidence. It does not. The design effect itself
     // is reported unclamped, because *that* number is the estimate.
