@@ -60,6 +60,14 @@ describe('the four ways a case finishes', () => {
   });
 });
 
+describe('a baseline that cannot drop by mde', () => {
+  it('stops at once as `impossible`, and says to lower mde rather than to buy runs', () => {
+    const d = shouldStop({ successes: 0, trials: 0 }, { caseId: 'c', successes: 5, trials: 60 }, opts);
+    expect(d).toMatchObject({ stop: true, reason: 'impossible', evalue: 1 });
+    expect(d.detail).toContain('lower mde');
+  });
+});
+
 describe('it does not abandon a case that was going to be caught', () => {
   it('never calls a catastrophic regression futile or settled, at any n', () => {
     for (const baseline of [THIN, FAT]) {

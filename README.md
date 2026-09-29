@@ -79,6 +79,7 @@ for (const c of result.cases) {
   c.evalue;         // the evidence. Larger is more evidence AGAINST the null
   c.ceiling;        // the largest e-value this case could EVER reach
   c.undetectable;   // true when `ceiling` is below the bar it has to clear
+  c.impossible;     // true when the baseline rate is at or below `mde`, so the case is not tested
   c.observed;       // { successes, trials }
   c.baseline;       // { successes, trials }
 }
@@ -151,7 +152,7 @@ while (ids.some((id) => !state[id].stopped)) {
 
     const d = shouldStop(s, baseline[id], { suiteSize: ids.length, maxTrials: 200 });
     if (d.stop) {
-      s.stopped = d.reason;   // 'regressed' | 'settled' | 'futile' | 'budget'
+      s.stopped = d.reason;   // 'regressed' | 'settled' | 'futile' | 'impossible' | 'budget'
       console.log(d.detail);  // one line saying why
     }
   }
@@ -169,13 +170,14 @@ summary/tone       120 runs  (settled)
 spent 304 runs, cap would have been 600
 ```
 
-### The four ways a case finishes
+### The five ways a case finishes
 
 | reason | what happened | what to do |
 | --- | --- | --- |
 | `regressed` | the e-value cleared `m / fdr`; certified on its own evidence | fix the regression |
 | `settled` | the counts have ruled out a certifiable drop; more runs cannot change the verdict | nothing, it passed |
 | `futile` | the **baseline** is too thin to certify an `mde`-sized drop at any candidate budget | record more baseline runs |
+| `impossible` | the baseline passes at or below `mde`, so an `mde`-sized drop cannot happen and the case is not tested | lower `mde` if smaller drops on this case matter |
 | `budget` | `maxTrials` reached with no decision either way | raise the cap, or accept the ambiguity |
 
 `settled` is the one worth understanding, because an e-value on its own cannot produce it. Evidence accumulates *for* a regression, so a broken case reaches the bar fast — but a healthy case never accumulates evidence that it is healthy, and would run to your cap forever. What stops it is the **ceiling**: once even the worst rate the counts still permit could not produce enough evidence, further runs cannot change the answer. That is why both healthy cases above stopped at 160 and 120 rather than 200.
@@ -328,6 +330,8 @@ A gate that fails open is worse than no gate, because it produces a green check 
 | `fdr` or `mde` outside `(0, 1)` | `PEEKSAFE_E_STAT_DOMAIN` |
 
 The first one is the one that matters. The prototype this library came from treated a missing baseline as `0/0`, whose Beta(1,1) posterior median is 0.5, and gated the case against a null of "this case passes half the time". It reported a verdict of PASS and a suite-level improvement of +87.5 points, measured against nothing at all.
+
+A case whose baseline passes at or below `mde` is not tested either. It cannot lose `mde` points, and testing it anyway put the alternative on top of the rate the case already runs at, which let the false positive rate exceed `fdr`. It stays in the e-BH family with an e-value of 1, is marked `impossible`, and the headline names it. `makePlan` has always called these cases `IMPOSSIBLE`.
 
 A case with no baseline is not an error, though — it comes back in `newCases`, takes no part in the verdict or the e-BH family, and is reported so you know it is not being gated.
 

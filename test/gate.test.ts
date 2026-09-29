@@ -13,7 +13,7 @@
  * suite improvement of +87.5 points, measured against nothing at all.
  */
 import { describe, it, expect } from 'vitest';
-import { gate, makeRand, type GateCase } from '../src/index.js';
+import { gate, makeRand, twoSampleLogE, logGamma, type GateCase } from '../src/index.js';
 
 const baselineOf = (id: string, successes: number, trials: number) => ({ caseId: id, successes, trials });
 
@@ -136,5 +136,66 @@ describe('the gate decides', () => {
     const res = gate(noopSuite(10, 'threshold'));
     expect(res.soloThreshold).toBeCloseTo(10 / 0.05, 9);
     expect(res.options.fdr).toBe(0.05);
+  });
+});
+
+describe('a case that cannot drop by mde', () => {
+  const lowCase = (successes: number, trials: number) => ({
+    id: 'rare', successes, trials, baseline: baselineOf('rare', 5, 60),
+  });
+
+  it('is not tested, because an mde-sized drop from its rate cannot happen', () => {
+    // 5/60 cannot lose 15 points. Tested anyway, 0/96 used to come back FAIL
+    // with e=136 against a bar of 20.
+    const r = gate([lowCase(0, 96)], { mde: 0.15, fdr: 0.05 });
+    expect(r.verdict).toBe('PASS');
+    expect(r.cases[0]).toMatchObject({ impossible: true, undetectable: false, evalue: 1, ceiling: 1 });
+    expect(r.headline).toContain('cannot drop by 15pts, so they were not tested (rare)');
+  });
+
+  it('stays in the e-BH family, so the bar matches the suiteSize shouldStop was given', () => {
+    const r = gate([lowCase(0, 96), { id: 'ok', successes: 80, trials: 96, baseline: baselineOf('ok', 51, 60) }]);
+    expect(r.soloThreshold).toBe(40);
+  });
+
+  it('is tested as soon as mde leaves room for the drop', () => {
+    const r = gate([lowCase(0, 96)], { mde: 0.05, fdr: 0.05 });
+    expect(r.cases[0]!.impossible).toBe(false);
+  });
+
+  it('was where the unguarded e-value exceeded its type I error', () => {
+    // Exact P(sup_n E_n >= 1/alpha) for n <= 400 when the candidate runs at the
+    // baseline's own rate: a dynamic program over the candidate's success count.
+    const logBin = (n: number, k: number, p: number) =>
+      logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1) + k * Math.log(p) + (n - k) * Math.log(1 - p);
+    const typeOne = (p: number, nb: number, mde: number, alpha: number, guarded: boolean): number => {
+      const N = 400;
+      let total = 0;
+      for (let sb = 0; sb <= nb; sb++) {
+        if (guarded && sb / nb <= mde) continue;
+        let dist = new Float64Array(N + 1);
+        dist[0] = 1;
+        let crossed = 0;
+        for (let n = 1; n <= N; n++) {
+          const next = new Float64Array(N + 1);
+          for (let s = 0; s < n; s++) {
+            next[s + 1]! += dist[s]! * p;
+            next[s]! += dist[s]! * (1 - p);
+          }
+          // logE falls as successes rise, so the crossing region is a prefix.
+          for (let s = 0; s <= n && twoSampleLogE(s, n, sb, nb, mde) >= Math.log(1 / alpha); s++) {
+            crossed += next[s]!;
+            next[s] = 0;
+          }
+          dist = next;
+        }
+        total += Math.exp(logBin(nb, sb, p)) * crossed;
+      }
+      return total;
+    };
+    expect(typeOne(0.01, 10, 0.15, 0.05, false)).toBeGreaterThan(0.06);
+    expect(typeOne(0.01, 10, 0.15, 0.05, true)).toBeLessThan(0.05);
+    expect(typeOne(0.005, 10, 0.15, 0.005, false)).toBeGreaterThan(0.0125);
+    expect(typeOne(0.005, 10, 0.15, 0.005, true)).toBeLessThan(0.005);
   });
 });
