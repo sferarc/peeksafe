@@ -21,6 +21,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `toBaselineMap` threw a bare `Error` on a duplicate case id. It now throws `PeeksafeError` with
+  `PEEKSAFE_E_CASE_DUPLICATE`, like `gate` does for the same mistake.
 - `gate` tested a case whose baseline passes at or below `mde` against an alternative clamped onto
   a rate near zero, where such a case already sits. Its type I error then exceeded the nominal
   level, by more than 2.5x at a 10-run baseline. These cases are now marked `impossible` and not tested,
