@@ -51,3 +51,5 @@ with the searches that support them, rather than in the README.
 
 Please use the repository's Security tab (private vulnerability reporting)
 rather than a public issue.
+
+Thanks for reporting privately; it keeps users safe while a fix ships.
