@@ -353,7 +353,7 @@ Three layers. Most callers need the first.
 
 **The statistics.** Everything the first two are built from, exported so you can check the arithmetic or build a different gate: special functions (`logGamma`, `ibeta`, `normalQuantile`), intervals (`wilsonInterval`, `betaCredibleInterval`, `diffInterval`), fixed-sample tests for comparison (`fisherExact2x2`, `twoProportionZTest`), sequential (`sprtDecision`, `sprtExpectedN`), multiplicity (`bhCorrect`, `ebhCorrect`, `ebhSoloThreshold`), e-values (`twoSampleLogE`, `evidenceCeilingLogE`, `samplesForEvidence`), paired designs (`pairedLogE`, `mcnemarSamplesForEvidence`), and clustering.
 
-Every export is covered by a test.
+Every export is exercised by a test, and `test/exports.test.ts` fails when one is not.
 
 ## Reproducing the numbers
 

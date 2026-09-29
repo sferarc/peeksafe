@@ -13,7 +13,7 @@
  * undefined` explicitly and refuses to invent one.
  */
 import { betaQuantile } from './stats.js';
-import { requireCounts, requireOpenProbability } from './errors.js';
+import { PeeksafeError, requireCounts, requireOpenProbability } from './errors.js';
 
 /** One case's recorded reference performance. */
 export interface BaselineStat {
@@ -55,7 +55,10 @@ export function toBaselineMap(stats: readonly BaselineStat[]): Map<string, Basel
   const m = new Map<string, BaselineStat>();
   for (const b of stats) {
     if (m.has(b.caseId)) {
-      throw new Error(`toBaselineMap: duplicate baseline for case ${b.caseId}`);
+      throw new PeeksafeError('PEEKSAFE_E_CASE_DUPLICATE', `toBaselineMap: duplicate baseline for case ${b.caseId}`, {
+        detail: { caseId: b.caseId },
+        hint: 'merging two baselines for one case would count its runs twice; dedupe them before calling',
+      });
     }
     requireCounts(b.successes, b.trials, `toBaselineMap(${b.caseId})`);
     m.set(b.caseId, b);
