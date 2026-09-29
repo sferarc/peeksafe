@@ -84,8 +84,7 @@ export type FrontierScreen = 'none' | 'expensive' | 'proxy';
  * the round-3 error this module exists downstream of.
  *
  *  `'typical'`, a pull request that changed nothing. Almost every pull request
- *  is this one, and `peeksafe calibrate` scored this model to within ~10% of
- *  three real runs. Budget from it and a genuine regression overruns and comes
+ *  is this one. Budget from it and a genuine regression overruns and comes
  *  back INCONCLUSIVE rather than uncertified, which is a survivable failure.
  *
  *  `'certify-all'`, every case regressed by exactly the MDE and every one had
@@ -170,7 +169,7 @@ export interface FrontierConfig {
   screenRecall: { expensive: number | null; proxy: number | null };
   /** free text saying where `screenRecall` came from; printed next to it */
   screenRecallSource: string;
-  /** the sequential design being priced, mirrors `DEFAULT_GATE` */
+  /** the sequential design being priced; match the stopping rule you actually run */
   alpha: number;
   beta: number;
   minTrials: number;
@@ -236,9 +235,8 @@ export interface FrontierPoint {
   /** observations per case on a pull request that changed nothing */
   typicalObservations: number;
   /**
-   * The per-case run cap this configuration needs, `peeksafe run --max-runs`.
-   * Larger than `DEFAULT_GATE.maxTrials` means the gate must be reconfigured or
-   * it will stop short and return UNDECIDED, however much budget is left.
+   * The per-case run cap this configuration needs. A `shouldStop` `maxTrials`
+   * below it stops cases short with reason `budget`, however much money is left.
    */
   requiresMaxRuns: number;
   /** true when `requiresMaxRuns` exceeds the gate's configured cap */
@@ -273,8 +271,7 @@ const graded = (runs: number, cfg: FrontierConfig): number =>
 
 /**
  * Observations per case on a pull request where nothing moved, clamped onto the
- * gate's own batch grid. Same model `peeksafe calibrate` scored to within ~10%
- * of three real runs.
+ * gate's own batch grid.
  */
 export function typicalObservationsPerCase(rate: number, mde: number, cfg: FrontierConfig, baselineRuns: number): number {
   const s = Math.round(rate * baselineRuns);
@@ -382,11 +379,9 @@ export function evaluatePoint(
   // `costPerGradeUsd` per screening run and not one cent more.
   //
   // And a screening *observation* costs `runsPerObs` runs, exactly as a test
-  // observation does: `GateSession.nextBatch` hands out both arms in the screen
-  // phase too (`requestsFor` is design-aware and the screen's own budget guard
-  // multiplies by `armsPerObs`). Charging the paired screen one run an
-  // observation understated it by 2×, in the direction that makes pairing look
-  // cheaper, which is the conclusion this module publishes.
+  // observation does, since a paired screen runs both arms too. Charging it one
+  // run an observation would understate it by 2×, in the direction that makes
+  // pairing look cheaper.
   const screenRuns = screen === 'none' ? 0 : cases * screenRunsPerCase * runsPerObs;
   const screenUsd =
     screen === 'none' ? 0
@@ -412,13 +407,9 @@ export function evaluatePoint(
   const certifyAll = costFor(certifyObservations);
   // The per-case cap this configuration would have to run under.
   //
-  // Found while writing this module, and it is a real inconsistency in the rest
-  // of the package: `DEFAULT_GATE.maxTrials` is 96, but `samplesForEvidence`
-  // routinely answers "219 runs to certify this case". A plan quoting 219 is
-  // quoting a design the default gate is configured never to execute, it would
-  // stop at 96 and return UNDECIDED. So the cap is not a constant here; it is
-  // whatever this configuration *needs*, and `requiresMaxRuns` says so out loud
-  // whenever that is more than the gate's default.
+  // `samplesForEvidence` can answer more runs than `cfg.maxTrials`, and a plan
+  // quoting those prices a design the configured cap never executes. So the cap
+  // is whatever this configuration *needs*, and `requiresMaxRuns` says so.
   const capObservations = Number.isFinite(certifyObservations)
     ? Math.max(cfg.maxTrials, Math.ceil(certifyObservations))
     : cfg.maxTrials;
