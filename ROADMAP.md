@@ -19,31 +19,19 @@ Candidates, to be measured against the current statistic on the README's own exa
 Done when one of them is valid at every rate and loses little enough power to become the
 default, or when the comparison is written down and says why neither should be.
 
-## 2. Every export covered by a test
-
-The README said every export is covered. Thirteen were not referenced anywhere in `test/`,
-including `expectedLogEExact`, `pairPhi`, `pairedDiscordance`, `baselineNullRate` and
-`enumerateFrontier`. `toBaselineMap` also throws a bare `Error` where every other refusal throws
-`PeeksafeError`.
-
-## 3. `futilityConfidence` at any level
-
-`shouldStop` accepts only 0.9, 0.95 and 0.99, from a lookup table. `normalQuantile` is already
-exported and tested, so any level in (0, 1) can be supported.
-
-## 4. Let users check error control on their own rates
+## 2. Let users check error control on their own rates
 
 The README tells anyone outside the checked grid to run the computation on their own rates, and
 the code that does it lives in a test file. Export it: given baseline counts, `mde`, alpha and a
 horizon, return the exact probability that a case which did not move is ever certified.
 
-## 5. Paired cases in `gate`
+## 3. Paired cases in `gate`
 
 `pairedLogE` tests against an exact point null (a discordant pair points either way with
 probability one half), so it is an e-value at every rate and has no evidence ceiling. `gate`
 only takes unpaired counts today, so a caller who pairs runs has to rebuild e-BH by hand.
 
-## 6. First release
+## 4. First release
 
 `0.1.0` is not on npm yet. `release.yml` documents the bootstrap: the first publish is manual,
 then a trusted publisher is configured and later releases go through the workflow.

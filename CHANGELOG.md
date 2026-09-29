@@ -19,6 +19,11 @@ All notable changes to this project are documented here. The format follows
 - `GateResult.headline`: one line an operator can read, naming the two things a PASS can hide
   (cases with no baseline, and cases whose baseline is too thin to certify an `mde`-sized drop).
 
+### Changed
+
+- `shouldStop` accepts any `futilityConfidence` strictly between 0 and 1. It used to accept only
+  0.9, 0.95 and 0.99 from a lookup table.
+
 ### Fixed
 
 - `toBaselineMap` threw a bare `Error` on a duplicate case id. It now throws `PeeksafeError` with

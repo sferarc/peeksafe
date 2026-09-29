@@ -44,7 +44,7 @@
  * is `makePlan`'s job, and `PlanCase.baselineRunsNeeded` tells you what to do
  * about it. This is the safety net, not the plan.
  */
-import { twoSampleLogE, evidenceCeilingLogE, ebhSoloThreshold, wilsonInterval } from './stats.js';
+import { twoSampleLogE, evidenceCeilingLogE, ebhSoloThreshold, wilsonInterval, normalQuantile } from './stats.js';
 import { type BaselineStat } from './baseline.js';
 import { PeeksafeError, requireCounts, requireOpenProbability } from './errors.js';
 import { DEFAULT_GATE_OPTIONS, cannotDropBy } from './gate.js';
@@ -109,8 +109,8 @@ export interface StopOptions {
   altConcentration?: number;
   /**
    * Confidence level for the pessimistic rate `futile` and `settled` are
-   * judged at. Higher is
-   * more conservative: futility fires later and less often. The default of
+   * judged at, strictly between 0 and 1. Higher is more conservative:
+   * futility fires later and less often. The default of
    * 0.95 is already conservative; lowering it trades a missed-regression risk
    * for runs saved, and you should have a reason.
    */
@@ -126,15 +126,13 @@ export const DEFAULT_STOP_OPTIONS = {
 
 /** z for a two-sided interval at the given confidence. 0.95 → 1.959964. */
 const zFor = (confidence: number): number => {
-  // Only the handful of levels anybody uses; anything else goes through the
-  // quantile function rather than a table nobody can check.
-  if (confidence === 0.95) return 1.959963984540054;
-  if (confidence === 0.99) return 2.5758293035489004;
-  if (confidence === 0.9) return 1.6448536269514722;
-  throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStop: futilityConfidence must be one of 0.9, 0.95, 0.99, got ${confidence}`, {
-    detail: { futilityConfidence: confidence },
-    hint: 'these are the levels with a checkable z; pass one of them or judge futility yourself with evidenceCeilingLogE',
-  });
+  if (!(confidence > 0 && confidence < 1)) {
+    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStop: futilityConfidence must be strictly between 0 and 1, got ${confidence}`, {
+      detail: { futilityConfidence: confidence },
+      hint: 'a two-sided confidence level such as 0.95; higher makes futility fire later',
+    });
+  }
+  return normalQuantile(1 - (1 - confidence) / 2);
 };
 
 /**
