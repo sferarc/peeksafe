@@ -199,3 +199,15 @@ describe('a case that cannot drop by mde', () => {
     expect(typeOne(0.005, 10, 0.15, 0.005, true)).toBeLessThan(0.005);
   });
 });
+
+describe('an improvement is not a regression', () => {
+  it('never certifies a candidate that scores above its baseline', () => {
+    // The Bayes factor alone scored 96/96 against 30/60 at e^19.5, and gate
+    // failed a case that had improved from 50% to 100%.
+    expect(twoSampleLogE(96, 96, 30, 60, 0.15)).toBeLessThanOrEqual(0);
+    for (const [s, n, sb, nb] of [[2000, 2000, 54, 60], [96, 96, 30, 60], [400, 400, 216, 240], [95, 100, 50, 60]] as const) {
+      const r = gate([{ id: 'up', successes: s, trials: n, baseline: baselineOf('up', sb, nb) }], { mde: 0.15, fdr: 0.05 });
+      expect(r.verdict, `${s}/${n} against ${sb}/${nb}`).toBe('PASS');
+    }
+  });
+});

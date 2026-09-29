@@ -613,11 +613,23 @@ export function twoSampleLogE(
   const k1 = altConcentration;
   const a1 = Math.max(0.35, k1 * shifted);
   const b1 = Math.max(0.35, k1 * (1 - shifted));
-  return (
+  const logE =
     logMarginalBetaBinomial(candidateSuccesses, candidateTrials, a1, b1) -
-    logMarginalBetaBinomial(candidateSuccesses, candidateTrials, a0, b0)
-  );
+    logMarginalBetaBinomial(candidateSuccesses, candidateTrials, a0, b0);
+  return atOrAboveBaseline(candidateSuccesses / candidateTrials, baselineSuccesses, baselineTrials)
+    ? Math.min(0, logE)
+    : logE;
 }
+
+/**
+ * The alternative is wider than the null, so the Bayes factor alone also grows
+ * for a candidate far ABOVE its baseline: 96/96 against 30/60 scored e^19.5 and
+ * gate certified that improvement as a regression. A candidate observed at or
+ * above the baseline's rate is therefore held to e ≤ 1. Lowering an e-value
+ * never breaks one, so every guarantee above still holds.
+ */
+const atOrAboveBaseline = (candidateRate: number, baselineSuccesses: number, baselineTrials: number): boolean =>
+  baselineTrials > 0 && candidateRate >= baselineSuccesses / baselineTrials;
 
 /**
  * e-BH, Benjamini-Hochberg for **e-values** (Wang & Ramdas).
@@ -768,7 +780,8 @@ export function evidenceCeilingLogE(
   const { nullPrior, altPrior } = twoSamplePriors(
     baselineSuccesses, baselineTrials, mde, altConcentration
   );
-  return logBetaPdf(pTrue, altPrior.a, altPrior.b) - logBetaPdf(pTrue, nullPrior.a, nullPrior.b);
+  const ceiling = logBetaPdf(pTrue, altPrior.a, altPrior.b) - logBetaPdf(pTrue, nullPrior.a, nullPrior.b);
+  return atOrAboveBaseline(pTrue, baselineSuccesses, baselineTrials) ? Math.min(0, ceiling) : ceiling;
 }
 
 /**
@@ -881,10 +894,10 @@ export function expectedLogE(
     baselineSuccesses, baselineTrials, mde, altConcentration
   );
   const s = pTrue * n;
-  return (
+  const logE =
     (logBeta(a1.a + s, a1.b + n - s) - logBeta(a1.a, a1.b)) -
-    (logBeta(n0.a + s, n0.b + n - s) - logBeta(n0.a, n0.b))
-  );
+    (logBeta(n0.a + s, n0.b + n - s) - logBeta(n0.a, n0.b));
+  return n > 0 && atOrAboveBaseline(pTrue, baselineSuccesses, baselineTrials) ? Math.min(0, logE) : logE;
 }
 
 /** E[log E] computed exactly, by summing over every binomial outcome. O(n). */

@@ -15,7 +15,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  twoSampleLogE, logGamma, logBeta, gate, shouldStop, makeRand, typeOneError, type BaselineStat, type GateCase,
+  twoSampleLogE, twoSamplePriors, logMarginalBetaBinomial, logGamma, logBeta, gate, shouldStop, makeRand,
+  typeOneError, certifyProbability, type BaselineStat, type GateCase,
 } from '../src/index.js';
 
 const logChoose = (n: number, k: number): number => logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1);
@@ -26,19 +27,23 @@ const typeOne = (rate: number, baselineTrials: number, mde: number, alpha: numbe
   typeOneError({ rate, baselineTrials, mde, alpha, horizon, altConcentration });
 
 describe('what the martingale argument does guarantee', () => {
-  it('has mean exactly 1 when the shared rate is drawn from the uniform prior', () => {
+  it('has mean exactly 1 when the shared rate is drawn from the uniform prior, before the cap', () => {
     // Integrating p out of Binom(nb, p) x Binom(n, p) leaves C(nb,sb) C(n,s) B(1+sb+s, 1+fb+f).
     for (const [nb, n, mde] of [[10, 20, 0.15], [60, 96, 0.15], [24, 200, 0.05]] as const) {
-      let mean = 0;
+      let raw = 0;
+      let capped = 0;
       for (let sb = 0; sb <= nb; sb++) {
+        const { nullPrior, altPrior } = twoSamplePriors(sb, nb, mde);
         for (let s = 0; s <= n; s++) {
-          mean += Math.exp(
-            logChoose(nb, sb) + logChoose(n, s) + logBeta(1 + sb + s, 1 + nb - sb + n - s) +
-            twoSampleLogE(s, n, sb, nb, mde)
-          );
+          const w = logChoose(nb, sb) + logChoose(n, s) + logBeta(1 + sb + s, 1 + nb - sb + n - s);
+          const bayesFactor =
+            logMarginalBetaBinomial(s, n, altPrior.a, altPrior.b) - logMarginalBetaBinomial(s, n, nullPrior.a, nullPrior.b);
+          raw += Math.exp(w + bayesFactor);
+          capped += Math.exp(w + twoSampleLogE(s, n, sb, nb, mde));
         }
       }
-      expect(mean, `nb=${nb} n=${n}`).toBeCloseTo(1, 9);
+      expect(raw, `nb=${nb} n=${n}`).toBeCloseTo(1, 9);
+      expect(capped, `nb=${nb} n=${n}`).toBeLessThan(raw);
     }
   });
 });
@@ -60,18 +65,56 @@ describe('what the gate promises at every fixed rate', () => {
     console.log(`worst type I error over the grid: ${worst.ratio.toFixed(3)} x alpha at ${worst.cell}`);
   });
 
+  it('an improved case is certified with probability at most alpha, however long it runs', () => {
+    // The null is "not worse", so a candidate above its baseline is a null case too.
+    for (const alpha of [0.05, 1 / 4000]) {
+      for (const nb of [10, 60, 240]) {
+        for (const [baselineRate, candidateRate] of [[0.3, 0.5], [0.5, 0.6], [0.5, 0.95], [0.85, 0.9], [0.9, 0.99]] as const) {
+          const p = certifyProbability({ baselineRate, candidateRate, baselineTrials: nb, alpha, horizon: 600 });
+          expect(p / alpha, `alpha=${alpha} nb=${nb} ${baselineRate} -> ${candidateRate}`).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+
   it('is not an e-value at every fixed rate, which is why the crossing is checked directly', () => {
-    // At 99% with a 1-point mde the alternative's shape hits its 0.35 floor and
-    // piles density near 1, where the case already sits.
-    const [p, nb, n, mde] = [0.99, 100, 1000, 0.01];
+    // At 0.5% the uniform prior's posterior sits well above the truth, so the
+    // candidate looks worse than a baseline it matches.
+    const [p, nb, n, mde] = [0.005, 30, 1000, 0.05];
     let mean = 0;
     for (let sb = 0; sb <= nb; sb++) {
       const weight = Math.exp(logBinom(nb, sb, p));
-      if (weight < 1e-15) continue;
+      if (weight < 1e-15 || sb / nb <= mde) continue;
       for (let s = 0; s <= n; s++) mean += weight * Math.exp(logBinom(n, s, p) + twoSampleLogE(s, n, sb, nb, mde));
     }
-    expect(mean).toBeGreaterThan(1.5);
-    expect(typeOne(p, nb, mde, 0.05, 1000)).toBeLessThan(0.05 * 0.05);
+    expect(mean).toBeGreaterThan(2.5);
+  });
+
+  it('certifyProbability agrees with a brute-force scan of every count', () => {
+    const [pb, pc, nb, mde, alpha, horizon] = [0.8, 0.6, 20, 0.15, 0.01, 60];
+    let brute = 0;
+    for (let sb = 0; sb <= nb; sb++) {
+      if (sb / nb <= mde) continue;
+      let alive = new Float64Array(horizon + 1);
+      alive[0] = 1;
+      let crossed = 0;
+      for (let n = 1; n <= horizon; n++) {
+        const next = new Float64Array(horizon + 1);
+        for (let s = 0; s < n; s++) {
+          next[s + 1]! += alive[s]! * pc;
+          next[s]! += alive[s]! * (1 - pc);
+        }
+        for (let s = 0; s <= n; s++) {
+          if (twoSampleLogE(s, n, sb, nb, mde) >= Math.log(1 / alpha)) {
+            crossed += next[s]!;
+            next[s] = 0;
+          }
+        }
+        alive = next;
+      }
+      brute += Math.exp(logBinom(nb, sb, pb)) * crossed;
+    }
+    expect(certifyProbability({ baselineRate: pb, candidateRate: pc, baselineTrials: nb, mde, alpha, horizon })).toBeCloseTo(brute, 10);
   });
 });
 

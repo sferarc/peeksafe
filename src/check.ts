@@ -1,12 +1,13 @@
 /**
- * check.ts: the type I error the gate delivers at a rate you name.
+ * check.ts: the error rate and the power the gate delivers at rates you name.
  *
  * The two-sample e-value is not an e-value at every fixed rate (README, "What
  * that guarantee rests on"), so its error control is computed rather than
  * assumed. This is that computation, for a caller whose rates, baseline sizes
- * or options sit outside the grid the tests check.
+ * or options sit outside the grid the tests check. Moving the candidate below
+ * the baseline turns the same computation into the power.
  */
-import { twoSampleLogE, logGamma } from './stats.js';
+import { twoSampleLogE, twoSamplePriors, logGamma } from './stats.js';
 import { cannotDropBy, DEFAULT_GATE_OPTIONS } from './gate.js';
 import { PeeksafeError, requireOpenProbability } from './errors.js';
 
@@ -23,25 +24,33 @@ export interface TypeOneErrorOptions {
   altConcentration?: number;
 }
 
+export interface CertifyProbabilityOptions extends Omit<TypeOneErrorOptions, 'rate'> {
+  /** True pass rate of the baseline revision. */
+  baselineRate: number;
+  /** True pass rate of the candidate revision. */
+  candidateRate: number;
+}
+
 /**
- * Exact probability that a case which did not move is ever certified within
- * `horizon` candidate runs, however it was stopped. At or below `alpha` means
- * the gate keeps its promise for this case.
+ * Exact probability that a case is certified as regressed within `horizon`
+ * candidate runs, however it was stopped. With the candidate below the baseline
+ * this is the power; at or above it, the type I error.
  *
  * Exact because the e-value depends on the candidate only through its counts,
  * so a dynamic program over the success count replaces simulation. A 240-run
  * baseline at a horizon of 600 takes tens of milliseconds.
  */
-export function typeOneError(options: TypeOneErrorOptions): number {
-  const { rate, baselineTrials: nb, alpha, horizon } = options;
+export function certifyProbability(options: CertifyProbabilityOptions): number {
+  const { baselineRate, candidateRate: pc, baselineTrials: nb, alpha, horizon } = options;
   const mde = options.mde ?? DEFAULT_GATE_OPTIONS.mde;
   const concentration = options.altConcentration ?? DEFAULT_GATE_OPTIONS.altConcentration;
-  requireOpenProbability(rate, 'rate', 'typeOneError');
-  requireOpenProbability(alpha, 'alpha', 'typeOneError');
-  requireOpenProbability(mde, 'mde', 'typeOneError');
+  requireOpenProbability(baselineRate, 'baselineRate', 'certifyProbability');
+  requireOpenProbability(pc, 'candidateRate', 'certifyProbability');
+  requireOpenProbability(alpha, 'alpha', 'certifyProbability');
+  requireOpenProbability(mde, 'mde', 'certifyProbability');
   for (const [name, v] of [['baselineTrials', nb], ['horizon', horizon]] as const) {
     if (!Number.isInteger(v) || v < 1) {
-      throw new PeeksafeError('PEEKSAFE_E_CONFIG', `typeOneError: ${name} must be a positive integer, got ${v}`, {
+      throw new PeeksafeError('PEEKSAFE_E_CONFIG', `certifyProbability: ${name} must be a positive integer, got ${v}`, {
         detail: { [name]: v },
       });
     }
@@ -51,8 +60,9 @@ export function typeOneError(options: TypeOneErrorOptions): number {
   const logChoose = (n: number, k: number) => logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1);
   let total = 0;
   for (let sb = 0; sb <= nb; sb++) {
-    const weight = Math.exp(logChoose(nb, sb) + sb * Math.log(rate) + (nb - sb) * Math.log(1 - rate));
+    const weight = Math.exp(logChoose(nb, sb) + sb * Math.log(baselineRate) + (nb - sb) * Math.log(1 - baselineRate));
     if (weight < 1e-12 || cannotDropBy({ successes: sb, trials: nb }, mde)) continue;
+    const { nullPrior: n0, altPrior: a1 } = twoSamplePriors(sb, nb, mde, concentration);
     let alive = new Float64Array(horizon + 1);
     alive[0] = 1;
     let crossed = 0;
@@ -62,14 +72,24 @@ export function typeOneError(options: TypeOneErrorOptions): number {
     for (let n = 1; n <= horizon; n++) {
       const next = new Float64Array(horizon + 1);
       for (let s = lo; s <= hi; s++) {
-        next[s + 1]! += alive[s]! * rate;
-        next[s]! += alive[s]! * (1 - rate);
+        next[s + 1]! += alive[s]! * pc;
+        next[s]! += alive[s]! * (1 - pc);
       }
       hi++;
-      // logE falls as successes rise, so the paths that cross are a prefix.
-      for (let s = lo; s <= hi && twoSampleLogE(s, n, sb, nb, mde, concentration) >= bar; s++) {
-        crossed += next[s]!;
-        next[s] = 0;
+      // Every count in the band is tested: logE is not monotone in s, so the
+      // crossing set need not be a prefix. Successive counts differ by a ratio
+      // of Beta functions, which keeps this cheap.
+      let logE = twoSampleLogE(lo, n, sb, nb, mde, concentration);
+      for (let s = lo; s <= hi; s++) {
+        if (s > lo) {
+          const f = n - s + 1;
+          logE += Math.log((a1.a + s - 1) / (a1.b + f - 1)) - Math.log((n0.a + s - 1) / (n0.b + f - 1));
+        }
+        const capped = s / n >= sb / nb ? Math.min(0, logE) : logE;
+        if (capped >= bar) {
+          crossed += next[s]!;
+          next[s] = 0;
+        }
       }
       while (lo < hi && next[lo]! < 1e-18) lo++;
       while (hi > lo && next[hi]! < 1e-18) hi--;
@@ -78,4 +98,15 @@ export function typeOneError(options: TypeOneErrorOptions): number {
     total += weight * crossed;
   }
   return total;
+}
+
+/**
+ * Exact probability that a case which did not move is ever certified within
+ * `horizon` candidate runs, however it was stopped. At or below `alpha` means
+ * the gate keeps its promise for this case.
+ */
+export function typeOneError(options: TypeOneErrorOptions): number {
+  const { rate, ...rest } = options;
+  requireOpenProbability(rate, 'rate', 'typeOneError');
+  return certifyProbability({ ...rest, baselineRate: rate, candidateRate: rate });
 }
