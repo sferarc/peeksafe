@@ -2,7 +2,7 @@
  * shouldStop: the loop, and the property that makes it safe to use.
  *
  * The dangerous failure here is not a wrong number, it is abandoning a case
- * that was about to be certified — a missed regression, reported as a green
+ * that was about to be certified: a missed regression, reported as a green
  * check, which is the failure mode this whole library exists to prevent. So the
  * assertions that matter most are the negative ones: the cases where `stop`
  * must NOT come back true.

@@ -53,7 +53,7 @@ export class PeeksafeError extends Error {
     this.hint = opts.hint;
   }
 
-  /** Stable JSON shape, this is what `--json` prints and what CI archives. */
+  /** Stable JSON shape, for logs and CI artifacts. */
   toJSON(): { name: string; code: string; message: string; hint?: string; detail: Record<string, unknown> } {
     return {
       name: this.name,

@@ -6,12 +6,12 @@ Issues and pull requests are welcome here.
 
 ```bash
 npm install
-npm test          # 71 tests, about a second
+npm test          # a few seconds
 npm run typecheck
 npm run build
 ```
 
-Node 20 or newer. There are no runtime dependencies and the intention is to keep
+Node 22 or newer. There are no runtime dependencies and the intention is to keep
 it that way, so a pull request that adds one needs to say what it buys.
 
 ## What the tests are for

@@ -6,7 +6,7 @@ Statistically valid gates for non-deterministic eval suites. Stop early without 
 npm install peeksafe
 ```
 
-Zero runtime dependencies. TypeScript, ESM, Node 20 or newer.
+Zero runtime dependencies. TypeScript, ESM, Node 22 or newer.
 
 ## The problem
 
@@ -127,7 +127,7 @@ The `newCases` and `undetectable` lists are the two that matter for keeping a su
 ```
 PASS: no case cleared the bar of 40 at 5% FDR over 2 gated case(s). Read with care:
 1 of 2 gated case(s) have a baseline too thin to certify a 15pt drop at any candidate
-budget (thin) — more baseline runs, not more candidate runs; 1 case(s) have no baseline
+budget (thin), which needs more baseline runs, not more candidate runs; 1 case(s) have no baseline
 and were not gated (new).
 ```
 
@@ -188,17 +188,17 @@ spent 304 runs, cap would have been 600
 | `impossible` | the baseline passes at or below `mde`, so an `mde`-sized drop cannot happen and the case is not tested | lower `mde` if smaller drops on this case matter |
 | `budget` | `maxTrials` reached with no decision either way | raise the cap, or accept the ambiguity |
 
-`settled` is the one worth understanding, because an e-value on its own cannot produce it. Evidence accumulates *for* a regression, so a broken case reaches the bar fast — but a healthy case never accumulates evidence that it is healthy, and would run to your cap forever. What stops it is the **ceiling**: once even the worst rate the counts still permit could not produce enough evidence, further runs cannot change the answer. That is why both healthy cases above stopped at 160 and 120 rather than 200.
+`settled` is the one worth understanding, because an e-value on its own cannot produce it. Evidence accumulates *for* a regression, so a broken case reaches the bar fast, but a healthy case never accumulates evidence that it is healthy, and would run to your cap forever. What stops it is the **ceiling**: once even the worst rate the counts still permit could not produce enough evidence, further runs cannot change the answer. That is why both healthy cases above stopped at 160 and 120 rather than 200.
 
 `futile` and `settled` both mean "this can never be certified", and they are deliberately not one reason, because they call for opposite actions. `futile` is a defect in your baseline. `settled` is a pass.
 
 ### Why futility is hard to trigger
 
-The ceiling depends on how bad the regression actually is, and early on that is barely known — for a 60-run baseline it ranges from 2.9 at a rate of 0.75 to 62 at a rate of 0.20. Declaring futility from a noisy point estimate would abandon cases that were about to be certified: a missed regression, reported as a green check, which is the exact failure this library exists to prevent.
+The ceiling depends on how bad the regression actually is, and early on that is barely known: for a 60-run baseline it ranges from 2.9 at a rate of 0.75 to 62 at a rate of 0.20. Declaring futility from a noisy point estimate would abandon cases that were about to be certified: a missed regression, reported as a green check, which is the exact failure this library exists to prevent.
 
 So `futile` and `settled` are judged at the **most pessimistic rate the counts still permit**, the lower end of a Wilson interval on the candidate. The question is "even if the truth is as bad as these counts plausibly allow, could more runs ever clear the bar?" Only a no stops the case. A catastrophic regression is therefore never stopped early at any sample size, which `test/stop.test.ts` pins across two baselines and eight sample sizes.
 
-The cost is that futility fires late. If you want to know a case is undetectable *before* spending anything, that is `makePlan`'s job — see below.
+The cost is that futility fires late. If you want to know a case is undetectable *before* spending anything, that is `makePlan`'s job; see below.
 
 ## When more runs will not help
 
@@ -233,11 +233,11 @@ evidenceCeilingLogE(0.75, 216, 240, 0.15, 8); // 15.28 - clears it
 samplesForEvidence(0.75, 216, 240, 0.15, bar);// 262 candidate runs
 ```
 
-To ask the other question — how many *baseline* runs would make a case workable — use `baselineRunsNeeded` from the planner below.
+To ask the other question, how many *baseline* runs would make a case workable, use `baselineRunsNeeded` from the planner below.
 
 The ceiling grows linearly in baseline runs at rate `KL(baseline rate || candidate rate)`, which gives a planning rule: `log(m/q) / KL` baseline runs, and budget about 20% above that. At 85% losing 15 points the rule says **136** and the exact answer is **162**.
 
-Note the KL direction. At 85% losing 15 points the two directions are 0.0611 and 0.0720 — an 18% error in the one constant that decides how long a baseline has to be.
+Note the KL direction. At 85% losing 15 points the two directions are 0.0611 and 0.0720: an 18% error in the one constant that decides how long a baseline has to be.
 
 The mathematics here is a corollary of the standard Laplace expansion for Bayes factors (Kass and Raftery 1995), and the practical consequence is the cap on prior effective sample size known in the historical-borrowing literature. The closed form, the KL direction, and the planning inversion are the parts we did not find stated elsewhere. [`RESEARCH-NOTES.md`](RESEARCH-NOTES.md) records what was checked, what was found, and which of this library's original novelty claims did not survive.
 
@@ -265,9 +265,9 @@ summary/tone       IMPOSSIBLE     unpaired=Infinity paired=Infinity needBaseline
 search/rerank      PAIRED_ONLY    unpaired=Infinity paired=   53 needBaseline=63
 ```
 
-Read that as four different answers, not one number. `parsing/nested` has a 240-run baseline and needs 93 candidate runs. `routing/fallback` and `search/rerank` have thin baselines, so the unpaired design cannot do them at any budget — but 81 and 63 more baseline runs respectively would fix that, and pairing works today. `summary/tone` passes 10% of the time and cannot lose 15 points at all, so `sampleSizeTwoProportion(0.1, 0.15)` is `Infinity` rather than a plausible-looking 44.
+Read that as four different answers, not one number. `parsing/nested` has a 240-run baseline and needs 93 candidate runs. `routing/fallback` and `search/rerank` have thin baselines, so the unpaired design cannot do them at any budget, but 81 and 63 more baseline runs respectively would fix that, and pairing works today. `summary/tone` passes 10% of the time and cannot lose 15 points at all, so `sampleSizeTwoProportion(0.1, 0.15)` is `Infinity` rather than a plausible-looking 44.
 
-`plan.totals` carries the suite-level roll-up, including `decidableUnpaired` and `decidableBest` — how many cases each design can decide at all.
+`plan.totals` carries the suite-level roll-up, including `decidableUnpaired` and `decidableBest`: how many cases each design can decide at all.
 
 ## The paired alternative
 
@@ -341,7 +341,7 @@ The first one is the one that matters. The prototype this library came from trea
 
 A case whose baseline passes at or below `mde` is not tested either. It cannot lose `mde` points, and testing it anyway put the alternative on top of the rate the case already runs at, which let the false positive rate exceed `fdr`. It stays in the e-BH family with an e-value of 1, is marked `impossible`, and the headline names it. `makePlan` has always called these cases `IMPOSSIBLE`.
 
-A case with no baseline is not an error, though — it comes back in `newCases`, takes no part in the verdict or the e-BH family, and is reported so you know it is not being gated.
+A case with no baseline is not an error, though. It comes back in `newCases`, takes no part in the verdict or the e-BH family, and is reported so you know it is not being gated.
 
 ## API
 
@@ -364,7 +364,7 @@ npm test
 
 `test/paper.test.ts` produces the measured figures in this README and prints them. It is self-contained: seeded Bernoulli draws, no runner, no fixtures.
 
-`test/readme.test.ts` executes every example on this page and asserts every number quoted as output, including the run counts in the stopping loop, the four rows of the planning table, and the two intervals in the clustering section. Documentation drifts in a way code does not — a renamed field keeps compiling everywhere except in the prose — so the prose is tested. `test/error-control.test.ts` checks the type I error and false discovery rate the gate actually delivers, as described under "What that guarantee rests on". `test/stop.test.ts` pins the stopping rules, including the property that a catastrophic regression is never stopped early. `test/gate.test.ts` pins the refusals. 116 tests in total.
+`test/readme.test.ts` executes every example on this page and asserts every number quoted as output, including the run counts in the stopping loop, the four rows of the planning table, and the two intervals in the clustering section. Documentation drifts in a way code does not (a renamed field keeps compiling everywhere except in the prose), so the prose is tested. `test/error-control.test.ts` checks the type I error and false discovery rate the gate actually delivers, as described under "What that guarantee rests on". `test/stop.test.ts` pins the stopping rules, including the property that a catastrophic regression is never stopped early. `test/gate.test.ts` pins the refusals.
 
 The generator is a fixed LCG with an integer avalanche, spelled out in `src/rand.ts` rather than imported, because replacing it would change every number above.
 

@@ -7,8 +7,8 @@ its absence proves little.**
 
 It is kept in the repository, rather than quietly deleted once the README was corrected, for two
 reasons. A reader deciding whether to trust a statistics library should be able to see where its
-author was wrong. And the searches are written down, so anyone who thinks a verdict is too harsh —
-or too generous — can check the work instead of taking it on faith.
+author was wrong. And the searches are written down, so anyone who thinks a verdict is too harsh,
+or too generous, can check the work instead of taking it on faith.
 
 **The measurements were never in question and none of them changed.** What changed is the sentence
 above them.
@@ -32,13 +32,13 @@ tutorial. This was the headline claim and it does not survive as stated.**
 The construction peeksafe exists to replace is: run each case until it looks decided, take a p-value
 at the stopping boundary, then correct across cases with Benjamini-Hochberg.
 
-**Half one — peeking invalidates the p-value.** Known since Armitage, McPherson and Rowe (1969), and
+**Half one: peeking invalidates the p-value.** Known since Armitage, McPherson and Rowe (1969), and
 thoroughly re-established in the industrial A/B testing literature, where it is called peeking and is
 the motivating problem for always-valid inference. Ramdas's KDD 2019 tutorial states it directly:
 "repeatedly running batch tests on accumulating data invalidates the p-value and inflates type-1
 error".
 
-**Half two — BH cannot consume those p-values.** This is not merely implied in that literature. It is
+**Half two: BH cannot consume those p-values.** This is not merely implied in that literature. It is
 a titled section of the same tutorial: **"Why Benjamini-Hochberg cannot be used online (5 mins)"**.
 The tutorial further warns that "ignoring the interplay with the outer sequential process could
 unknowingly inflate the number of false discoveries", which was this library's headline conclusion,
@@ -54,14 +54,14 @@ premise.
 type I error, and the standard remedy is to carry the reference arm's uncertainty into the null
 rather than plugging in a point estimate. That is standard in the external-control and historical-
 borrowing literature, and `gate`'s use of the baseline posterior as the null is that standard remedy
-correctly applied — not a discovery.
+correctly applied, not a discovery.
 
 ### What genuinely survives
 
 One observation, and it is worth keeping:
 
 > BH's own conservativeness at large `m` masks the per-case invalidity, so the naive construction
-> produces visible false discoveries **more often at `m = 10` than at `m = 200`** — the opposite of
+> produces visible false discoveries **more often at `m = 10` than at `m = 200`**, the opposite of
 > where a practitioner would look for it, and `m = 10` is the regime cost economics push you toward.
 
 That was not found stated anywhere. It is a quantitative nuance on a known defect rather than a new
@@ -97,7 +97,7 @@ section. The confirming step was the fetch, not a search.
 
 **Verdict: known. It has a name and a 1978 citation.**
 
-`computeFrontier` offers three screens — `none`, `expensive`, and `proxy` — and prices the `proxy`
+`computeFrontier` offers three screens (`none`, `expensive`, and `proxy`) and prices the `proxy`
 one by attenuating its effect with Youden's J. The claim under check was that a cheap screen's
 accuracy measured on a whole suite does not transfer to the narrow population that actually decides
 anything.
@@ -118,7 +118,7 @@ one.
 
 Two things, and both are about demonstration rather than the phenomenon: a controlled design that
 holds the expensive labels fixed and varies only the text of a failing answer, and the distinction
-between a proxy that is *noisy* and one that is *structurally blind* to a failure mode — the latter
+between a proxy that is *noisy* and one that is *structurally blind* to a failure mode, the latter
 explaining why no number of runs helps. Neither of those experiments ships here. peeksafe models the
 screen; it does not measure one for you.
 
@@ -157,7 +157,7 @@ log m(D) = log P(D | θ̂, H) − (d/2) log n + O(1)
 ```
 
 With two hypotheses that share a likelihood and a parameter dimension, the first two terms are
-identical and cancel, leaving the `O(1)` term — the ratio of prior densities at the maximum. So a
+identical and cancel, leaving the `O(1)` term: the ratio of prior densities at the maximum. So a
 bounded Bayes factor in this situation is not a surprise; it is what the standard expansion says must
 happen.
 
@@ -184,7 +184,7 @@ audience.
   prints it.
 
 Those four are the contribution, and `samplesForEvidence` is the last of them made executable. They
-are engineering artifacts derived from known asymptotics, which is worth publishing — but it is a
+are engineering artifacts derived from known asymptotics, which is worth publishing, but it is a
 different claim from discovering the ceiling.
 
 ### Citations
@@ -225,8 +225,8 @@ Two caveats a reader should weigh:
    absence from academic search is weaker evidence here than for the claims above.
 2. **Adjacent work exists.** Casting benchmarking as finite-population inference under a fixed query
    budget is an active topic, seeking tight confidence intervals for model accuracy with valid
-   coverage under a budget constraint. That is a different object — accuracy intervals under a query
-   budget, rather than a Pareto region of certifiable configurations with an amortisation axis — but
+   coverage under a budget constraint. That is a different object (accuracy intervals under a query
+   budget, rather than a Pareto region of certifiable configurations with an amortisation axis), but
    it is close enough to belong in related work rather than be left out.
 
 The classical paired-versus-unpaired decision is made on correlation and variance reduction. That the
@@ -268,7 +268,7 @@ of them from seeded draws with `npm test`.
 
 ## Standing invitation
 
-If a verdict here is wrong in either direction — a claim marked known that isn't, or one marked "not
-found" that is sitting in a paper somewhere — the citation is worth more than the claim. Open an
+If a verdict here is wrong in either direction (a claim marked known that isn't, or one marked "not
+found" that is sitting in a paper somewhere), the citation is worth more than the claim. Open an
 issue. The searches above are written down precisely so that this is checkable rather than a matter
 of trust.
