@@ -59,6 +59,48 @@ describe('the planner answers before anything is spent', () => {
     expect(() => makePlan([], new Map(), DEFAULT_PLAN)).toThrow();
   });
 
+  it('prices a paired screening run at two runs, the same as any other paired observation', () => {
+    // `screenRuns` is a count of observations, and under the paired design an
+    // observation is two runs. The expected total already reads it that way, so
+    // a screened total that reads it as one run prices a screening pass nobody
+    // is going to run, and the two totals in the same object disagree.
+    const { cases, baseline } = suite(200, 2 / 12, 12);
+    const plan = makePlan(cases, baseline, DEFAULT_PLAN);
+    expect(plan.recommendedDesign).toBe('paired');
+    const followUp = Math.ceil(plan.totals.decidableBest * plan.totals.screenContinueFraction)
+      * (plan.totals.bestRuns / plan.totals.decidableBest);
+    expect(plan.totals.screenedRuns - followUp).toBeCloseTo(200 * DEFAULT_PLAN.screenRuns * 2, -1);
+  });
+
+  it('never quotes a worst case below the expected cost it states in the same breath', () => {
+    // A plan that says "about $11.42 per pull request. Worst case ... is $9.16"
+    // is wrong on its face, and an operator sets a budget from the smaller
+    // number. The all-regressed cost is genuinely not an upper bound: the
+    // sequential test stops a regressed case at the bar and runs an unchanged
+    // one to its full schedule, so it may come in lower. Saying so is fine;
+    // calling it the worst case is not.
+    const worstCase = /Worst case, every case regressing at once, is \$(\d+\.\d\d)/;
+    let quoted = 0;
+    for (const m of [1, 3, 10, 40, 200]) {
+      for (const nb of [12, 24, 60, 240, 960]) {
+        for (const r of [0.2, 0.4, 0.55, 0.7, 0.85, 0.95]) {
+          const { cases, baseline } = suite(m, r, nb);
+          const plan = makePlan(cases, baseline, DEFAULT_PLAN);
+          const claim = worstCase.exec(plan.verdict);
+          if (!claim) continue;
+          quoted++;
+          expect(
+            Number(claim[1]),
+            `m=${m} nb=${nb} rate=${r}: ${plan.verdict}`
+          ).toBeGreaterThanOrEqual(Number(plan.expectedCostUsd.toFixed(2)));
+        }
+      }
+    }
+    // Deleting the sentence would satisfy the loop above without fixing
+    // anything, so the grid has to still be quoting a worst case somewhere.
+    expect(quoted).toBeGreaterThan(0);
+  });
+
   it('grids affordability over suite size and effect', () => {
     const grid = affordabilityGrid(0.85, 240, DEFAULT_PLAN, 500);
     expect(grid.length).toBeGreaterThan(0);

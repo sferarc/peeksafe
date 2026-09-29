@@ -206,7 +206,15 @@ export interface Plan {
    * cases stop at the H₀ wall. This is the headline number.
    */
   expectedCostUsd: number;
-  /** What a pull request in which *every* case regressed would cost. A ceiling. */
+  /**
+   * What a pull request in which *every* case regressed would cost.
+   *
+   * Not an upper bound on `expectedCostUsd`, despite running every case to
+   * certification: the sequential test stops a case as soon as it clears the
+   * bar, so an all-regressed suite can finish cheaper than one that did not
+   * move and ran its full schedule. `verdict` says which way round they came
+   * out rather than presenting this as the worst case.
+   */
   ceilingCostUsd: number;
 }
 
@@ -429,7 +437,13 @@ export function makePlan(
   const screenContinueFraction = 0.1;
   const screenSelected = Math.ceil(decidableAny.length * screenContinueFraction);
   const meanBest = decidableAny.length > 0 ? bestRuns / decidableAny.length : 0;
-  const screenedRuns = m * cfg.screenRuns + screenSelected * meanBest;
+  // `screenRuns` counts *observations*, and a paired observation is two runs,
+  // so a paired screening pass costs twice what an unpaired one does. Only the
+  // screen term is scaled here: `meanBest` already comes from `paired.runs`,
+  // which is `pairs * 2`. The expected total below reads `screenRuns` the same
+  // way, and when this one did not, the two screened figures in `totals`
+  // disagreed about the price of the same pass.
+  const screenedRuns = m * cfg.screenRuns * runsPerObservation + screenSelected * meanBest;
 
   const fixedNRuns = planned.reduce((a, p) => a + finite(p.fixedNPerArm), 0);
 
@@ -508,9 +522,19 @@ export function makePlan(
       ? Infinity
       : Math.min(totals.typicalCostUsd, totals.typicalScreenedCostUsd);
   const coverage = `${decidableAny.length}/${m} cases`;
-  const ceilingNote = Number.isFinite(ceilingCost)
-    ? ` Worst case, every case regressing at once, is $${ceilingCost.toFixed(2)}.`
-    : '';
+  // "Every case regressed" is not the expensive pull request, and calling it
+  // the worst case put a number below the headline that an operator would
+  // budget from: a 200-case suite on a 12-run baseline read "about $11.42 per
+  // pull request. Worst case ... is $9.16". The sequential test stops a case
+  // the moment it clears the bar, so a suite that really did regress finishes
+  // early, while one that did not move runs its full schedule. When the
+  // all-regressed cost lands under the expected one, say which it is.
+  const ceilingNote = !Number.isFinite(ceilingCost)
+    ? ''
+    : ceilingCost >= expectedCost
+      ? ` Worst case, every case regressing at once, is $${ceilingCost.toFixed(2)}.`
+      : ` A pull request in which every case regressed costs less, $${ceilingCost.toFixed(2)}: ` +
+        `certifying a regression ends a case early, and a case that did not move runs its full schedule.`;
   const verdict =
     !Number.isFinite(expectedCost)
       ? `undecidable: no design reaches the bar for any case at ${(cfg.mde * 100).toFixed(0)} points with a ${medianTrials(planned)}-run baseline`
