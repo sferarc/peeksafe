@@ -49,6 +49,18 @@ All notable changes to this project are documented here. The format follows
   level, by more than 2.5x at a 10-run baseline. These cases are now marked `impossible` and not tested,
   matching what `makePlan` already reported, and `shouldStop` stops them at once with the new
   reason `impossible`.
+- `PlanCase.baselineRunsNeeded` bisected a quantity that is not monotone, so its answer was
+  whichever crossing the doubling search happened to bracket rather than the smallest baseline
+  that clears the bar. The evidence ceiling is a sawtooth in the baseline size, because holding
+  the rate fixed still forces an integer success count: at 99% losing 10 points it clears the bar
+  at 49 runs, drops back under it at 51, and does not clear again until 71. Three consequences,
+  all fixed by scanning for the first crossing instead. The search started at `hi = 8` and then
+  bisected `(4, 8]`, so no case could be told it needed fewer than 5 baseline runs when 3 would
+  do. Doubling ran `while (hi <= cap)` and so stepped to 131072 against a cap of 100000, then
+  bisected inside a bracket starting above it, answering 126037 for a 95/100 baseline at an `mde`
+  of 0.0025. And the README's own case was quoted 81 where 75 is enough, which is the one number
+  in the README this moves. `test/budget.test.ts` now checks the answer against a scan over a grid
+  of baselines and effects.
 
 - The README claimed the two-sample e-value has mean at most 1 under the null at every rate. It
   has mean exactly 1 averaged over the shared rate, and at some fixed rates more than 1. The
