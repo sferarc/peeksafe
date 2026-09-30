@@ -96,6 +96,90 @@ describe('the interval widens when it should', () => {
     expect(diag.declared.degenerate).not.toBeNull();
   });
 
+  it('does not call a per-case declared key a collapse, or its interval inestimable', () => {
+    // The other direction from the test above: a declared key that gives every
+    // case its own cluster. It merges nothing, and CR2 over n singleton
+    // clusters is the iid interval, which is perfectly estimable. What used to
+    // happen is that the random-effects cross-check degenerated (with one case
+    // per family σ² is not identified), `summarise` folded that into the
+    // grouping's `degenerate` field, and the diagnostic answered "no
+    // suite-level interval is estimable ... it is no claim at all" about a
+    // grouping whose standard error it had just computed, in a sentence that
+    // read "collapses 8 case-file groups into 80".
+    const fallback = correlated(8, 10, 0.25, 'splitting');
+    const declared: ClusterObservation[] = fallback.map((o, i) => ({ cluster: `case${i}`, value: o.value }));
+    const diag = clusterKeyDiagnostic(declared, fallback);
+
+    expect(diag.declared.clusters).toBe(80);
+    expect(diag.fallback.clusters).toBe(8);
+    expect(diag.declared.degenerate).toBeNull();
+    expect(Number.isFinite(diag.declared.se)).toBe(true);
+    expect(diag.mergesUncorrelatedCases).toBe(false);
+    expect(diag.verdict).not.toContain('collapses');
+    expect(diag.verdict).not.toContain('no claim at all');
+  });
+
+  it('flags a declared key that dissolves real correlation into a narrower interval', () => {
+    // Same grouping again, judged rather than merely described. The case files
+    // here move together hard (ICC ~0.9), so splitting them apart is a claim
+    // that the suite carries 80 independent cases' worth of evidence when it
+    // carries about 8, and it buys that claim an interval a quarter as wide.
+    // That is the too-narrow headline `cluster.ts` exists to remove,
+    // reintroduced by a user-supplied key, so it has to be named and not
+    // reported as "not changing the answer either way".
+    const fallback = correlated(8, 10, 0.25, 'splitting');
+    const declared: ClusterObservation[] = fallback.map((o, i) => ({ cluster: `case${i}`, value: o.value }));
+    const diag = clusterKeyDiagnostic(declared, fallback);
+
+    // The two figures the `narrowsBySplitting` doc comment quotes.
+    expect(diag.declared.widthRatio).toBeCloseTo(1.02, 2);
+    expect(diag.fallback.widthRatio).toBeCloseTo(3.90, 2);
+    expect(diag.narrowsBySplitting).toBe(true);
+    expect(diag.findsHiddenCorrelation).toBe(false);
+    expect(diag.verdict).toMatch(/narrower/);
+  });
+
+  it('does not report an intra-class correlation for a grouping that cannot identify one', () => {
+    // Every family of size one: τ² and σ² are not separable, so the ANOVA ICC
+    // comes out at exactly 1 as an artifact of σ̂² = 0 and not as a
+    // measurement. Printing "ICC 1.00" for it says the cases are perfectly
+    // correlated, which is the opposite of what a singleton grouping means.
+    const fallback = correlated(8, 10, 0.25, 'unidentified');
+    const declared: ClusterObservation[] = fallback.map((o, i) => ({ cluster: `case${i}`, value: o.value }));
+    const diag = clusterKeyDiagnostic(declared, fallback);
+
+    expect(diag.declared.iccEstimable).toBe(false);
+    expect(diag.fallback.iccEstimable).toBe(true);
+    expect(diag.verdict).not.toContain('ICC 1.00');
+  });
+
+  it('catches every dissolved cluster, and inherits the ICC floor\'s noise where it cannot', () => {
+    // `narrowsBySplitting` is gated on the same ICC_FLOOR as
+    // `mergesUncorrelatedCases`, so it inherits the same sensitivity the floor's
+    // own comment warns about: the ANOVA ICC on 8 families of 10 lands above
+    // 0.05 by noise often enough to matter. This costs both directions out, so
+    // that the sharpness is on the record rather than assumed, and so that a
+    // later change to the floor shows up here.
+    const firingRate = (shift: number, tag: string) => {
+      let fires = 0;
+      const trials = 400;
+      for (let s = 0; s < trials; s++) {
+        const obs = correlated(8, 10, shift, `${tag}${s}`);
+        const split = obs.map((o, i) => ({ cluster: `case${i}`, value: o.value }));
+        if (clusterKeyDiagnostic(split, obs).narrowsBySplitting) fires++;
+      }
+      return fires / trials;
+    };
+
+    // Families that really move: caught every time, at a 10-point shift and at
+    // a 25-point one.
+    expect(firingRate(0.25, 'corr')).toBe(1);
+    expect(firingRate(0.10, 'mild')).toBe(1);
+    // Families that do not move at all: 0.195 on these 400 seeds. Loose bound,
+    // because the point is the order of magnitude, not the third digit.
+    expect(firingRate(0.0, 'flat')).toBeLessThan(0.3);
+  });
+
   it('refuses two groupings that do not cover the same observations', () => {
     const a = correlated(4, 5, 0.1, 'a');
     const b = correlated(3, 5, 0.1, 'b');
