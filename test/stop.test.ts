@@ -8,7 +8,11 @@
  * must NOT come back true.
  */
 import { describe, expect, it } from 'vitest';
-import { shouldStop, gate, PeeksafeError, makeRand, type BaselineStat, type StopReason } from '../src/index.js';
+import {
+  shouldStop, gate, PeeksafeError, makeRand,
+  twoSamplePriors, universalTwoSampleLogE, evidenceCeilingLogE, evidenceCeilingAsymptotic,
+  type BaselineStat, type StopReason,
+} from '../src/index.js';
 
 const FAT: BaselineStat = { caseId: 'c', successes: 216, trials: 240 };
 const THIN: BaselineStat = { caseId: 'c', successes: 54, trials: 60 };
@@ -125,6 +129,10 @@ describe('it refuses the same things gate refuses', () => {
     ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, futilityConfidence: 1 })],
     ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, futilityConfidence: 0 })],
     ['PEEKSAFE_E_STAT_DOMAIN', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, fdr: 0 })],
+    ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, altConcentration: 0 })],
+    ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, altConcentration: -5 })],
+    ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, altConcentration: NaN })],
+    ['PEEKSAFE_E_CONFIG', () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, altConcentration: Infinity })],
   ];
   for (const [code, fn] of bad) {
     it(`throws ${code}`, () => {
@@ -137,6 +145,73 @@ describe('it refuses the same things gate refuses', () => {
       }
     });
   }
+
+  it('refuses a bad altConcentration on both statistics, not just the default one', () => {
+    // The bug: `twoSampleLogE` guards the concentration and `twoSamplePriors`
+    // did not, so `evidence: 'bayes'` threw and `evidence: 'universal'` came
+    // back with a decision computed from Beta(0.35, 0.35), the floor every
+    // caller applies to the product. Same option, same case, one refusal and
+    // one plausible-looking number.
+    for (const evidence of ['bayes', 'universal'] as const) {
+      expect(() => shouldStop({ successes: 1, trials: 10 }, THIN, { ...opts, evidence, altConcentration: 0 }), evidence).toThrow(
+        PeeksafeError
+      );
+    }
+  });
+
+  it('does not let a bad altConcentration change the verdict instead of refusing', () => {
+    // The substituted prior did not just shift the e-value, it moved `reason`,
+    // in both directions: counts that the asked-for concentration left running
+    // came back `regressed`, and counts it certified came back `continue`. The
+    // failure label records what the honest concentration said, so a
+    // regression here shows which way the answer moved.
+    for (const [s, n] of [[1, 10], [29, 60]] as const) {
+      const asked = shouldStop({ successes: s, trials: n }, THIN, { ...opts, evidence: 'universal', altConcentration: 8 });
+      expect(() =>
+        shouldStop({ successes: s, trials: n }, THIN, { ...opts, evidence: 'universal', altConcentration: 0 })
+      , `${s}/${n} (k=8 says ${asked.reason})`).toThrow(PeeksafeError);
+    }
+  });
+
+  it('refuses an out-of-range futilityConfidence before there is any data', () => {
+    // The level was only read inside the `trials > 0` branch, so the first call
+    // of a loop accepted a level that every later call would throw on.
+    expect(() => shouldStop({ successes: 0, trials: 0 }, FAT, { ...opts, futilityConfidence: 5 })).toThrow(PeeksafeError);
+  });
+});
+
+describe('the exported statistics refuse a concentration they cannot honour', () => {
+  // `requireConcentration` exists because every caller floors the product at
+  // 0.35: a non-positive concentration does not produce a bad shape, it
+  // produces Beta(0.35, 0.35) and a plausible number from a prior nobody asked
+  // for. These are the exported paths that reached the floor without a guard.
+  const bad = [0, -5, NaN, Infinity];
+  const calls: Array<[string, (k: number) => unknown]> = [
+    ['twoSamplePriors', (k) => twoSamplePriors(54, 60, 0.15, k)],
+    ['universalTwoSampleLogE', (k) => universalTwoSampleLogE(20, 60, 54, 60, 0.15, k)],
+    ['evidenceCeilingLogE', (k) => evidenceCeilingLogE(0.5, 54, 60, 0.15, k)],
+    ['evidenceCeilingAsymptotic', (k) => evidenceCeilingAsymptotic(54, 60, 0.5, 0.15, k)],
+  ];
+  for (const [name, fn] of calls) {
+    it(`${name} throws PEEKSAFE_E_STAT_DOMAIN`, () => {
+      for (const k of bad) {
+        try {
+          fn(k);
+          expect.unreachable(`${name} accepted altConcentration ${k}`);
+        } catch (e) {
+          expect(e, `${name} k=${k}`).toBeInstanceOf(PeeksafeError);
+          expect((e as PeeksafeError).code, `${name} k=${k}`).toBe('PEEKSAFE_E_STAT_DOMAIN');
+        }
+      }
+    });
+  }
+
+  it('still answers for every concentration a caller may legitimately pass', () => {
+    for (const k of [0.35, 1, 8, 64]) {
+      expect(Number.isFinite(universalTwoSampleLogE(20, 60, 54, 60, 0.15, k)), `k=${k}`).toBe(true);
+      expect(Number.isFinite(evidenceCeilingLogE(0.5, 54, 60, 0.15, k)), `k=${k}`).toBe(true);
+    }
+  });
 });
 
 describe('the loop it is meant to be used in', () => {
