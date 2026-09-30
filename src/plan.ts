@@ -206,7 +206,15 @@ export interface Plan {
    * cases stop at the H₀ wall. This is the headline number.
    */
   expectedCostUsd: number;
-  /** What a pull request in which *every* case regressed would cost. A ceiling. */
+  /**
+   * What a pull request in which *every* case regressed would cost.
+   *
+   * Not an upper bound on `expectedCostUsd`, despite running every case to
+   * certification: the sequential test stops a case as soon as it clears the
+   * bar, so an all-regressed suite can finish cheaper than one that did not
+   * move and ran its full schedule. `verdict` says which way round they came
+   * out rather than presenting this as the worst case.
+   */
   ceilingCostUsd: number;
 }
 
@@ -439,7 +447,13 @@ export function makePlan(
   const screenContinueFraction = 0.1;
   const screenSelected = Math.ceil(decidableAny.length * screenContinueFraction);
   const meanBest = decidableAny.length > 0 ? bestRuns / decidableAny.length : 0;
-  const screenedRuns = m * cfg.screenRuns + screenSelected * meanBest;
+  // `screenRuns` counts *observations*, and a paired observation is two runs,
+  // so a paired screening pass costs twice what an unpaired one does. Only the
+  // screen term is scaled here: `meanBest` already comes from `paired.runs`,
+  // which is `pairs * 2`. The expected total below reads `screenRuns` the same
+  // way, and when this one did not, the two screened figures in `totals`
+  // disagreed about the price of the same pass.
+  const screenedRuns = m * cfg.screenRuns * runsPerObservation + screenSelected * meanBest;
 
   const fixedNRuns = planned.reduce((a, p) => a + finite(p.fixedNPerArm), 0);
 
@@ -510,7 +524,8 @@ export function makePlan(
   // led with the ceiling and therefore over-stated the bill by 5 to 8× (measured;
   // measured against real runs). The ceiling is still printed, labelled as a
   // ceiling.
-  // Mirrors the ceiling's structure exactly, the cheapest plan of its kind, // so the two numbers are comparable. Comparing an unscreened expected cost
+  // Mirrors the ceiling's structure, the cheapest plan of its kind, so the two
+  // numbers are roughly comparable. Comparing an unscreened expected cost
   // with a screened ceiling was the first version of this and it made the
   // "expected" figure look *larger* than the worst case.
   const expectedCost =
@@ -518,9 +533,25 @@ export function makePlan(
       ? Infinity
       : Math.min(totals.typicalCostUsd, totals.typicalScreenedCostUsd);
   const coverage = `${decidableAny.length}/${m} cases`;
-  const ceilingNote = Number.isFinite(ceilingCost)
-    ? ` Worst case, every case regressing at once, is $${ceilingCost.toFixed(2)}.`
-    : '';
+  // "Every case regressed" is not the expensive pull request, and calling it
+  // the worst case put a number below the headline that an operator would
+  // budget from: a 200-case suite on a 12-run baseline read "about $11.42 per
+  // pull request. Worst case ... is $9.16". The sequential test stops a case
+  // the moment it clears the bar, so a suite that really did regress finishes
+  // early, while one that did not move runs its full schedule. When the
+  // all-regressed cost lands under the expected one, say which it is.
+  //
+  // The sentence stops short of naming early stopping as *the* cause, because
+  // there is a second one: both figures are a `min` over two designs, and the
+  // two minima need not select the same design, so the cheaper figure may be
+  // pricing a plan the dearer one is not. Until both sides are made to select
+  // together, the honest claim is only that neither bounds the other.
+  const ceilingNote = !Number.isFinite(ceilingCost)
+    ? ''
+    : ceilingCost >= expectedCost
+      ? ` Worst case, every case regressing at once, is $${ceilingCost.toFixed(2)}.`
+      : ` A pull request in which every case regressed costs less, $${ceilingCost.toFixed(2)}: ` +
+        `the two do not price the same schedule, so neither bounds the other.`;
   const verdict =
     !Number.isFinite(expectedCost)
       ? `undecidable: no design reaches the bar for any case at ${(cfg.mde * 100).toFixed(0)} points with a ${medianTrials(planned)}-run baseline`
@@ -578,8 +609,17 @@ export function affordabilityGrid(
       const pairs = mcnemarSamplesForEvidence(baselineRate, mde, cfg.pairCoupling, bar, 200_000);
       // the cheaper of the two designs, screened down to a 10% continue rate
       const best = Math.min(Number.isFinite(perCase) ? perCase : Infinity, pairs * 2);
+      // Which design `best` just picked, needed by both totals below: they have
+      // to price the same screening pass as each other, and `screenRuns` counts
+      // observations, so a paired pass costs two runs an observation. Only the
+      // screen term is scaled, because `best` is already in runs (`pairs * 2`).
+      // When this total left the screen term unscaled it understated a paired
+      // cell by `m * screenRuns` runs, which made `affordable` below answer for
+      // a cheaper ceiling than the one it reports, and made this grid disagree
+      // with `makePlan`'s `screenedRuns` about the price of the same pass.
+      const runsPerObs = Number.isFinite(perCase) && perCase <= pairs * 2 ? 1 : 2;
       const runs = Number.isFinite(best)
-        ? Math.ceil(m * cfg.screenRuns + Math.ceil(m * 0.1) * best)
+        ? Math.ceil(m * cfg.screenRuns * runsPerObs + Math.ceil(m * 0.1) * best)
         : Infinity;
       const costUsd = runs * cfg.costPerRunUsd;
       // The ceiling above prices a pull request in which every case regressed.
@@ -591,10 +631,8 @@ export function affordabilityGrid(
       const perCaseTypical = Number.isFinite(rawN) && rawN > 0
         ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(rawN)))
         : cfg.maxTrials;
-      // The ceiling above takes the cheaper of the two designs. The expected
-      // bill has to be priced for the *same* design, or the cell quotes an
-      // unpaired price for a plan only pairing can execute.
-      const runsPerObs = Number.isFinite(perCase) && perCase <= pairs * 2 ? 1 : 2;
+      // Priced for the same design as the ceiling above (`runsPerObs`), or the
+      // cell quotes an unpaired price for a plan only pairing can execute.
       const typicalRuns = Math.ceil(
         (m * cfg.screenRuns + Math.ceil(m * 0.1) * perCaseTypical) * runsPerObs
       );
