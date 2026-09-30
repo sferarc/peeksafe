@@ -11,6 +11,7 @@ import {
   DEFAULT_AXES, DEFAULT_FRONTIER, DEFAULT_PLAN, DEFAULT_GATE_OPTIONS, DEFAULT_STOP_OPTIONS,
   compareEstimators, clusteredEffect, clusterKeyDiagnostic, gate, PeeksafeError, makeRand,
   gammaP, erf, sprtExpectedN, probabilityMoved, MIN_TRUSTWORTHY_CLUSTERS, streamFor, hash32,
+  pairedLogE, mcnemarSamplesForEvidence, samplesForEvidence,
 } from '../src/index.js';
 
 describe('every runtime export', () => {
@@ -51,6 +52,41 @@ describe('statistics', () => {
     const indep = pairedDiscordance(0.9, 0.15, 0);
     expect(indep.rate).toBeCloseTo(0.225 + 0.075, 12);
     expect(indep.theta).toBeCloseTo(0.75, 12);
+  });
+});
+
+describe('the paired design refuses rather than inventing', () => {
+  it('rejects an mde that is not a rate drop, instead of a negative discordance rate', () => {
+    // pairedDiscordance checked pBaseline and rho and not mde, so -0.5 put the
+    // candidate rate at 1.4 and returned { rate: -0.36, theta: 1.194 }: a
+    // negative probability and one above 1, handed on as a model to plan from.
+    for (const mde of [NaN, -0.5, 0, 1, 1.5, Infinity]) {
+      expect(() => pairedDiscordance(0.9, mde, 0.5), `mde=${mde}`).toThrow(PeeksafeError);
+    }
+    // gate, makePlan and evaluatePoint already draw the line in the same place.
+    expect(pairedDiscordance(0.9, 0.15, 0.5).rate).toBeGreaterThan(0);
+  });
+
+  it('refuses a non-finite threshold rather than sizing the study at one pair', () => {
+    // A NaN threshold defeated every `<` guarding the search: the doubling loop
+    // exited at once and the bisection returned its own starting point, so the
+    // answer came back as 1 pair. Its sibling writes the same guard negated.
+    expect(() => mcnemarSamplesForEvidence(0.9, 0.15, 0.5, NaN)).toThrow(PeeksafeError);
+    expect(() => mcnemarSamplesForEvidence(0.9, 0.15, 0.5, Infinity)).toThrow(PeeksafeError);
+    expect(samplesForEvidence(0.75, 51, 60, 0.15, NaN)).toBe(Infinity);
+    expect(mcnemarSamplesForEvidence(0.9, 0.15, 0.5, Math.log(4000))).toBe(172);
+  });
+
+  it('rejects a concentration that is not positive, instead of substituting Beta(0.35, 0.35)', () => {
+    // max(0.35, k·θ) turned a concentration of -6 into the 0.35 floor on both
+    // shapes, which scored 40 of 50 discordant pairs at e = 1430 rather than
+    // refusing. twoSampleLogE has always checked its own altConcentration.
+    for (const k of [0, -6, NaN, Infinity]) {
+      expect(() => pairedLogE(40, 50, 0.75, k), `concentration=${k}`).toThrow(PeeksafeError);
+      expect(() => mcnemarSamplesForEvidence(0.9, 0.15, 0.5, Math.log(4000), 100_000, k),
+        `concentration=${k}`).toThrow(PeeksafeError);
+    }
+    expect(pairedLogE(40, 50, 0.75, 6)).toBeCloseTo(8.4988, 4);
   });
 });
 
