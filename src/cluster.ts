@@ -55,9 +55,9 @@
  * nothing at all about the correlation structure *inside* a family. It does not
  * assume the family effects are normal, or exchangeable, or even
  * identically distributed. Paired with Bell-McCaffrey/Satterthwaite degrees of
- * freedom (which, for equal-sized families, reduce exactly to G − 1, proved in
- * `test/cluster.test.ts`) it is the estimator you want when there are 40
- * clusters rather than 4,000.
+ * freedom (which, for equal-sized families, reduce exactly to G − 1; see the
+ * derivation in the comment above `dfRaw` below) it is the estimator you want
+ * when there are 40 clusters rather than 4,000.
  *
  * **Random effects (the cross-check).** The one-way model
  * y_gi = μ + u_g + e_gi with the ANOVA (Swamy-Arora) estimators for τ² and σ².
