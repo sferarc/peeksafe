@@ -72,6 +72,36 @@ describe('the planner answers before anything is spent', () => {
     expect(plan.totals.screenedRuns - followUp).toBeCloseTo(200 * DEFAULT_PLAN.screenRuns * 2, -1);
   });
 
+  it('prices a paired screening run at two runs in the affordability grid too', () => {
+    // `affordabilityGrid` has its own pair of totals, and `runs` priced the
+    // screening pass at one run an observation while `typicalRuns`, seventeen
+    // lines below it, priced the same pass at two. So the grid understated a
+    // paired cell's ceiling by `m * screenRuns` runs, and `affordable` answered
+    // "does the ceiling fit the budget?" against a ceiling cheaper than the one
+    // the cell reports: at 200 cases and a 10-point MDE it quoted $18.06 for a
+    // ceiling that honestly costs $19.74, so a $19 budget read as affordable.
+    //
+    // Nothing else in a cell depends on `screenRuns`, so running the grid at
+    // two adjacent values isolates what each total charges for one screening
+    // observation, without this test having to know which design a cell picked.
+    const at = (screenRuns: number) => affordabilityGrid(0.85, 240, { ...DEFAULT_PLAN, screenRuns }, 500);
+    const cheaper = at(4);
+    const dearer = new Map(at(5).map((c) => [`${c.cases}:${c.mde}`, c] as const));
+    let pairedCells = 0;
+    for (const cell of cheaper) {
+      const more = dearer.get(`${cell.cases}:${cell.mde}`);
+      if (!more) throw new Error(`no ${cell.cases}-case mde ${cell.mde} cell at screenRuns 5`);
+      const where = `${cell.cases} cases at mde ${cell.mde}`;
+      const ceilingPrice = more.runs - cell.runs;
+      const typicalPrice = more.typicalRuns - cell.typicalRuns;
+      expect(ceilingPrice, where).toBe(typicalPrice);
+      if (ceilingPrice === cell.cases * 2) pairedCells++;
+    }
+    // Both totals agree trivially on an unpaired cell, so a grid with no paired
+    // cell in it would satisfy the loop above while proving nothing.
+    expect(pairedCells).toBeGreaterThan(0);
+  });
+
   it('never quotes a worst case below the expected cost it states in the same breath', () => {
     // A plan that says "about $11.42 per pull request. Worst case ... is $9.16"
     // is wrong on its face, and an operator sets a budget from the smaller
