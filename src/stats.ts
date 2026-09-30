@@ -20,7 +20,7 @@
  * whose honest answer is "no finite sample size will do", see
  * `sampleSizeTwoProportion`.
  */
-import { requireCounts, requireProbability, PeeksafeError } from './errors.js';
+import { requireCounts, requireProbability, requireOpenProbability, PeeksafeError } from './errors.js';
 
 /* ────────────────────────── special functions ────────────────────────── */
 
@@ -565,6 +565,20 @@ export function logMarginalBetaBinomial(s: number, n: number, a: number, b: numb
 }
 
 /**
+ * A prior concentration, which multiplies a rate to make Beta shapes. Every
+ * caller floors the product at 0.35, so a non-positive concentration does not
+ * produce a bad shape, it produces Beta(0.35, 0.35) and a plausible number
+ * from a prior nobody asked for.
+ */
+function requireConcentration(k: number, name: string, where: string): void {
+  if (!(k > 0) || !Number.isFinite(k)) {
+    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: ${name} must be finite and positive`, {
+      detail: { [name]: k },
+    });
+  }
+}
+
+/**
  * A **two-sample e-value** for "the candidate is worse than the baseline".
  *
  * The one-sample alternative, test the candidate against the baseline's point
@@ -601,11 +615,7 @@ export function twoSampleLogE(
   requireCounts(candidateSuccesses, candidateTrials, 'twoSampleLogE(candidate)');
   requireCounts(baselineSuccesses, baselineTrials, 'twoSampleLogE(baseline)');
   requireProbability(mde, 'mde', 'twoSampleLogE');
-  if (!(altConcentration > 0) || !Number.isFinite(altConcentration)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'twoSampleLogE: altConcentration must be finite and positive', {
-      detail: { altConcentration },
-    });
-  }
+  requireConcentration(altConcentration, 'altConcentration', 'twoSampleLogE');
   const a0 = 1 + baselineSuccesses;
   const b0 = 1 + baselineTrials - baselineSuccesses;
   const kappa = a0 + b0;
@@ -1102,6 +1112,7 @@ export function pairedLogE(
 ): number {
   requireCounts(worse, discordantPairs, 'pairedLogE');
   requireProbability(thetaAlt, 'thetaAlt', 'pairedLogE');
+  requireConcentration(concentration, 'concentration', 'pairedLogE');
   if (discordantPairs === 0) return 0;
   const a1 = Math.max(0.35, concentration * thetaAlt);
   const b1 = Math.max(0.35, concentration * (1 - thetaAlt));
@@ -1125,6 +1136,12 @@ export function pairedDiscordance(
 ): { rate: number; theta: number } {
   requireProbability(pBaseline, 'pBaseline', 'pairedDiscordance');
   requireProbability(rho, 'rho', 'pairedDiscordance');
+  // Checked last and checked here because it was the one argument that was not:
+  // an mde of -0.5 put the candidate above 1, which came back as a discordance
+  // rate of -0.36 and a theta of 1.194, both impossible, neither an error. An
+  // mde is an effect rather than a rate, so the endpoints are out too, which is
+  // where gate, makePlan and evaluatePoint already draw the line.
+  requireOpenProbability(mde, 'mde', 'pairedDiscordance');
   const pc = Math.max(0, pBaseline - mde);
   const coupledWorse = pBaseline - pc;
   const indepWorse = pBaseline * (1 - pc);
@@ -1150,6 +1167,19 @@ export function mcnemarSamplesForEvidence(
   maxPairs = 100_000,
   concentration = 6
 ): number {
+  requireConcentration(concentration, 'concentration', 'mcnemarSamplesForEvidence');
+  // Every comparison below is a `<` against `logThreshold`, and a NaN loses all
+  // of them: the doubling loop exited on its first test, the Infinity guard did
+  // not fire, and the bisection returned its own starting point. The answer
+  // came back as one pair, where the same design at a real 15pt effect needs
+  // 172. `samplesForEvidence` writes its guard negated and so refuses instead.
+  if (!Number.isFinite(logThreshold)) {
+    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN',
+      `mcnemarSamplesForEvidence: logThreshold must be finite, got ${logThreshold}`, {
+        detail: { logThreshold },
+        hint: 'this is a log e-value bar, such as Math.log(ebhSoloThreshold(m, fdr))',
+      });
+  }
   const { rate, theta } = pairedDiscordance(pBaseline, mde, rho);
   if (rate <= 0 || theta <= 0.5) return Infinity;
   const f = (n: number) => {
