@@ -41,7 +41,7 @@
 import { ebhCorrect, ebhSoloThreshold } from './stats.js';
 import { logEvidence, ceilingLogEvidence, requireEvidence, type Evidence } from './evidence.js';
 import { type BaselineStat } from './baseline.js';
-import { PeeksafeError, requireCounts, requireOpenProbability } from './errors.js';
+import { PeeksafeError, requireCounts, requireOpenProbability, requirePositiveConfig } from './errors.js';
 
 /**
  * True when the baseline's observed rate leaves no room for an `mde`-sized drop.
@@ -153,11 +153,7 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
   requireOpenProbability(opts.mde, 'mde', 'gate');
   requireOpenProbability(opts.fdr, 'fdr', 'gate');
   requireEvidence(opts.evidence, 'gate');
-  if (!Number.isFinite(opts.altConcentration) || opts.altConcentration <= 0) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `gate: altConcentration must be positive, got ${opts.altConcentration}`, {
-      detail: { altConcentration: opts.altConcentration },
-    });
-  }
+  requirePositiveConfig(opts.altConcentration, 'altConcentration', 'gate');
 
   const seen = new Set<string>();
   for (const c of cases) {

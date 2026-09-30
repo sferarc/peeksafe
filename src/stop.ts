@@ -47,7 +47,7 @@
 import { ebhSoloThreshold, wilsonInterval, normalQuantile } from './stats.js';
 import { logEvidence, ceilingLogEvidence, requireEvidence, type Evidence } from './evidence.js';
 import { type BaselineStat } from './baseline.js';
-import { PeeksafeError, requireCounts, requireOpenProbability } from './errors.js';
+import { PeeksafeError, requireCounts, requireOpenProbability, requirePositiveConfig } from './errors.js';
 import { DEFAULT_GATE_OPTIONS, cannotDropBy } from './gate.js';
 
 export type StopReason =
@@ -162,6 +162,7 @@ export function shouldStop(
   requireOpenProbability(opts.mde, 'mde', 'shouldStop');
   requireOpenProbability(opts.fdr, 'fdr', 'shouldStop');
   requireEvidence(opts.evidence, 'shouldStop');
+  requirePositiveConfig(opts.altConcentration, 'altConcentration', 'shouldStop');
   if (!Number.isInteger(opts.suiteSize) || opts.suiteSize < 1) {
     throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStop: suiteSize must be a positive integer, got ${opts.suiteSize}`, {
       detail: { suiteSize: opts.suiteSize },
@@ -179,6 +180,12 @@ export function shouldStop(
       hint: 'a case with no baseline is not gated at all; gate() returns it in newCases; do not run it against an invented null',
     });
   }
+
+  // Read before the early returns and before the `trials === 0` branch below.
+  // It used to be read only where the Wilson interval is taken, so the first
+  // call of a loop accepted a level that every later call threw on, and an
+  // `impossible` case never validated it at all.
+  const z = zFor(opts.futilityConfidence);
 
   const bar = ebhSoloThreshold(opts.suiteSize, opts.fdr);
   const logBar = Math.log(bar);
@@ -201,7 +208,7 @@ export function shouldStop(
   // Wilson interval is the whole line, so `low` is 0, the ceiling is enormous,
   // and futility cannot fire before there is data. That is the intended
   // behaviour: futility is a statement about evidence, not about intentions.
-  const low = observed.trials === 0 ? 0 : wilsonInterval(observed.successes, observed.trials, zFor(opts.futilityConfidence)).low;
+  const low = observed.trials === 0 ? 0 : wilsonInterval(observed.successes, observed.trials, z).low;
   const pessimistic = Math.max(1e-6, Math.min(1 - 1e-6, low));
   const ceilingLog = ceilingLogEvidence(
     opts.evidence, pessimistic, baseline.successes, baseline.trials, opts.mde, opts.altConcentration

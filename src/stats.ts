@@ -742,6 +742,12 @@ export function twoSamplePriors(
   altConcentration = 8
 ): { nullPrior: { a: number; b: number }; altPrior: { a: number; b: number } } {
   requireCounts(baselineSuccesses, baselineTrials, 'twoSamplePriors');
+  // The floor below is what makes an unguarded concentration dangerous rather
+  // than merely wrong: at `altConcentration <= 0` both shapes collapse onto it
+  // and the caller gets a decision from Beta(0.35, 0.35) instead of an error.
+  // `twoSampleLogE` guarded itself and this did not, so the same option threw
+  // on `evidence: 'bayes'` and silently moved the verdict on `'universal'`.
+  requireConcentration(altConcentration, 'altConcentration', 'twoSamplePriors');
   const a0 = 1 + baselineSuccesses;
   const b0 = 1 + baselineTrials - baselineSuccesses;
   const kappa = a0 + b0;

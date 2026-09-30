@@ -125,6 +125,23 @@ export function requireOpenProbability(p: number, name: string, where: string): 
   }
 }
 
+/**
+ * A configuration number that must be finite and strictly positive.
+ *
+ * Shared by `gate` and `shouldStop` so the two entry points cannot drift on
+ * what they accept. They did drift: `gate` rejected a non-positive
+ * `altConcentration` and `shouldStop` passed it through to a prior floor, so
+ * the same options object was a refusal through one door and a verdict through
+ * the other.
+ */
+export function requirePositiveConfig(v: number, name: string, where: string): void {
+  if (!Number.isFinite(v) || v <= 0) {
+    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `${where}: ${name} must be finite and positive, got ${v}`, {
+      detail: { [name]: v, where },
+    });
+  }
+}
+
 export function requireProbability(p: number, name: string, where: string): void {
   if (!Number.isFinite(p) || p < 0 || p > 1) {
     throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: ${name} must be in [0,1], got ${p}`, {
