@@ -533,6 +533,13 @@ export interface GroupingSummary {
   degenerate: string | null;
   clusters: number;
   meanClusterSize: number;
+  /**
+   * The ANOVA intra-class correlation, **only when `iccEstimable`**. With one
+   * case per family σ̂² is 0 by construction and this comes out at exactly 1,
+   * which is an artifact of the decomposition and not a measurement: a grouping
+   * of singletons says nothing at all about within-family correlation. Read the
+   * flag before the number.
+   */
   icc: number;
   designEffect: number;
   /** how much wider this grouping's interval is than the iid one. Not 1/DEFF:
@@ -542,6 +549,8 @@ export interface GroupingSummary {
   se: number;
   /** cases per independent unit, `observations / designEffect` */
   effectiveSampleSize: number;
+  /** false when the random-effects fit cannot separate τ² from σ², so `icc` is not a measurement */
+  iccEstimable: boolean;
 }
 
 export interface ClusterKeyDiagnostic {
@@ -563,6 +572,19 @@ export interface ClusterKeyDiagnostic {
    * written to remove, reintroduced by a user-supplied key.
    */
   narrowsOnTooFewClusters: boolean;
+  /**
+   * The mirror image, and the one the first two flags cannot see because both
+   * require the declared key to be *coarser*: a key that is **finer** than the
+   * case-file default, splitting apart families that do move together, and
+   * buying a narrower interval with the split. It is the same too-narrow
+   * headline `narrowsOnTooFewClusters` catches, arrived at from the other side,
+   * and it is not a small effect: dissolving eight ten-variant files into
+   * eighty singletons takes the interval from 3.90× the iid one to 1.02×, a
+   * claim that the suite carries eighty independent cases' worth of evidence
+   * when it carries about eight. Both figures are asserted in
+   * `cluster.test.ts`.
+   */
+  narrowsBySplitting: boolean;
   /** True when the declared grouping found correlation the case ids could not see. */
   findsHiddenCorrelation: boolean;
   verdict: string;
@@ -580,7 +602,16 @@ const summarise = (key: string, obs: ClusterObservation[]): GroupingSummary => {
   const re = randomEffectsMean(obs);
   return {
     key,
-    degenerate: cr2.degenerate ?? re.degenerate,
+    // Only CR2 decides whether this grouping has an interval, which is what
+    // `degenerate` documents. The random-effects fit degenerating is a
+    // different fact about a different estimator: with one case per family σ²
+    // is not identified, so there is no ICC to report, but the cluster-robust
+    // interval is estimable and is in fact the iid one. Folding the two
+    // together made `clusterKeyDiagnostic` answer "no suite-level interval is
+    // estimable ... it is no claim at all" about a grouping whose standard
+    // error it had just computed, in a sentence reading "collapses 8 case-file
+    // groups into 80".
+    degenerate: cr2.degenerate,
     clusters: cr2.clusters,
     meanClusterSize: cr2.meanClusterSize,
     icc: re.icc,
@@ -588,6 +619,7 @@ const summarise = (key: string, obs: ClusterObservation[]): GroupingSummary => {
     widthRatio: cr2.widthRatio,
     se: cr2.se,
     effectiveSampleSize: cr2.effectiveSampleSize,
+    iccEstimable: re.degenerate === null,
   };
 };
 
@@ -600,7 +632,10 @@ const summarise = (key: string, obs: ClusterObservation[]): GroupingSummary => {
  * shows an ICC near zero while having *fewer, larger* clusters than the
  * fallback, it has thrown away real information and widened the interval to
  * pay for it. A declared key that finds correlation the case ids could not see
- * shows a higher ICC and a larger design effect, and is doing its job.
+ * shows a higher ICC and a larger design effect, and is doing its job. A
+ * declared key that is *finer* than the fallback, splitting apart files whose
+ * variants do move together, narrows the interval instead, and that is the
+ * dangerous direction rather than the merely wasteful one.
  *
  * Neither outcome is corrected automatically. A cluster key is a claim about
  * the world and only the person who made it can say whether it is true; this
@@ -629,6 +664,7 @@ export function clusterKeyDiagnostic(
       declared: d, fallback: f,
       mergesUncorrelatedCases: true,
       narrowsOnTooFewClusters: false,
+      narrowsBySplitting: false,
       findsHiddenCorrelation: false,
       verdict:
         `the declared key collapses ${f.clusters} case-file groups into ${d.clusters}, ${d.degenerate}. ` +
@@ -642,12 +678,34 @@ export function clusterKeyDiagnostic(
   // exactly zero would call every grouping useful.
   const ICC_FLOOR = 0.05;
   const coarser = d.clusters < f.clusters;
-  const mergesUncorrelatedCases = coarser && d.icc < ICC_FLOOR;
+  const mergesUncorrelatedCases = coarser && d.iccEstimable && d.icc < ICC_FLOOR;
   const narrowsOnTooFewClusters =
     mergesUncorrelatedCases &&
     d.widthRatio < f.widthRatio &&
     d.clusters < MIN_TRUSTWORTHY_CLUSTERS;
-  const findsHiddenCorrelation = d.icc >= ICC_FLOOR && d.designEffect > f.designEffect * 1.1;
+  // The other direction. Both flags above require `coarser`, so a key that
+  // *splits* the case files apart fell through every branch to "it is not
+  // changing the answer either way", on a grouping that had just taken the
+  // interval from 3.90× the iid one to 1.02×. Gated on the fallback showing
+  // real correlation: when the case files do not move together anyway,
+  // splitting them costs nothing and there is nothing to warn about.
+  //
+  // Sharing ICC_FLOOR with `mergesUncorrelatedCases` also shares its noise. On
+  // 8 families of 10 this fires on every seed where the families really move
+  // and on 0.195 of the seeds where they do not; `cluster.test.ts` costs both
+  // out. That asymmetry is the one to have: the flag errs toward asking an
+  // operator to look again at an interval that got narrower, which is the
+  // question this module exists to make people ask.
+  const narrowsBySplitting =
+    d.clusters > f.clusters &&
+    f.iccEstimable && f.icc >= ICC_FLOOR &&
+    d.widthRatio < f.widthRatio;
+  // `iccEstimable` first: a grouping of singletons reports ICC exactly 1 as an
+  // artifact of σ̂² = 0, which sailed past this floor and could announce that a
+  // one-case-per-cluster key had "found correlation the case ids could not
+  // see". One case per cluster is the absence of within-cluster correlation.
+  const findsHiddenCorrelation =
+    d.iccEstimable && d.icc >= ICC_FLOOR && d.designEffect > f.designEffect * 1.1;
 
   // Quote the *interval width*, not the design effect. They do not move
   // together: a coarse grouping with near-zero ICC can have a design effect
@@ -655,19 +713,28 @@ export function clusterKeyDiagnostic(
   // degrees of freedom and a t-critical to match. The first draft of this line
   // said "widening the interval (0.11× vs 0.91×)", which reads as narrowing.
   const widths = `its interval is ${d.widthRatio.toFixed(2)}× the iid one against ${f.widthRatio.toFixed(2)}× for the case-file default`;
+  // "ICC 1.00" is what a singleton grouping prints, and it says the cases are
+  // perfectly correlated when the grouping is the statement that they are not
+  // correlated at all. Say the number is missing rather than inventing one.
+  const icc = (g: GroupingSummary) => (g.iccEstimable ? g.icc.toFixed(2) : 'not identified');
   const verdict = narrowsOnTooFewClusters
     ? `the declared key merges ${f.clusters} case-file groups into ${d.clusters}, and those ${d.clusters} show ` +
-      `ICC ${d.icc.toFixed(2)}, they do not move together, so ${widths}. That is the wrong direction: ` +
+      `ICC ${icc(d)}, they do not move together, so ${widths}. That is the wrong direction: ` +
       `a cluster-robust interval over fewer than ${MIN_TRUSTWORTHY_CLUSTERS} clusters is optimistic, and this key has ` +
       `made the suite-level claim *tighter* than the default on cases that share nothing`
     : mergesUncorrelatedCases
       ? `the declared key merges ${f.clusters} case-file groups into ${d.clusters}, and those ${d.clusters} show ` +
-        `ICC ${d.icc.toFixed(2)}, they do not move together, so ${widths}, and the extra width is ` +
+        `ICC ${icc(d)}, they do not move together, so ${widths}, and the extra width is ` +
         `buying no information`
+      : narrowsBySplitting
+      ? `the declared key splits ${f.clusters} case-file groups into ${d.clusters}, but those ${f.clusters} files ` +
+        `show ICC ${icc(f)}, they do move together, so ${widths}. The split is a claim that the suite is worth ` +
+        `~${Math.round(d.effectiveSampleSize)} independent cases rather than ~${Math.round(f.effectiveSampleSize)}, ` +
+        'and it buys a narrower suite-level interval than the default with nothing behind it'
       : findsHiddenCorrelation
       ? `the declared key finds correlation the case ids could not see: design effect ` +
         `${d.designEffect.toFixed(2)} against ${f.designEffect.toFixed(2)} over ${d.clusters} groups rather than ` +
-        `${f.clusters} (ICC ${d.icc.toFixed(2)} within the declared groups, ${f.icc.toFixed(2)} within case files). ` +
+        `${f.clusters} (ICC ${icc(d)} within the declared groups, ${icc(f)} within case files). ` +
         `The suite is worth ~${Math.round(d.effectiveSampleSize)} independent cases, not ${Math.round(f.effectiveSampleSize)}` +
         (d.clusters < MIN_TRUSTWORTHY_CLUSTERS
           ? `. Treat the interval as a lower bound on the width: ${d.clusters} clusters is below the ${MIN_TRUSTWORTHY_CLUSTERS} ` +
@@ -675,10 +742,11 @@ export function clusterKeyDiagnostic(
           : '')
         : `the declared key and the case-file default agree to within ` +
         `${(Math.abs(d.designEffect - f.designEffect) / Math.max(1e-9, f.designEffect) * 100).toFixed(0)}% on the design effect ` +
-        `(ICC ${d.icc.toFixed(2)} vs ${f.icc.toFixed(2)}), it is not changing the answer either way`;
+        `(ICC ${icc(d)} vs ${icc(f)}), it is not changing the answer either way`;
 
   return {
     declared: d, fallback: f,
-    mergesUncorrelatedCases, narrowsOnTooFewClusters, findsHiddenCorrelation, verdict,
+    mergesUncorrelatedCases, narrowsOnTooFewClusters, narrowsBySplitting,
+    findsHiddenCorrelation, verdict,
   };
 }
