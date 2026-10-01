@@ -623,7 +623,25 @@ export function costShares(
   p: FrontierPoint,
   basis: FrontierBasis = 'typical'
 ): { screen: number; test: number; baseline: number } {
-  const cost = basis === 'ceiling' ? p.ceiling : basis === 'certify-all' ? p.certifyAll : p.typical;
+  // A lookup and a refusal, for the same reason `evaluatePoint` uses one: this
+  // was a `?:` chain with `p.typical` on the else branch, so any basis it did
+  // not recognise was reported as the typical bill. `FrontierPoint` names the
+  // field `certifyAll` and the basis `certify-all`, so reaching for the field
+  // name is the obvious slip, and it put the baseline at 6.6% of the money
+  // where the certify-all bill puts it at 1.1%.
+  const BILLS: Record<FrontierBasis, FrontierCost> = {
+    typical: p.typical, 'certify-all': p.certifyAll, ceiling: p.ceiling,
+  };
+  // `hasOwn` rather than an `undefined` check: `BILLS['toString']` is inherited
+  // from Object.prototype, so it is not undefined and would slip through one.
+  if (!Object.hasOwn(BILLS, basis)) {
+    throw new PeeksafeError('PEEKSAFE_E_CONFIG',
+      `costShares: basis must be one of ${Object.keys(BILLS).join(', ')}, got "${String(basis)}"`, {
+        detail: { basis },
+        hint: 'an unrecognised basis silently reporting the typical bill is how a cost breakdown describes a different plan than the one you asked about',
+      });
+  }
+  const cost = BILLS[basis];
   const t = cost.totalUsd;
   if (!(t > 0) || !Number.isFinite(t)) return { screen: 0, test: 0, baseline: 0 };
   return {
