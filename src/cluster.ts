@@ -377,6 +377,21 @@ export function randomEffectsMean(obs: ClusterObservation[], level = 0.95): Rand
   const sigmaSquared = msw;
   const tauSquared = k0 > 0 ? Math.max(0, (msb - msw) / k0) : 0;
 
+  // Neither variance component is positive, so every case took the same value.
+  // The GLS weight 1/(τ² + σ²/n_g) is then 1/0 for every family, the total
+  // weight is Infinity, and the weighted mean came out Infinity/Infinity, i.e.
+  // NaN, with `degenerate` left null, which says the estimate was formed. A
+  // pull request that moved nothing produces exactly this: every per-case
+  // difference is zero. CR2 and the iid interval both answer the grand mean
+  // with a zero-width interval here, and so does this.
+  if (!(tauSquared + sigmaSquared > 0)) {
+    return {
+      ...shell, point: grand, low: grand, high: grand,
+      tauSquared: 0, sigmaSquared: 0, icc: 0, se: 0, df: dfB,
+      degenerate: null,
+    };
+  }
+
   let sumW = 0;
   let sumWY = 0;
   for (const g of entries) {
@@ -510,7 +525,15 @@ export function compareEstimators(e: ClusteredEffect): {
   if (e.cr2.degenerate || e.randomEffects.degenerate) {
     return { agree: true, seRatio: 1, note: e.cr2.degenerate ?? e.randomEffects.degenerate ?? '' };
   }
-  const seRatio = e.randomEffects.se > 0 ? e.cr2.se / e.randomEffects.se : Infinity;
+  // Two estimators that both report a standard error of zero agree; it is only
+  // a zero model-based SE under a positive robust one that is an infinite
+  // ratio. Reading every zero as Infinity made the note say "the family effects
+  // are not behaving like independent draws from one distribution, so trust CR2
+  // and not the hierarchical fit" about a suite with no variance at all, where
+  // the two estimators had produced the same number. Same shape as
+  // `designEffect` in `clusterRobustMean`, for the same reason.
+  const seRatio =
+    e.randomEffects.se > 0 ? e.cr2.se / e.randomEffects.se : e.cr2.se > 0 ? Infinity : 1;
   const agree = seRatio > 0.7 && seRatio < 1.45;
   return {
     agree,

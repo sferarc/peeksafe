@@ -35,6 +35,17 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `randomEffectsMean` returned `NaN` for its point estimate and both interval ends, with
+  `degenerate` left `null`, on a suite where every case moved by the same amount. Its GLS weights
+  are `1 / (tau^2 + sigma^2/n_g)`, and with no within-family and no between-family variance both
+  components are 0, so every weight is `1/0`: the total weight came out `Infinity` and the weighted
+  mean `Infinity / Infinity`. A pull request that moved nothing produces exactly that shape, every
+  per-case difference being zero. It now reports the grand mean with a standard error of 0 and a
+  zero-width interval, which is what `clusterRobustMean` and `iidMean` already answer for the same
+  data. `compareEstimators` read the zero model-based standard error as an infinite ratio and
+  advised "trust CR2 and not the hierarchical fit" about two estimators that had produced the same
+  number; with both standard errors at 0 the ratio is now 1 and they agree. No decision changes:
+  clustering only describes the suite-level effect.
 - `costShares` reported the **typical** bill for any basis it did not recognise, because it
   selected one with a `?:` chain that had `p.typical` on its else branch. `FrontierPoint` names
   the field `certifyAll` while the basis string is `certify-all`, so reaching for the field name
