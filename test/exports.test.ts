@@ -107,6 +107,49 @@ describe('the rest of the statistical core', () => {
     expect(sprtExpectedN(p1, p0, p1, alpha, beta)).toBeCloseTo(((1 - beta) * A + beta * B) / drift(p1), 10);
   });
 
+  it('sprtExpectedN is a positive sample count between the hypotheses too, and meets both ends', () => {
+    const [p0, p1, alpha, beta] = [0.85, 0.7, 0.05, 0.1];
+    // An expected sample number is a count of runs, so no rate may produce a
+    // negative one. Between the hypotheses is where the operating characteristic
+    // used to be interpolated instead of evaluated, and the interpolation ran
+    // the wrong way up.
+    for (let p = p1; p <= p0 + 1e-12; p += 0.005) {
+      expect(sprtExpectedN(p, p0, p1, alpha, beta)).toBeGreaterThan(0);
+    }
+    // The operating characteristic has to agree with the two hypotheses it runs
+    // between, so the interior approaches each endpoint rather than jumping at
+    // it. A negative answer is exactly a jump the wrong side of zero.
+    expect(sprtExpectedN(p1 + 1e-6, p0, p1, alpha, beta)).toBeCloseTo(sprtExpectedN(p1, p0, p1, alpha, beta), 3);
+    expect(sprtExpectedN(p0 - 1e-6, p0, p1, alpha, beta)).toBeCloseTo(sprtExpectedN(p0, p0, p1, alpha, beta), 3);
+    // The corridor is where the test is least decisive, so the curve peaks
+    // inside it rather than running monotonically between the hypotheses.
+    const driftZero = Math.log((1 - p1) / (1 - p0)) /
+      (Math.log((1 - p1) / (1 - p0)) - Math.log(p1 / p0));
+    const peak = sprtExpectedN(driftZero, p0, p1, alpha, beta);
+    expect(peak).toBeGreaterThan(sprtExpectedN(p0, p0, p1, alpha, beta));
+    expect(peak).toBeGreaterThan(sprtExpectedN(p1, p0, p1, alpha, beta));
+    // Far outside a tight pair of hypotheses the tilt reaches the hundreds, and
+    // the boundary powers overflow if they are taken one at a time. A NaN here
+    // reads as "non-positive" to every caller and prices the case at the cap,
+    // which is the same silent failure a negative count produced.
+    const far = sprtExpectedN(0.0025, 0.999, 0.99);
+    expect(Number.isNaN(far)).toBe(false);
+    expect(far).toBeGreaterThan(0);
+  });
+
+  it('expectedSequentialSamples does not price a low-rate baseline at the cap', () => {
+    // 9/30 puts the posterior median *above* the observed rate, so "nothing
+    // moved" lands strictly between the two hypotheses, which is the corridor
+    // the operating characteristic used to get backwards. The fallback for a
+    // non-positive answer is `maxTrials`, so the symptom was a case priced at
+    // the per-case cap rather than at the runs the SPRT actually spends. 32 is
+    // the figure the doc comment on `sprtExpectedN` quotes.
+    const baseline = toBaselineMap([{ caseId: 'a', successes: 9, trials: 30 }]);
+    const res = expectedSequentialSamples([{ id: 'a' }], baseline, DEFAULT_PLAN);
+    expect(res.samples).toBe(32);
+    expect(res.samples).toBeLessThan(DEFAULT_PLAN.maxTrials);
+  });
+
   it('probabilityMoved is near 1 for a collapse, near 0 for no change, and 0 with no candidate runs', () => {
     expect(probabilityMoved(51, 60, 20, 96, 0.15)).toBeGreaterThan(0.999);
     expect(probabilityMoved(51, 60, 82, 96, 0.15)).toBeLessThan(0.01);

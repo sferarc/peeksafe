@@ -35,6 +35,19 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `sprtExpectedN` returned a **negative** number of runs for any true rate strictly between the
+  two hypotheses, and `NaN` for a rate far outside a tight pair of them. It interpolated Wald's
+  operating characteristic as `(p - p1) / (p0 - p1)`, which rises from 0 at `p1` to 1 at `p0` where
+  the real thing falls from `1 - beta` to `alpha`: it matched neither hypothesis, and the
+  interpolated numerator changed sign at a different rate than the drift it is divided by. The
+  operating characteristic is now evaluated exactly, `(1 - B^h) / (A^h - B^h)` at the tilt `h`
+  solving `E_p[lambda^h] = 1`, which is `-1` at `p1` and `+1` at `p0` and therefore still agrees
+  with both hypotheses. The powers are taken relative to the larger of the two so a tilt in the
+  hundreds no longer overflows to `NaN`. `expectedSequentialSamples`,
+  `typicalObservationsPerCase` and `affordabilityGrid` all test the result for `> 0` and fall back
+  to `maxTrials`, so an affected case was priced at the per-case cap: a 9/30 baseline, whose
+  posterior median sits above its own rate, costs 32 runs and was quoted at 96. No decision
+  changes; this is the expected-cost half of the planner, not the gate.
 - `randomEffectsMean` returned `NaN` for its point estimate and both interval ends, with
   `degenerate` left `null`, on a suite where every case moved by the same amount. Its GLS weights
   are `1 / (tau^2 + sigma^2/n_g)`, and with no within-family and no between-family variance both

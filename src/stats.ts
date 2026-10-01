@@ -483,19 +483,91 @@ export function sprtDecision(opts: SprtOpts): SprtResult {
   return { decision, logLR, upper, lower, progress: Math.max(-1, Math.min(1, progress)) };
 }
 
-/** Expected sample number for Wald's SPRT under a true rate p (Wald's approximation). */
+/**
+ * The exponent that tilts the likelihood ratio into a martingale at rate `p`:
+ * the one `h != 0` with `E_p[λ^h] = 1`, where `λ` is the per-trial likelihood
+ * ratio. Wald's operating characteristic is a closed form in it.
+ *
+ * `g(h) = p·r₁^h + (1−p)·r₀^h − 1` is convex with `g(0) = 0` and
+ * `g'(0) = E_p[log λ]`, the drift, so the second root sits on the side opposite
+ * the drift's sign and bisection finds it. `h` is exactly −1 at `p1` and exactly
+ * +1 at `p0`, which is what pins the OC to `1 − β` and `α` there.
+ *
+ * Returns ±Infinity when there is no second root, which is `p = 0` or `p = 1`:
+ * one outcome is impossible, so the test cannot be wrong about which wall it
+ * reaches.
+ */
+function sprtTilt(p: number, logR1: number, logR0: number, drift: number): number {
+  const g = (h: number) => p * Math.exp(h * logR1) + (1 - p) * Math.exp(h * logR0) - 1;
+  const side = drift > 0 ? -1 : 1;
+  let hi = 1;
+  while (hi <= 1 << 20 && !(g(side * hi) > 0)) hi *= 2;
+  if (!(g(side * hi) > 0)) return side * Infinity;
+  let lo = 0;
+  for (let i = 0; i < 200 && hi - lo > Math.max(1e-16, hi * 1e-16); i++) {
+    const mid = (lo + hi) / 2;
+    if (g(side * mid) > 0) hi = mid;
+    else lo = mid;
+  }
+  return (side * (lo + hi)) / 2;
+}
+
+/**
+ * Expected sample number for Wald's SPRT under a true rate p.
+ *
+ * `(L₁·log A + (1−L₁)·log B) / E_p[log λ]`, where `L₁` is the probability of
+ * finishing at the H₁ wall. `L₁` is Wald's operating characteristic in exact
+ * form, `(1 − B^h) / (A^h − B^h)` at the tilt `h` above, rather than the
+ * textbook three-point interpolation: both the numerator and the drift have to
+ * change sign at the same rate, and an interpolation that misses that rate by
+ * even a little returns a *negative* number of runs. The version this replaces
+ * interpolated `L₁` as `(p − p1)/(p0 − p1)`, which rises from 0 at `p1` to 1 at
+ * `p0` where the OC falls from `1 − β` to `α`, so it matched neither hypothesis
+ * and came out negative over most of the corridor. Every caller here tests the
+ * result for `> 0` and falls back to `maxTrials`, so a case landing in the
+ * corridor was priced at the per-case cap: a 9/30 baseline, whose posterior
+ * median sits above its own rate, costs 32 runs and was quoted at 96.
+ * `test/exports.test.ts` pins both the positivity and that case.
+ */
 export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, beta = 0.1): number {
   requireProbability(p, 'p', 'sprtExpectedN');
   requireProbability(p0, 'p0', 'sprtExpectedN');
   requireProbability(p1, 'p1', 'sprtExpectedN');
   const A = Math.log((1 - beta) / alpha);
   const B = Math.log(beta / (1 - alpha));
-  const num =
-    p * Math.log(p1 / p0) + (1 - p) * Math.log((1 - p1) / (1 - p0));
-  if (Math.abs(num) < 1e-12) return Infinity;
-  // probability of ending at the H1 wall, Wald's approximation
-  const L = p <= p1 ? 1 - beta : p >= p0 ? alpha : (p - p1) / (p0 - p1);
-  return (L * A + (1 - L) * B) / num;
+  const logR1 = Math.log(p1 / p0);
+  const logR0 = Math.log((1 - p1) / (1 - p0));
+  const drift = p * logR1 + (1 - p) * logR0;
+  // The tilt is 0 with the drift, where the ASN ratio is 0/0. Its limit is the
+  // one place Wald's formula needs a different expression.
+  if (Math.abs(drift) < 1e-12) {
+    const second = p * logR1 * logR1 + (1 - p) * logR0 * logR0;
+    return second > 0 ? (-A * B) / second : Infinity;
+  }
+  const h = sprtTilt(p, logR1, logR0, drift);
+  return (sprtAcceptH1(h, A, B, drift) * (A - B) + B) / drift;
+}
+
+/**
+ * Wald's operating characteristic at the tilt `h`: the probability the test
+ * finishes at the H₁ wall, `(1 − B^h) / (A^h − B^h)`.
+ *
+ * `A` and `B` arrive as logs, and `|h|` reaches the hundreds for a rate far
+ * outside the two hypotheses, so the two powers are evaluated relative to
+ * whichever of them is largest. Written as plain `exp`, a tilt of −662, which is
+ * p = 0.0025 against p₀ = 0.999 and p₁ = 0.99, overflows `B^h` to Infinity and
+ * the ratio comes back NaN; `expectedSequentialSamples` and
+ * `typicalObservationsPerCase` both test the result for `> 0`, so a NaN there
+ * silently prices the case at `maxTrials`.
+ */
+function sprtAcceptH1(h: number, A: number, B: number, drift: number): number {
+  // No tilt exists at p = 0 or p = 1: one outcome is impossible, so the drift
+  // never reverses and the wall it reaches is certain.
+  if (!Number.isFinite(h)) return drift > 0 ? 1 : 0;
+  const a = h * A;
+  const b = h * B;
+  const m = Math.max(0, a, b);
+  return (Math.exp(-m) - Math.exp(b - m)) / (Math.exp(a - m) - Math.exp(b - m));
 }
 
 /* ───────────────────── multiple-comparison correction ────────────────── */
