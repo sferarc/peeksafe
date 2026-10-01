@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   caseFamily, clusterKey, groupByCluster,
-  iidMean, clusterRobustMean, randomEffectsMean, clusteredEffect,
+  iidMean, clusterRobustMean, randomEffectsMean, clusteredEffect, compareEstimators,
   clusterKeyDiagnostic, MIN_TRUSTWORTHY_CLUSTERS, makeRand,
   type ClusterObservation,
 } from '../src/index.js';
@@ -191,5 +191,43 @@ describe('the interval widens when it should', () => {
     const re = randomEffectsMean(obs);
     expect(Number.isFinite(re.point)).toBe(true);
     expect(re.high).toBeGreaterThan(re.low);
+  });
+
+  it('random effects estimates a suite with no variance at all, rather than reporting NaN as a success', () => {
+    // A pull request that moved nothing gives every case a per-case difference
+    // of exactly the same number, so the within-family and the between-family
+    // variance are both zero. The GLS weights are 1/(τ² + σ²/n_g), which is
+    // then 1/0 for every family, the total weight is Infinity and the point
+    // estimate came back Infinity/Infinity, i.e. NaN, with `degenerate` left
+    // null, which says the estimate was formed. CR2 and the iid interval both
+    // answer the mean with a zero-width interval here, so the cross-check has
+    // to as well.
+    const flat: ClusterObservation[] = [
+      { cluster: 'a', value: -0.04 }, { cluster: 'a', value: -0.04 },
+      { cluster: 'b', value: -0.04 }, { cluster: 'b', value: -0.04 },
+    ];
+    const re = randomEffectsMean(flat);
+    expect(re.point).toBeCloseTo(-0.04, 12);
+    expect(re.se).toBe(0);
+    expect(re.low).toBeCloseTo(-0.04, 12);
+    expect(re.high).toBeCloseTo(-0.04, 12);
+    expect(re.icc).toBe(0);
+
+    const eff = clusteredEffect(flat);
+    expect(eff.randomEffects.point).toBeCloseTo(eff.cr2.point, 12);
+    // Two estimators that produced the same number and the same zero standard
+    // error agree. Dividing by a zero SE reported the ratio as Infinity, and
+    // the note read "the family effects are not behaving like independent draws
+    // from one distribution, so trust CR2 and not the hierarchical fit" about a
+    // suite that is perfectly uniform.
+    const cmp = compareEstimators(eff);
+    expect(cmp.seRatio).toBe(1);
+    expect(cmp.agree).toBe(true);
+
+    // The same shape at a difference of exactly zero, which is the one a clean
+    // pull request actually produces.
+    const zero = flat.map((o) => ({ ...o, value: 0 }));
+    expect(randomEffectsMean(zero).point).toBe(0);
+    expect(Number.isFinite(clusteredEffect(zero).randomEffects.high)).toBe(true);
   });
 });
