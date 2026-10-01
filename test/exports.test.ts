@@ -178,6 +178,25 @@ describe('planning and the frontier', () => {
     expect(costShares(free)).toEqual({ screen: 0, test: 0, baseline: 0 });
   });
 
+  it('costShares refuses an unrecognised basis rather than quoting the typical bill', () => {
+    // `evaluatePoint` refuses one, for the reason written beside its lookup; this
+    // was the `?: ... : p.typical` chain that comment calls out, 200 lines later
+    // in the same file. `FrontierPoint` names the field `certifyAll` while the
+    // basis is `certify-all`, so reaching for the field name is the obvious slip,
+    // and it came back as the typical bill: baseline 6.6% of the money where the
+    // certify-all bill puts it at 1.1%, on a $728 bill quoted against $4298.
+    const p = enumerateFrontier(DEFAULT_FRONTIER).find((x) => x.feasible && x.typical.totalUsd > 0)!;
+    for (const basis of ['certifyAll', 'CEILING', '', 'cheapest']) {
+      expect(() => costShares(p, basis as never), basis).toThrow(
+        expect.objectContaining({ code: 'PEEKSAFE_E_CONFIG' })
+      );
+    }
+    // An omitted basis is still the documented default, and the three real ones
+    // still answer.
+    expect(costShares(p)).toEqual(costShares(p, 'typical'));
+    expect(costShares(p, 'certify-all').baseline).toBeLessThan(costShares(p, 'typical').baseline);
+  });
+
   it('fmtRate prints money, and says so when there is no finite answer', () => {
     expect(fmtRate(1.234)).toBe('$1.23');
     expect(fmtRate(0.00123)).toBe('$0.0012');

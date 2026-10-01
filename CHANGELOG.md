@@ -35,6 +35,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `costShares` reported the **typical** bill for any basis it did not recognise, because it
+  selected one with a `?:` chain that had `p.typical` on its else branch. `FrontierPoint` names
+  the field `certifyAll` while the basis string is `certify-all`, so reaching for the field name
+  is the obvious slip, and it answered silently: the baseline at 6.6% of the money where the
+  certify-all bill puts it at 1.1%, shares of a $728 bill returned for a plan costing $4298.
+  Since the shares are how this module makes its point about the amortised baseline, the wrong
+  bill understates exactly what it exists to show. It now refuses with `PEEKSAFE_E_CONFIG`, from
+  the same lookup `evaluatePoint` already used for `config.basis`. An omitted basis is still
+  `typical`.
 - `gate` certified large improvements as regressions. The Bayes factor behind `twoSampleLogE` has
   a wider alternative than null, so it also grows for a candidate far above its baseline: 96/96
   against 30/60 scored e^19.5. Against a 60-run baseline in a 10-case suite, within 400 runs, a
