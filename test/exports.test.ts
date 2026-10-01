@@ -128,6 +128,22 @@ describe('the rest of the statistical core', () => {
     const peak = sprtExpectedN(driftZero, p0, p1, alpha, beta);
     expect(peak).toBeGreaterThan(sprtExpectedN(p0, p0, p1, alpha, beta));
     expect(peak).toBeGreaterThan(sprtExpectedN(p1, p0, p1, alpha, beta));
+    // Either side of the peak, where the drift is near zero but not zero. The
+    // rate above gives a drift of exactly 0 as a double, so it takes the limit
+    // branch and says nothing about the general form just outside it, which is
+    // where two cancellations compound: a drift of 8.9e-13 read 144296 runs
+    // against this peak of 48.4, and the band held negative answers too. 1e-10
+    // is inside the guard this test was written under and well outside 0/0.
+    for (const off of [-1e-10, 1e-10, -1e-8, 1e-8, -1e-7, 1e-7]) {
+      expect(sprtExpectedN(driftZero + off, p0, p1, alpha, beta)).toBeCloseTo(peak, 4);
+    }
+    // The same neighbourhood for a wide pair, where the compounding went the
+    // other way and produced a negative count rather than an inflated one.
+    const wideZero = Math.log((1 - 0.001) / (1 - 0.7)) /
+      (Math.log((1 - 0.001) / (1 - 0.7)) - Math.log(0.001 / 0.7));
+    for (const off of [-1e-10, 0, 1e-10]) {
+      expect(sprtExpectedN(wideZero + off, 0.7, 0.001, alpha, beta)).toBeCloseTo(0.8257, 3);
+    }
     // Far outside a tight pair of hypotheses the tilt reaches the hundreds, and
     // the boundary powers overflow if they are taken one at a time. A NaN here
     // reads as "non-positive" to every caller and prices the case at the cap,
@@ -135,6 +151,10 @@ describe('the rest of the statistical core', () => {
     const far = sprtExpectedN(0.0025, 0.999, 0.99);
     expect(Number.isNaN(far)).toBe(false);
     expect(far).toBeGreaterThan(0);
+    // The exact value, because the CHANGELOG quotes it against the 1.035 the
+    // interpolation gave here: that 18% gap is this function's real error far
+    // outside a tight pair, and it is the figure a reader can check.
+    expect(far).toBeCloseTo(1.2584, 4);
   });
 
   it('expectedSequentialSamples does not price a low-rate baseline at the cap', () => {

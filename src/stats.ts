@@ -540,7 +540,20 @@ export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, b
   const drift = p * logR1 + (1 - p) * logR0;
   // The tilt is 0 with the drift, where the ASN ratio is 0/0. Its limit is the
   // one place Wald's formula needs a different expression.
-  if (Math.abs(drift) < 1e-12) {
+  //
+  // The threshold is not about where the ratio is exactly 0/0, which would be
+  // 1e-16, but about where the general form is still accurate, which is six
+  // orders of magnitude further out. Two cancellations compound near the zero:
+  // `sprtAcceptH1` differences exponentials whose arguments both vanish with the
+  // drift, and `L₁·(A − B) + B` then vanishes with it again. At a drift of
+  // 8.9e-13 the quotient reads 144296 runs against a true 48.4, and over the
+  // band it goes non-positive, which is the same cap-pricing bug this function
+  // was fixed for: `sprtExpectedN(0.1551411062048796, 0.7, 0.001)` was -3220.9
+  // against a true 0.826. The two forms cross over cleanly at 1e-6, agreeing to
+  // ~1e-5 relative, because the ASN is stationary at the peak and the limit is
+  // therefore second-order accurate there. `test/exports.test.ts` pins the
+  // neighbourhood at driftZero ± 1e-10, inside the old guard and outside 0/0.
+  if (Math.abs(drift) < 1e-6) {
     const second = p * logR1 * logR1 + (1 - p) * logR0 * logR0;
     return second > 0 ? (-A * B) / second : Infinity;
   }

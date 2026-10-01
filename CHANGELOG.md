@@ -36,14 +36,19 @@ All notable changes to this project are documented here. The format follows
 ### Fixed
 
 - `sprtExpectedN` returned a **negative** number of runs for any true rate strictly between the
-  two hypotheses, and `NaN` for a rate far outside a tight pair of them. It interpolated Wald's
+  two hypotheses, under-estimated by about 18% for a rate far outside a tight pair of them
+  (`(0.0025, 0.999, 0.99)` gave 1.035 where the exact answer is 1.258), and returned `Infinity` for
+  the one rate at which the drift vanishes. It interpolated Wald's
   operating characteristic as `(p - p1) / (p0 - p1)`, which rises from 0 at `p1` to 1 at `p0` where
   the real thing falls from `1 - beta` to `alpha`: it matched neither hypothesis, and the
   interpolated numerator changed sign at a different rate than the drift it is divided by. The
   operating characteristic is now evaluated exactly, `(1 - B^h) / (A^h - B^h)` at the tilt `h`
   solving `E_p[lambda^h] = 1`, which is `-1` at `p1` and `+1` at `p0` and therefore still agrees
-  with both hypotheses. The powers are taken relative to the larger of the two so a tilt in the
-  hundreds no longer overflows to `NaN`. `expectedSequentialSamples`,
+  with both hypotheses. The powers are taken relative to the larger of the two, so a tilt in the
+  hundreds (which is what a rate far outside a tight pair produces) cannot overflow. Where the
+  drift vanishes the quotient is 0/0 and its limit, `-log A * log B / E_p[(log lambda)^2]`, is used
+  instead; the general form loses accuracy for a drift under about `1e-6`, so that is where the
+  limit takes over. `expectedSequentialSamples`,
   `typicalObservationsPerCase` and `affordabilityGrid` all test the result for `> 0` and fall back
   to `maxTrials`, so an affected case was priced at the per-case cap: a 9/30 baseline, whose
   posterior median sits above its own rate, costs 32 runs and was quoted at 96. No decision
