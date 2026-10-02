@@ -7,10 +7,10 @@
  * or options sit outside the grid the tests check. Moving the candidate below
  * the baseline turns the same computation into the power.
  */
-import { twoSamplePriors, logGamma, logBeta } from './stats.js';
+import { twoSamplePriors, logGamma, logBeta, pairedLogE } from './stats.js';
 import { requireEvidence, type Evidence } from './evidence.js';
 import { cannotDropBy, DEFAULT_GATE_OPTIONS } from './gate.js';
-import { PeeksafeError, requireOpenProbability, requirePositiveConfig } from './errors.js';
+import { PeeksafeError, requireOpenProbability, requirePositiveConfig, requireProbability } from './errors.js';
 
 export interface TypeOneErrorOptions {
   /** Shared true pass rate of the baseline and the candidate. */
@@ -139,4 +139,69 @@ export function typeOneError(options: TypeOneErrorOptions): number {
   const { rate, ...rest } = options;
   requireOpenProbability(rate, 'rate', 'typeOneError');
   return certifyProbability({ ...rest, baselineRate: rate, candidateRate: rate });
+}
+
+export interface PairedCertifyProbabilityOptions {
+  /** True pass rate of the baseline revision. */
+  baselineRate: number;
+  /** True pass rate of the candidate revision. */
+  candidateRate: number;
+  /** Share of pairs whose two runs see the same random draw (a shared seed); 0 for independent runs. */
+  coupling?: number;
+  /** The bar is `1 / alpha`. For `gate`'s solo bar pass `fdr / suiteSize`. */
+  alpha: number;
+  /** The most pairs any case could reach. */
+  horizon: number;
+}
+
+/**
+ * `certifyProbability` for a paired case: the exact probability it is certified within
+ * `horizon` pairs, however it was stopped. The power when the candidate is lower.
+ */
+export function pairedCertifyProbability(options: PairedCertifyProbabilityOptions): number {
+  const { baselineRate: pb, candidateRate: pc, alpha, horizon } = options;
+  const rho = options.coupling ?? 0;
+  requireOpenProbability(pb, 'baselineRate', 'pairedCertifyProbability');
+  requireOpenProbability(pc, 'candidateRate', 'pairedCertifyProbability');
+  requireOpenProbability(alpha, 'alpha', 'pairedCertifyProbability');
+  requireProbability(rho, 'coupling', 'pairedCertifyProbability');
+  if (!Number.isInteger(horizon) || horizon < 1) {
+    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `pairedCertifyProbability: horizon must be a positive integer, got ${horizon}`, {
+      detail: { horizon },
+    });
+  }
+  const worse = rho * Math.max(0, pb - pc) + (1 - rho) * pb * (1 - pc);
+  const better = rho * Math.max(0, pc - pb) + (1 - rho) * pc * (1 - pb);
+  const bar = Math.log(1 / alpha);
+  // The e-value depends on (worse, discordant) only, so crossing is tabulated once per state.
+  const crosses = Array.from({ length: horizon + 1 }, (_, d) =>
+    Uint8Array.from({ length: d + 1 }, (_, w) => (pairedLogE(w, d) >= bar ? 1 : 0)));
+  // alive[d][w]: probability of d discordant pairs, w of them worse, and no crossing yet.
+  let alive: Float64Array[] = [Float64Array.of(1)];
+  let crossed = 0;
+  for (let n = 1; n <= horizon; n++) {
+    const next = Array.from({ length: n + 1 }, (_, d) => new Float64Array(d + 1));
+    for (let d = 0; d < n; d++) {
+      const row = alive[d]!;
+      for (let w = 0; w <= d; w++) {
+        const m = row[w]!;
+        if (m < 1e-300) continue;
+        next[d]![w]! += m * (1 - worse - better);
+        next[d + 1]![w + 1]! += m * worse;
+        next[d + 1]![w]! += m * better;
+      }
+    }
+    for (let d = 1; d <= n; d++) {
+      const row = next[d]!;
+      const cross = crosses[d]!;
+      for (let w = 0; w <= d; w++) {
+        if (cross[w] && row[w]! > 0) {
+          crossed += row[w]!;
+          row[w] = 0;
+        }
+      }
+    }
+    alive = next;
+  }
+  return crossed;
 }

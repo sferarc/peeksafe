@@ -14,7 +14,7 @@ The README states the limitation plainly and points users near the failing corne
 
 ## What would reopen it
 
-`ROADMAP.md` item 1: a construction that loses less evidence for a stored baseline, or a concurrent-baseline design where blocked 2x2 e-values apply. Either would let the proven statistic become the default.
+A stored-baseline construction that loses much less than `universal`, with a proof. [[2026-10-02-paired-cases-in-gate]] records why the variants tried did not, and why the proven path went to paired cases instead. Paired cases do not replace this default either: they pay for baseline runs on every pull request rather than once.
 
 ## Related
 

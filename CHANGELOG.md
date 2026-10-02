@@ -8,6 +8,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Paired cases in `gate`: a case may carry `paired: { bothPass, worse, better, bothFail }` instead
+  of candidate counts and a stored baseline, and is decided by `pairedLogE` in the same e-BH family
+  as the unpaired cases. Its null is exact, so it has no ceiling and is valid at every rate by
+  construction. The runs need not share a seed: independent runs paired in order are still valid.
+  Within 200 pairs, a 10-case suite at 75% losing 15 points is certified 43.5% of the time with
+  independent runs and 74.5% with half the pairs seeded, against 50.2% for the default statistic
+  with a 240-run stored baseline and 22.3% for `universal`.
+- `shouldStopPaired(counts, options)`: `shouldStop` for a paired case. `settled` comes from an
+  e-value against "dropped by at least `mde`", so a case that really dropped that far is settled
+  with probability at most `1 - futilityConfidence` however often you ask.
+- `pairedCertifyProbability(options)`: the exact power and type I error of a paired case, at
+  separate baseline and candidate rates and a `coupling` for shared seeds.
 - `shouldStop(observed, baseline, options)`: the per-case stopping decision, returning
   `regressed` | `settled` | `futile` | `budget` | `continue` with the evidence behind it. This is
   the loop every caller was writing by hand.
@@ -62,6 +74,15 @@ All notable changes to this project are documented here. The format follows
 - `certifyProbability` and `typeOneError` did not check `altConcentration`, so a non-positive
   value surfaced from deep inside as `PEEKSAFE_E_STAT_DOMAIN`, where `gate` and `shouldStop`
   refuse the same input as `PEEKSAFE_E_CONFIG`. They now refuse it the same way.
+- `pairedLogE` certified improvements as regressions. Its alternative, a Beta centred at 0.75,
+  put about a tenth of its mass on discordances pointing the *better* way, and those components
+  grow without bound when the candidate really is better. With independent runs at alpha 1/200, a
+  case that went from 60% to 75% was certified within 600 discordant pairs 93% of the time, and
+  one from 50% to 95% every time. The alternative is now truncated to "worse more often than
+  not", which makes the statistic an e-value for every candidate that did not get worse, with a
+  proof rather than a cap. `test/paired.test.ts` computes it exactly. A real regression gains a
+  little evidence: the README's 26 discordant pairs go from e = 391 to 429, and
+  `mcnemarSamplesForEvidence` plans 103 pairs where it planned 104.
 - `sprtExpectedN` returned a **negative** number of runs for any true rate strictly between the
   two hypotheses, under-estimated by about 18% for a rate far outside a tight pair of them
   (`(0.0025, 0.999, 0.99)` gave 1.035 where Wald's approximation is 1.258), and returned `Infinity`

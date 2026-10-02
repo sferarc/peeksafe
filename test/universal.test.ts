@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   universalTwoSampleLogE, universalCeilingLogE, twoSampleLogE, typeOneError, certifyProbability,
-  gate, shouldStop, logGamma, type Evidence,
+  gate, shouldStop, logGamma, logBeta, ibeta, type Evidence,
 } from '../src/index.js';
 
 const logBinom = (n: number, k: number, p: number): number =>
@@ -106,6 +106,72 @@ describe('what it costs', () => {
       }
     }
     console.log(rows.join('\n'));
+  });
+});
+
+describe('a provable statistic cannot close the gap by reshaping the alternative', () => {
+  // inf over the baseline rate p of [uniform mixture / likelihood at p] times a candidate martingale whose alternative is
+  // truncated below p and recentred at p - mde, so it is valid for every candidate rate at or above p. The inf is taken
+  // on a grid, which can only overstate the statistic, so the power below is an upper bound on the real construction's.
+  function truncatedPowerUpperBound(nb: number, pb: number, pc: number, mde: number, k: number, alpha: number, horizon: number): number {
+    const G = 100;
+    const grid = Array.from({ length: G }, (_, g) => (g + 0.5) / G);
+    const xlogy = (x: number, y: number) => (x === 0 ? 0 : x * Math.log(y));
+    const logLik = (s: number, n: number, p: number) => xlogy(s, p) + xlogy(n - s, 1 - p);
+    const tables: Float64Array[] = [];
+    for (let n = 1; n <= horizon; n++) {
+      const row = new Float64Array((n + 1) * G);
+      grid.forEach((p, g) => {
+        const centre = Math.max(0.005, p - mde);
+        const a = Math.max(0.35, k * centre);
+        const b = Math.max(0.35, k * (1 - centre));
+        const norm = logBeta(a, b) + Math.log(ibeta(a, b, p));
+        for (let s = 0; s <= n; s++) row[s * G + g] = logBeta(a + s, b + n - s) + Math.log(ibeta(a + s, b + n - s, p)) - norm - logLik(s, n, p);
+      });
+      tables[n] = row;
+    }
+    const bar = Math.log(1 / alpha);
+    let total = 0;
+    for (let sb = 0; sb <= nb; sb++) {
+      const weight = Math.exp(logBinom(nb, sb, pb));
+      if (weight < 1e-12) continue;
+      const A = grid.map((p) => logBeta(1 + sb, 1 + nb - sb) - logLik(sb, nb, p));
+      let alive = new Float64Array(horizon + 1);
+      alive[0] = 1;
+      let crossed = 0;
+      for (let n = 1; n <= horizon; n++) {
+        const next = new Float64Array(horizon + 1);
+        for (let s = 0; s < n; s++) {
+          next[s + 1]! += alive[s]! * pc;
+          next[s]! += alive[s]! * (1 - pc);
+        }
+        const row = tables[n]!;
+        for (let s = 0; s <= n; s++) {
+          if (next[s]! < 1e-18) continue;
+          let e = Infinity;
+          for (let g = 0; g < G; g++) e = Math.min(e, A[g]! + row[s * G + g]!);
+          if (e >= bar) {
+            crossed += next[s]!;
+            next[s] = 0;
+          }
+        }
+        alive = next;
+      }
+      total += weight * crossed;
+    }
+    return total;
+  }
+
+  it('gains a few points over universal, and stays far under the default', () => {
+    for (const nb of [60, 240]) {
+      const o = { baselineRate: 0.75, candidateRate: 0.6, baselineTrials: nb, mde: 0.15, alpha: 0.005, horizon: 200 };
+      const bayes = certifyProbability(o);
+      const universal = certifyProbability({ ...o, evidence: 'universal' });
+      const reshaped = truncatedPowerUpperBound(nb, 0.75, 0.6, 0.15, 32, 0.005, 200);
+      console.log(`nb=${nb}: bayes ${bayes.toFixed(3)} universal ${universal.toFixed(3)} reshaped at most ${reshaped.toFixed(3)}`);
+      expect(reshaped - universal, `nb=${nb}`).toBeLessThan(0.06);
+      expect(reshaped, `nb=${nb}`).toBeLessThan(bayes - 0.07);
+    }
   });
 });
 
