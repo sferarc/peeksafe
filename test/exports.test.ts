@@ -113,8 +113,11 @@ describe('the rest of the statistical core', () => {
     // negative one. Between the hypotheses is where the operating characteristic
     // used to be interpolated instead of evaluated, and the interpolation ran
     // the wrong way up.
-    for (let p = p1; p <= p0 + 1e-12; p += 0.005) {
-      expect(sprtExpectedN(p, p0, p1, alpha, beta)).toBeGreaterThan(0);
+    // Indexed rather than accumulated: `p += 0.005` drifts, and its last step
+    // landed on 0.8500000000000003, so the loop stopped one short of `p0`.
+    for (let k = 0; k <= 30; k++) {
+      const p = p1 + ((p0 - p1) * k) / 30;
+      expect(sprtExpectedN(p, p0, p1, alpha, beta), `p=${p}`).toBeGreaterThan(0);
     }
     // The operating characteristic has to agree with the two hypotheses it runs
     // between, so the interior approaches each endpoint rather than jumping at
@@ -128,12 +131,14 @@ describe('the rest of the statistical core', () => {
     const peak = sprtExpectedN(driftZero, p0, p1, alpha, beta);
     expect(peak).toBeGreaterThan(sprtExpectedN(p0, p0, p1, alpha, beta));
     expect(peak).toBeGreaterThan(sprtExpectedN(p1, p0, p1, alpha, beta));
-    // Either side of the peak, where the drift is near zero but not zero. The
-    // rate above gives a drift of exactly 0 as a double, so it takes the limit
-    // branch and says nothing about the general form just outside it, which is
-    // where two cancellations compound: a drift of 8.9e-13 read 144296 runs
-    // against this peak of 48.4, and the band held negative answers too. 1e-10
-    // is inside the guard this test was written under and well outside 0/0.
+    // Either side of the peak, where the drift is near zero but not zero. All
+    // six offsets are inside the near-zero band, not outside it: the drift's
+    // slope in `p` is `logR1 - logR0`, which is -0.887 for this pair, against a
+    // curvature of 0.135, so an offset of 1e-7 is a tilt of 2 x 8.87e-8 / 0.135
+    // = 1.3e-6, well under the guard at 3e-4. What they pin is that
+    // the band is flat and finite, which is what a drift of 8.9e-13 reading
+    // 144296 runs against this peak of 48.4 was not. The seam itself is walked
+    // by 'the 0/0 limit and the general form meet without a step' below.
     for (const off of [-1e-10, 1e-10, -1e-8, 1e-8, -1e-7, 1e-7]) {
       expect(sprtExpectedN(driftZero + off, p0, p1, alpha, beta)).toBeCloseTo(peak, 4);
     }
@@ -155,6 +160,81 @@ describe('the rest of the statistical core', () => {
     // interpolation gave here: that 18% gap is this function's real error far
     // outside a tight pair, and it is the figure a reader can check.
     expect(far).toBeCloseTo(1.2584, 4);
+  });
+
+  it('sprtExpectedN is exact at both hypotheses however close together they are', () => {
+    const [alpha, beta] = [0.05, 0.1];
+    const A = Math.log((1 - beta) / alpha);
+    const B = Math.log(beta / (1 - alpha));
+    // The tilt is exactly -1 at `p1` and +1 at `p0` for every pair of
+    // hypotheses, so Wald's endpoint values hold whatever the gap between them.
+    // The near-zero guard used to compare `|drift|` against a fixed 1e-6, but
+    // the drift scales with the square of that gap, so one fixed threshold is a
+    // different threshold on the tilt for every pair: for anything closer
+    // together than an mde of about 1e-3 it covered the corridor end to end and
+    // answered with the 0/0 limit at the hypotheses themselves, where the
+    // general form is not merely accurate but exact. (0.5, 0.4999) came back at
+    // 1.3692x the right answer at `p1` and 1.6315x at `p0`.
+    for (const [p0, p1] of [[0.5, 0.4999], [0.3, 0.2995], [0.9, 0.8996], [0.01, 0.0099]] as const) {
+      const drift = (p: number) => p * Math.log(p1 / p0) + (1 - p) * Math.log((1 - p1) / (1 - p0));
+      const atP1 = ((1 - beta) * A + beta * B) / drift(p1);
+      const atP0 = (alpha * A + (1 - alpha) * B) / drift(p0);
+      expect(sprtExpectedN(p1, p0, p1, alpha, beta) / atP1, `p1 of (${p0}, ${p1})`).toBeCloseTo(1, 6);
+      expect(sprtExpectedN(p0, p0, p1, alpha, beta) / atP0, `p0 of (${p0}, ${p1})`).toBeCloseTo(1, 6);
+      // The vivid symptom, and the one a reader can see without the algebra: a
+      // guard that fires across the whole corridor returns the same constant at
+      // every rate in it, so the two hypotheses priced identically. They should
+      // not: the H1 end costs more runs than the H0 end here.
+      expect(sprtExpectedN(p1, p0, p1, alpha, beta), `corridor of (${p0}, ${p1}) is flat`)
+        .toBeGreaterThan(sprtExpectedN(p0, p0, p1, alpha, beta) * 1.15);
+    }
+    // The limit of close together is equal, where every trial is uninformative
+    // and no number of runs ends the test. The curvature is 0 there, so this is
+    // the one case the guard cannot scale by it and it is answered on its own.
+    expect(sprtExpectedN(0.5, 0.5, 0.5, alpha, beta)).toBe(Infinity);
+    expect(sprtExpectedN(0.3, 0.5, 0.5, alpha, beta)).toBe(Infinity);
+  });
+
+  it('the 0/0 limit and the general form meet without a step', () => {
+    const [alpha, beta] = [0.05, 0.1];
+    // Walking the tilt towards 0 in half-decade steps crosses the seam between
+    // the two forms, wherever the guard puts it. The ASN is stationary at the
+    // drift zero, so the curve is flat through this band and every consecutive
+    // pair of samples agrees to 7.7e-4 or better; a seam placed where the two
+    // forms do not agree shows up here as a step. A threshold on `|drift|` of
+    // 1e-6 puts a 5.5e-3 step into (0.999999, 1e-6) at a tilt of 3.2e-8, which
+    // is the same misplaced seam the test above catches at the hypotheses.
+    // Walking the band in tilt rather than in `p` is what reaches it at all: a
+    // uniform grid in `p` cannot land inside it.
+    //
+    // mde >= 1e-3 is the domain: `DEFAULT_PLAN.mde` is 0.15 and
+    // `affordabilityGrid` sweeps 0.1 to 0.35, and a pair closer together than
+    // 1e-3 has a true ASN in the millions of runs, which every caller clamps to
+    // `maxTrials` whichever form produced it.
+    const pairs = [[0.85, 0.7], [0.999, 0.99], [0.7, 0.001], [0.95, 0.8], [0.01, 0.005],
+      [0.5, 0.499], [0.3, 0.299], [0.999, 0.499], [0.999999, 1e-6]] as const;
+    for (const [p0, p1] of pairs) {
+      const logR1 = Math.log(p1 / p0);
+      const logR0 = Math.log((1 - p1) / (1 - p0));
+      const driftZero = -logR0 / (logR1 - logR0);
+      const second = driftZero * logR1 * logR1 + (1 - driftZero) * logR0 * logR0;
+      // The rate whose tilt is h, from h = -2*drift/second near the zero.
+      const rateAt = (h: number) => driftZero - (h * second) / (2 * (logR1 - logR0));
+      for (const side of [1, -1]) {
+        let prev: number | null = null;
+        for (let e = -3; e >= -9; e -= 0.5) {
+          const p = rateAt(side * 10 ** e);
+          expect(p, `(${p0}, ${p1}) h=${side * 10 ** e}`).toBeGreaterThan(0);
+          const got = sprtExpectedN(p, p0, p1, alpha, beta);
+          expect(got, `(${p0}, ${p1}) h=${side * 10 ** e}`).toBeGreaterThan(0);
+          if (prev !== null) {
+            expect(Math.abs(got / prev - 1), `step at (${p0}, ${p1}) h=${side * 10 ** e}`)
+              .toBeLessThan(2e-3);
+          }
+          prev = got;
+        }
+      }
+    }
   });
 
   it('expectedSequentialSamples does not price a low-rate baseline at the cap', () => {

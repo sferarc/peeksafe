@@ -47,8 +47,12 @@ All notable changes to this project are documented here. The format follows
   with both hypotheses. The powers are taken relative to the larger of the two, so a tilt in the
   hundreds (which is what a rate far outside a tight pair produces) cannot overflow. Where the
   drift vanishes the quotient is 0/0 and its limit, `-log A * log B / E_p[(log lambda)^2]`, is used
-  instead; the general form loses accuracy for a drift under about `1e-6`, so that is where the
-  limit takes over. `expectedSequentialSamples`,
+  instead. What decides whether the quotient is really 0/0 is the tilt rather than the drift, since
+  the drift scales with the square of the gap between the hypotheses while the tilt does not, so the
+  limit takes over below a tilt of `3e-4`: a fixed threshold on the drift is a different threshold
+  on the tilt for every pair of hypotheses, and for any pair closer together than an `mde` of about
+  `1e-3` it covers the corridor end to end, including the two hypotheses themselves, where the
+  general form is exact. `expectedSequentialSamples`,
   `typicalObservationsPerCase` and `affordabilityGrid` all test the result for `> 0` and fall back
   to `maxTrials`, so an affected case was priced at the per-case cap: a 9/30 baseline, whose
   posterior median sits above its own rate, costs 32 runs and was quoted at 96. No decision

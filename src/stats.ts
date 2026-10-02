@@ -493,9 +493,12 @@ export function sprtDecision(opts: SprtOpts): SprtResult {
  * the drift's sign and bisection finds it. `h` is exactly −1 at `p1` and exactly
  * +1 at `p0`, which is what pins the OC to `1 − β` and `α` there.
  *
- * Returns ±Infinity when there is no second root, which is `p = 0` or `p = 1`:
- * one outcome is impossible, so the test cannot be wrong about which wall it
- * reaches.
+ * Returns ±Infinity when the bracket reaches 2^20 without finding a root. That
+ * is exactly `p = 0` or `p = 1`, where one outcome is impossible so the test
+ * cannot be wrong about which wall it reaches. The cap is safe for the rest
+ * because the operating characteristic has saturated to 1 or 0 to machine
+ * precision long before `|h|` gets there, so the ±Infinity branch returns the
+ * answer the bisection would have.
  */
 function sprtTilt(p: number, logR1: number, logR0: number, drift: number): number {
   const g = (h: number) => p * Math.exp(h * logR1) + (1 - p) * Math.exp(h * logR0) - 1;
@@ -538,25 +541,30 @@ export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, b
   const logR1 = Math.log(p1 / p0);
   const logR0 = Math.log((1 - p1) / (1 - p0));
   const drift = p * logR1 + (1 - p) * logR0;
-  // The tilt is 0 with the drift, where the ASN ratio is 0/0. Its limit is the
-  // one place Wald's formula needs a different expression.
+  const second = p * logR1 * logR1 + (1 - p) * logR0 * logR0;
+  // p0 === p1 leaves every trial uninformative, so the drift and the curvature
+  // are both 0 and no number of runs ends the test.
+  if (second === 0) return Infinity;
+  // The ASN is 0/0 where the tilt vanishes, and that limit is the one place
+  // Wald's formula needs a different expression. What decides whether the
+  // quotient is really 0/0 is the *tilt*, not the drift: near the zero
+  // `h = −2·drift / second`, and `second` scales with the square of the gap
+  // between the hypotheses, so one fixed threshold on `|drift|` means a
+  // different threshold on `h` for every pair of them. A guard of
+  // `|drift| < 1e-6` covered the whole corridor of any pair closer together
+  // than about an `mde` of 1e-3, including the two hypotheses themselves, where
+  // `h` is exactly −1 and +1 and the general form is not merely accurate but
+  // exact: for (0.5, 0.4999) it returned 1.37x the right answer at `p1` and
+  // 1.63x at `p0`, which is the one property this function is documented to
+  // preserve. Scaling by `second` fires on a vanishing tilt instead.
   //
-  // The threshold is not about where the ratio is exactly 0/0, which would be
-  // 1e-16, but about where the general form is still accurate, which is six
-  // orders of magnitude further out. Two cancellations compound near the zero:
-  // `sprtAcceptH1` differences exponentials whose arguments both vanish with the
-  // drift, and `L₁·(A − B) + B` then vanishes with it again. At a drift of
-  // 8.9e-13 the quotient reads 144296 runs against a true 48.4, and over the
-  // band it goes non-positive, which is the same cap-pricing bug this function
-  // was fixed for: `sprtExpectedN(0.1551411062048796, 0.7, 0.001)` was -3220.9
-  // against a true 0.826. The two forms cross over cleanly at 1e-6, agreeing to
-  // ~1e-5 relative, because the ASN is stationary at the peak and the limit is
-  // therefore second-order accurate there. `test/exports.test.ts` pins the
-  // neighbourhood at driftZero ± 1e-10, inside the old guard and outside 0/0.
-  if (Math.abs(drift) < 1e-6) {
-    const second = p * logR1 * logR1 + (1 - p) * logR0 * logR0;
-    return second > 0 ? (-A * B) / second : Infinity;
-  }
+  // The constant is a minimax between the two forms. The limit is first order
+  // in the tilt, so its error is of order `|h|` and wants the threshold small;
+  // the general form differences exponentials that vanish with the drift, twice
+  // over, so its error grows as `|h|` shrinks and wants it large. They cross
+  // near 3e-4: `test/exports.test.ts` walks the band in tilt across every pair
+  // it checks and pins the gap either side of the seam under 2e-3.
+  if (2 * Math.abs(drift) < 3e-4 * second) return (-A * B) / second;
   const h = sprtTilt(p, logR1, logR0, drift);
   return (sprtAcceptH1(h, A, B, drift) * (A - B) + B) / drift;
 }
