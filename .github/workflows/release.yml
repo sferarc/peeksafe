@@ -97,7 +97,7 @@ jobs:
       # than `@latest` so a release is not at the mercy of whatever npm shipped
       # this morning.
       - name: npm new enough for trusted publishing
-        run: npm install -g npm@11.5.1
+        run: npm install -g npm@11.21.0
 
       # Two ways in, on purpose, because they become available in that order.
       #

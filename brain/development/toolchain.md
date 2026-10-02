@@ -25,7 +25,7 @@ npm run build       # tsc -p tsconfig.build.json, emits dist/
 
 ## Dependencies
 
-Dev dependencies only: `typescript`, `vitest`, `@types/node`. A runtime dependency needs a stated reason in the pull request (`CONTRIBUTING.md`), and CI fails if one appears in the packed tarball.
+Dev dependencies only: `typescript` 7 (the native compiler; its output matched TypeScript 5.9 file for file when it was adopted), `vitest` 5 (needs Node `^22.12.0` or `>=24`) and `@types/node` 22, held at the oldest supported Node so the types cannot offer an API that `engines` does not guarantee. A runtime dependency needs a stated reason in the pull request (`CONTRIBUTING.md`), and CI fails if one appears in the packed tarball.
 
 ## Style rules that are easy to miss
 
