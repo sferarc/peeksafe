@@ -1,9 +1,8 @@
 /**
  * plan.ts: power economics. What will this cost, and can we even detect it?
  *
- * The first version of peeksafe could tell you, after the fact, that it had
- * spent 8,000 model calls and still said INCONCLUSIVE. This module tells you
- * *before* you spend anything, and it will tell you that the honest answer is
+ * Without a plan, the first sign that a suite cannot be decided is a large bill
+ * and no certified case. This module tells you *before* you spend anything, and it will tell you that the honest answer is
  * sometimes "you cannot detect this at any price".
  *
  * The three numbers that matter, per case:
@@ -357,8 +356,8 @@ export function planCase(
  * `samplesForEvidence`, the one behind `PlanCase.unpaired.runs`, answers a
  * different question: how many runs it takes to *certify a regression*. A case
  * that did not regress never gets there; it hits the H₀ wall in a few batches
- * and stops. Conflating the two is what made round 2's plan over-predict the
- * bill by 5 to 8×.
+ * and stops. Pricing every case at the certification cost over-predicts the
+ * bill.
  *
  * `trueRate` defaults to the case's own baseline rate, i.e. "nothing moved", * which is what almost every pull request looks like.
  */
@@ -520,10 +519,7 @@ export function makePlan(
     decidableAny.length === 0
       ? Infinity
       : Math.min(totals.screenedCostUsd, totals.bestCostUsd);
-  // …and the honest *headline* is the expected cost, not the ceiling. Round 2
-  // led with the ceiling and therefore over-stated the bill by 5 to 8× (measured;
-  // measured against real runs). The ceiling is still printed, labelled as a
-  // ceiling.
+  // The headline is the expected cost; leading with the ceiling over-states the bill.
   // Mirrors the ceiling's structure, the cheapest plan of its kind, so the two
   // numbers are roughly comparable. Comparing an unscreened expected cost
   // with a screened ceiling was the first version of this and it made the
