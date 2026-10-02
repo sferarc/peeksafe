@@ -3,18 +3,21 @@
 What comes next, in order. Each item says why it matters and what done looks like. Numbers
 quoted here come from `test/`, as CONTRIBUTING asks.
 
-## 1. Close the gap between the two statistics
+## 1. Pairing in the planner's defaults
 
-`evidence: 'universal'` is valid at every rate and needs about four times the baseline runs of
-the default to match its power. Either a construction that loses less for a stored baseline, or
-a concurrent-baseline design where Turner, Ly and Grünwald's blocked e-values apply, would let
-the proven statistic become the default.
+`gate` takes paired cases, which are valid at every rate by construction and, with independent
+runs and no stored baseline, nearly match the default statistic's power against a 240-run baseline
+(README, "Paired cases in `gate`"). `makePlan` still prices pairing from an assumed
+`pairCoupling`. Done looks like a plan that recommends the paired design per case from a measured
+coupling, and a README section on choosing between the designs by cost.
 
-## 2. Paired cases in `gate`
+## 2. The stored-baseline statistics
 
-`pairedLogE` tests against an exact point null (a discordant pair points either way with
-probability one half), so it is an e-value at every rate and has no evidence ceiling. `gate`
-only takes unpaired counts today, so a caller who pairs runs has to rebuild e-BH by hand.
+A stored baseline cannot get a proven statistic as powerful as the default: any statistic valid
+at every rate pays for the worst rate the baseline still permits, and recentring or truncating
+`universal`'s alternative per null rate recovers only a few points (README, "An always-valid
+alternative"). What is left is narrower: a cap on `altConcentration`, whose large values are the
+one known way the default exceeds alpha at a rate inside the grid's range.
 
 ## 3. First release
 

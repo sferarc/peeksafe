@@ -27,6 +27,10 @@ The ceiling depends on how bad the regression is, and early on that is barely kn
 
 `futile` and `settled` stay separate reasons because they call for opposite actions: more baseline runs, or nothing.
 
+## Paired cases
+
+`shouldStopPaired(counts, options)` is the paired version, with reasons `regressed`, `settled`, `budget` and `continue`. There is no ceiling, so `settled` comes from a second e-process: the mean over nine fixed bets of `prod(1 - lambda (D - mde))`, with `D` +1 for a worse pair and -1 for a better one, which is a supermartingale whenever the true drop is at least `mde`. It settles when that reaches `1 / (1 - futilityConfidence)`, so a real `mde` drop is settled at most `1 - futilityConfidence` of the time under any looking schedule; `test/paired.test.ts` measured 43 in 1,000. Healthy cases at 75% settled after about 120 pairs in a scratch simulation (not pinned by a test).
+
 ## Related
 
 - [[gate]], which consumes the counts once every case has stopped
