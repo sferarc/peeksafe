@@ -3,8 +3,13 @@ name: Release
 # Publishing is deliberately manual: push a tag when you mean it. Nothing here
 # fires on a merge to main, so a release is always something a person decided.
 #
-#   npm version patch|minor|major   # writes package.json + CHANGELOG, tags
-#   git push --follow-tags
+# main only takes pull requests, so the version bump goes through one:
+#
+#   npm version patch|minor|major --no-git-tag-version
+#       bumps package.json and package-lock.json, and the `version` script
+#       moves CHANGELOG.md's Unreleased section under the new version
+#   commit those three files, open a pull request, merge it
+#   git tag -a vX.Y.Z -m vX.Y.Z <merge commit> && git push origin vX.Y.Z
 #
 on:
   push:
@@ -109,7 +114,7 @@ jobs:
       #
       # `NODE_AUTH_TOKEN` stays as the fallback so this workflow works before
       # that switch is flipped as well as after. npm prefers OIDC when a trusted
-      # publisher is configured and the token is then unused — remove it once
+      # publisher is configured and the token is then unused. Remove it once
       # you have seen a green release without it, not before.
       - name: Publish
         run: npm publish --provenance --access public

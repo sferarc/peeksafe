@@ -20,6 +20,7 @@ Any figure in the README, a doc comment or a commit message must be reproducible
 | `test/stats.test.ts` | Special functions against closed forms, intervals, SPRT, e-BH, the two-sample e-value |
 | `test/cluster.test.ts` | Family grouping and interval widening |
 | `test/exports.test.ts` | Exercises every runtime export and fails when one is not exercised |
+| `test/release-changelog.test.ts` | The `version` script that moves `Unreleased` in `CHANGELOG.md` ([[release]]) |
 
 ## Determinism
 
