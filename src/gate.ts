@@ -37,11 +37,20 @@
  * 0.5, which gates the case against "it passes half the time" and reports a
  * large improvement against nothing at all. Cases without a baseline come back
  * in `newCases` and take no part in the verdict or the e-BH family.
+ *
+ * ## Paired cases
+ *
+ * A case may instead carry `paired` counts from re-running the baseline next to
+ * the candidate, one baseline run per candidate run. Its e-value is
+ * `pairedLogE` on the discordant pairs, which is valid at every rate by
+ * construction and has no ceiling, whichever `evidence` the unpaired cases use.
+ * The pairs need not share a seed: independent runs paired in order are still
+ * valid, and a shared seed only makes discordances more informative.
  */
-import { ebhCorrect, ebhSoloThreshold } from './stats.js';
+import { ebhCorrect, ebhSoloThreshold, pairedLogE, discordant, type PairedCounts } from './stats.js';
 import { logEvidence, ceilingLogEvidence, requireEvidence, toEvalue, type Evidence } from './evidence.js';
 import { type BaselineStat } from './baseline.js';
-import { PeeksafeError, requireCounts, requireOpenProbability, requirePositiveConfig } from './errors.js';
+import { PeeksafeError, requireCounts, requireOpenProbability, requirePairedCounts, requirePositiveConfig } from './errors.js';
 
 /**
  * True when the baseline's observed rate leaves no room for an `mde`-sized drop.
@@ -59,6 +68,14 @@ export interface GateCase {
   trials: number;
   /** The reference revision's recorded counts, or undefined if there are none. */
   baseline?: BaselineStat;
+  paired?: undefined;
+}
+
+/** One case run as pairs: each candidate run next to a fresh baseline run. */
+export interface PairedGateCase {
+  id: string;
+  /** The pair table so far. Stop whenever you like. */
+  paired: PairedCounts;
 }
 
 export interface GateOptions {
@@ -110,8 +127,12 @@ export interface CaseVerdict {
    * keeps it in the e-BH family without it ever being certified.
    */
   impossible: boolean;
+  /** For a paired case, each arm's passes over the number of pairs. */
   observed: { successes: number; trials: number };
   baseline: { successes: number; trials: number };
+  design: 'unpaired' | 'paired';
+  /** The pair table, for a paired case. */
+  paired?: PairedCounts;
 }
 
 export interface GateResult {
@@ -148,7 +169,7 @@ export interface GateResult {
  * the moment it looks decided, or anything in between; the guarantee does not
  * depend on the rule you used.
  */
-export function gate(cases: readonly GateCase[], options: GateOptions = {}): GateResult {
+export function gate(cases: readonly (GateCase | PairedGateCase)[], options: GateOptions = {}): GateResult {
   const opts: Required<GateOptions> = { ...DEFAULT_GATE_OPTIONS, ...options };
   requireOpenProbability(opts.mde, 'mde', 'gate');
   requireOpenProbability(opts.fdr, 'fdr', 'gate');
@@ -164,12 +185,17 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
       });
     }
     seen.add(c.id);
+    if (c.paired) {
+      requirePairedCounts(c.paired, `gate(${c.id}).paired`);
+      continue;
+    }
     requireCounts(c.successes, c.trials, `gate(${c.id})`);
     if (c.baseline) requireCounts(c.baseline.successes, c.baseline.trials, `gate(${c.id}).baseline`);
   }
 
-  const newCases = cases.filter((c) => !c.baseline || c.baseline.trials === 0).map((c) => c.id);
-  const gated = cases.filter((c) => c.baseline && c.baseline.trials > 0);
+  const hasBaseline = (c: GateCase | PairedGateCase): boolean => c.paired !== undefined || (c.baseline !== undefined && c.baseline.trials > 0);
+  const newCases = cases.filter((c) => !hasBaseline(c)).map((c) => c.id);
+  const gated = cases.filter(hasBaseline);
 
   if (gated.length === 0) {
     throw new PeeksafeError('PEEKSAFE_E_BASELINE_MISSING', 'gate: no case has a baseline, so there is nothing to test against', {
@@ -179,19 +205,36 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
   }
 
   const m = gated.length;
-  const impossible = gated.map((c) => cannotDropBy(c.baseline!, opts.mde));
   // Testing these anyway clamps the alternative onto a rate near zero, which is
   // where the case already sits, and the false positive rate then exceeds `fdr`.
-  const logEs = gated.map((c, i) =>
-    impossible[i]
+  // A paired case has an exact null and never needs this.
+  const impossible = gated.map((c) => !c.paired && cannotDropBy(c.baseline!, opts.mde));
+  const logEs = gated.map((c, i) => {
+    if (c.paired) return pairedLogE(c.paired.worse, discordant(c.paired));
+    return impossible[i]
       ? 0
-      : logEvidence(opts.evidence, c.successes, c.trials, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration)
-  );
+      : logEvidence(opts.evidence, c.successes, c.trials, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration);
+  });
   const evalues = logEs.map(toEvalue);
   const ebh = ebhCorrect(evalues, opts.fdr);
   const solo = ebhSoloThreshold(m, opts.fdr);
 
   const verdicts: CaseVerdict[] = gated.map((c, i) => {
+    const shared = { id: c.id, regressed: ebh.rejected[i]!, evalue: evalues[i]!, logE: logEs[i]! };
+    if (c.paired) {
+      const p = c.paired;
+      const pairs = p.bothPass + p.worse + p.better + p.bothFail;
+      return {
+        ...shared,
+        ceiling: Infinity,
+        undetectable: false,
+        impossible: false,
+        observed: { successes: p.bothPass + p.better, trials: pairs },
+        baseline: { successes: p.bothPass + p.worse, trials: pairs },
+        design: 'paired',
+        paired: { ...p },
+      };
+    }
     // The ceiling is evaluated at the rate a regression would actually sit at,
     // one MDE below the baseline's own rate. That is the alternative the gate is
     // trying to detect, so it is the right place to ask "could this ever clear
@@ -202,15 +245,13 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
       ? 1
       : Math.exp(ceilingLogEvidence(opts.evidence, pAlt, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration));
     return {
-      id: c.id,
-      regressed: ebh.rejected[i]!,
-      evalue: evalues[i]!,
-      logE: logEs[i]!,
+      ...shared,
       ceiling,
       undetectable: !impossible[i] && ceiling < solo,
       impossible: impossible[i]!,
       observed: { successes: c.successes, trials: c.trials },
       baseline: { successes: c.baseline!.successes, trials: c.baseline!.trials },
+      design: 'unpaired',
     };
   });
 

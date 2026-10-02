@@ -37,7 +37,9 @@ import {
   shouldStop,
   makeRand,
   typeOneError,
+  certifyProbability,
   universalTwoSampleLogE,
+  shouldStopPaired,
   type BaselineStat,
 } from '../src/index.js';
 
@@ -293,6 +295,25 @@ describe('README: the paired alternative', () => {
 
   it('certifies against the bar, which is the point of the example', () => {
     expect(Math.exp(pairedLogE(counts.worse, discordant(counts)))).toBeGreaterThanOrEqual(ebhSoloThreshold(10, 0.05));
+  });
+});
+
+describe('README: paired cases in gate', () => {
+  it('reproduces the snippet', () => {
+    const result = gate([
+      { id: 'routing/fallback', paired: { bothPass: 70, worse: 22, better: 4, bothFail: 4 } },
+      { id: 'parsing/nested', successes: 88, trials: 96, baseline: { caseId: 'parsing/nested', successes: 51, trials: 60 } },
+    ]);
+    expect(result.regressed.map((c) => c.id)).toEqual(['routing/fallback']);
+    expect(result.cases[0]!.design).toBe('paired');
+    expect(shouldStopPaired({ bothPass: 150, worse: 12, better: 12, bothFail: 26 }, { suiteSize: 10 }).reason).toBe('settled');
+  });
+
+  it('quotes the default column of its power table from the same computation as the universal table', () => {
+    for (const [m, rate, mde, expected] of [[10, 0.75, 0.15, 0.502], [10, 0.95, 0.15, 0.935], [10, 0.75, 0.25, 0.979], [200, 0.75, 0.15, 0.212]] as const) {
+      const p = certifyProbability({ baselineRate: rate, candidateRate: rate - mde, baselineTrials: 240, mde, alpha: 0.05 / m, horizon: 200 });
+      expect(p, `${m}/${rate}/${mde}`).toBeCloseTo(expected, 3);
+    }
   });
 });
 

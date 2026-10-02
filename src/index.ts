@@ -43,6 +43,7 @@ export {
   gate,
   DEFAULT_GATE_OPTIONS,
   type GateCase,
+  type PairedGateCase,
   type GateOptions,
   type GateResult,
   type CaseVerdict,
@@ -50,16 +51,21 @@ export {
 
 export {
   shouldStop,
+  shouldStopPaired,
   DEFAULT_STOP_OPTIONS,
   type StopDecision,
   type StopOptions,
   type StopReason,
+  type PairedStopDecision,
+  type PairedStopOptions,
+  type PairedStopReason,
 } from './stop.js';
 
 export { type Evidence } from './evidence.js';
 
 export {
-  typeOneError, certifyProbability, type TypeOneErrorOptions, type CertifyProbabilityOptions,
+  typeOneError, certifyProbability, pairedCertifyProbability,
+  type TypeOneErrorOptions, type CertifyProbabilityOptions, type PairedCertifyProbabilityOptions,
 } from './check.js';
 
 export {

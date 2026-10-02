@@ -16,4 +16,8 @@ It is exact because the e-value depends on the candidate only through its counts
 
 `test/error-control.test.ts` runs it over baselines of 10 to 240 runs, rates 0.05 to 0.99, `mde` 0.05 to 0.3, `alpha` of 0.05 and 1/4000, and horizons up to 600, at the default `altConcentration`. The README reports the worst cell at 0.84 of alpha. The same file checks improved candidates, and pins three cells outside the defaults where the default statistic exceeds alpha (1.09, 2.42 and 1.14 times). `test/universal.test.ts` checks that the universal statistic stays under alpha in those three cells.
 
+## `pairedCertifyProbability(options)`
+
+The same question for a paired case. The paired e-value depends only on the worse and discordant counts, so the crossing set is tabulated once and a dynamic program steps over (discordant, worse). `coupling` mixes shared-draw pairs (discordances only inside the rate gap) with independent ones. `test/paired.test.ts` checks every unchanged rate stays under alpha at coupling 0, 0.5 and 1, and pins the README's power table.
+
 Outside the grid nothing is proven. That is a stated limitation, not an oversight.

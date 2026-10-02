@@ -109,6 +109,21 @@ export function requirePositiveConfig(v: number, name: string, where: string): v
   }
 }
 
+/** The four cells of a pair table, each a non-negative integer. */
+export function requirePairedCounts(
+  p: { bothPass: number; worse: number; better: number; bothFail: number },
+  where: string
+): void {
+  for (const name of ['bothPass', 'worse', 'better', 'bothFail'] as const) {
+    const v = p[name];
+    if (!Number.isInteger(v) || v < 0) {
+      throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: ${name} must be a non-negative integer, got ${v}`, {
+        detail: { [name]: v, where },
+      });
+    }
+  }
+}
+
 export function requireProbability(p: number, name: string, where: string): void {
   if (!Number.isFinite(p) || p < 0 || p > 1) {
     throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: ${name} must be in [0,1], got ${p}`, {

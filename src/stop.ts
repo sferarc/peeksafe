@@ -44,10 +44,10 @@
  * is `makePlan`'s job, and `PlanCase.baselineRunsNeeded` tells you what to do
  * about it. This is the safety net, not the plan.
  */
-import { ebhSoloThreshold, wilsonInterval, normalQuantile } from './stats.js';
+import { ebhSoloThreshold, wilsonInterval, normalQuantile, pairedLogE, discordant, type PairedCounts } from './stats.js';
 import { logEvidence, ceilingLogEvidence, requireEvidence, toEvalue, type Evidence } from './evidence.js';
 import { type BaselineStat } from './baseline.js';
-import { PeeksafeError, requireCounts, requireOpenProbability, requirePositiveConfig } from './errors.js';
+import { PeeksafeError, requireCounts, requireOpenProbability, requirePairedCounts, requirePositiveConfig } from './errors.js';
 import { DEFAULT_GATE_OPTIONS, cannotDropBy } from './gate.js';
 
 export type StopReason =
@@ -261,4 +261,90 @@ export function shouldStop(
     ...base, stop: false, reason: 'continue',
     detail: `continue: e=${evalue.toExponential(2)} of a required ${bar}, ceiling ${ceiling.toExponential(2)}`,
   };
+}
+
+export interface PairedStopOptions {
+  /** The size of the family you will pass to `gate`, which sets the bar `suiteSize / fdr`. */
+  suiteSize: number;
+  /** The drop, in rate, that `settled` rules out. */
+  mde?: number;
+  fdr?: number;
+  /** Stop at this many pairs whatever the evidence says. */
+  maxPairs?: number;
+  /** A case that really dropped by `mde` or more is settled with probability at most `1 - futilityConfidence`. */
+  futilityConfidence?: number;
+}
+
+export type PairedStopReason = 'regressed' | 'settled' | 'budget' | 'continue';
+
+export interface PairedStopDecision extends Omit<StopDecision, 'reason' | 'ceiling' | 'trials'> {
+  reason: PairedStopReason;
+  pairs: number;
+  /** Evidence that the drop is smaller than `mde`; `settled` fires when it reaches `1 / (1 - futilityConfidence)`. */
+  settleEvalue: number;
+}
+
+/**
+ * `shouldStop` for a paired case. With no ceiling to stop a healthy case, `settled` comes from a
+ * second e-process against "dropped by at least `mde`", valid under repeated looks like `regressed`.
+ */
+export function shouldStopPaired(counts: PairedCounts, options: PairedStopOptions): PairedStopDecision {
+  const opts = { ...DEFAULT_STOP_OPTIONS, ...options };
+  requirePairedCounts(counts, 'shouldStopPaired');
+  requireOpenProbability(opts.mde, 'mde', 'shouldStopPaired');
+  requireOpenProbability(opts.fdr, 'fdr', 'shouldStopPaired');
+  if (!Number.isInteger(opts.suiteSize) || opts.suiteSize < 1) {
+    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStopPaired: suiteSize must be a positive integer, got ${opts.suiteSize}`, {
+      detail: { suiteSize: opts.suiteSize },
+      hint: 'this is the number of cases in the family you will pass to gate(), which sets the bar m / fdr',
+    });
+  }
+  if (opts.maxPairs !== undefined && (!Number.isInteger(opts.maxPairs) || opts.maxPairs < 1)) {
+    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStopPaired: maxPairs must be a positive integer, got ${opts.maxPairs}`, {
+      detail: { maxPairs: opts.maxPairs },
+    });
+  }
+  if (!(opts.futilityConfidence > 0 && opts.futilityConfidence < 1)) {
+    throw new PeeksafeError('PEEKSAFE_E_CONFIG',
+      `shouldStopPaired: futilityConfidence must be strictly between 0 and 1, got ${opts.futilityConfidence}`, {
+        detail: { futilityConfidence: opts.futilityConfidence },
+      });
+  }
+
+  const bar = ebhSoloThreshold(opts.suiteSize, opts.fdr);
+  const pairs = counts.bothPass + counts.worse + counts.better + counts.bothFail;
+  const logE = pairedLogE(counts.worse, discordant(counts));
+  const evalue = toEvalue(logE);
+  const logSettle = settleLogE(counts, opts.mde);
+  const settleEvalue = toEvalue(logSettle);
+  const base = { evalue, logE, bar, pairs, settleEvalue };
+
+  if (logE >= Math.log(bar)) {
+    return { ...base, stop: true, reason: 'regressed', detail: `certified: e=${evalue.toExponential(2)} cleared the bar of ${bar} after ${pairs} pairs` };
+  }
+  if (logSettle >= -Math.log(1 - opts.futilityConfidence)) {
+    return {
+      ...base, stop: true, reason: 'settled',
+      detail: `settled: after ${pairs} pairs a ${(opts.mde * 100).toFixed(0)}pt drop is ruled out at ${opts.futilityConfidence} confidence`,
+    };
+  }
+  if (opts.maxPairs !== undefined && pairs >= opts.maxPairs) {
+    return { ...base, stop: true, reason: 'budget', detail: `budget: ${pairs} pairs reached with e=${evalue.toExponential(2)}, short of the bar of ${bar}` };
+  }
+  return { ...base, stop: false, reason: 'continue', detail: `continue: e=${evalue.toExponential(2)} of a required ${bar} after ${pairs} pairs` };
+}
+
+// Mean of prod(1 - lambda (D - mde)) over fixed bets, D = +1 worse, -1 better; a supermartingale whenever E[D] >= mde.
+function settleLogE(c: PairedCounts, mde: number): number {
+  const terms: number[] = [];
+  for (let k = 1; k <= 9; k++) {
+    const lambda = k / 10 / (1 - mde);
+    terms.push(
+      c.worse * Math.log1p(-lambda * (1 - mde)) +
+      c.better * Math.log1p(lambda * (1 + mde)) +
+      (c.bothPass + c.bothFail) * Math.log1p(lambda * mde)
+    );
+  }
+  const top = Math.max(...terms);
+  return top + Math.log(terms.reduce((acc, t) => acc + Math.exp(t - top), 0) / terms.length);
 }

@@ -8,6 +8,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Paired cases in `gate`: a case may carry `paired: { bothPass, worse, better, bothFail }` instead
+  of candidate counts and a stored baseline, and is decided by `pairedLogE` in the same e-BH family
+  as the unpaired cases. Its null is exact, so it has no ceiling and is valid at every rate by
+  construction. The runs need not share a seed: independent runs paired in order are still valid.
+  Within 200 pairs, a 10-case suite at 75% losing 15 points is certified 43.5% of the time with
+  independent runs and 74.5% with half the pairs seeded, against 50.2% for the default statistic
+  with a 240-run stored baseline and 22.3% for `universal`.
+- `shouldStopPaired(counts, options)`: `shouldStop` for a paired case. `settled` comes from an
+  e-value against "dropped by at least `mde`", so a case that really dropped that far is settled
+  with probability at most `1 - futilityConfidence` however often you ask.
+- `pairedCertifyProbability(options)`: the exact power and type I error of a paired case, at
+  separate baseline and candidate rates and a `coupling` for shared seeds.
 - `shouldStop(observed, baseline, options)`: the per-case stopping decision, returning
   `regressed` | `settled` | `futile` | `budget` | `continue` with the evidence behind it. This is
   the loop every caller was writing by hand.

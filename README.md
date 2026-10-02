@@ -182,9 +182,9 @@ As power, the exact probability of certifying a case that really dropped by `mde
 | 200 cases | 240 | 0.75 | 0.15 | 0.212 | 0.074 |
 | 200 cases | 960 | 0.95 | 0.15 | 0.977 | 0.892 |
 
-Roughly, `universal` needs four times the baseline runs to match the default's power. `test/universal.test.ts` computes the full grid and checks that.
+Roughly, `universal` needs four times the baseline runs to match the default's power. `test/universal.test.ts` computes the full grid and checks that. The gap is structural rather than a weakness of this construction: a statistic valid at every rate has to hold up at the worst rate the baseline still permits, where the default averages over them. Recentring and truncating the alternative per null rate recovers at most 2 to 5 points at a 60 or 240-run baseline (`test/universal.test.ts`). If you want a proof without that price, pair the runs (see "Paired cases in `gate`").
 
-Turner, Ly and Grünwald's e-values for 2x2 tables are the other always-valid construction, and they lose less. They need both arms in every block of data, though, and a stored baseline followed by candidate-only runs has one block with both and then none: a block with one arm carries no evidence against a null that leaves the baseline rate free. Measured as a single block at a fixed 200 runs, which is valid only if you never stop early, they land between the two, much closer to `universal` than to the default. Re-running the baseline alongside the candidate would let them work; that is the paired design's territory.
+Turner, Ly and Grünwald's e-values for 2x2 tables are the other always-valid construction, and they lose less. They need both arms in every block of data, though, and a stored baseline followed by candidate-only runs has one block with both and then none: a block with one arm carries no evidence against a null that leaves the baseline rate free. Measured as a single block at a fixed 200 runs, which is valid only if you never stop early, they land between the two, much closer to `universal` than to the default. Re-running the baseline alongside the candidate would let them work; that is the paired design, which `gate` takes directly.
 
 `shouldStop` is that decision for one case, from the counts you have so far:
 
@@ -322,13 +322,43 @@ import { pairedLogE, discordant, mcnemarSamplesForEvidence, ebhSoloThreshold } f
 const counts = { bothPass: 70, worse: 22, better: 4, bothFail: 4 };
 const bar = ebhSoloThreshold(10, 0.05);            // 10 cases at 5% FDR -> 200
 
-discordant(counts);                                 // 26 - the only pairs that carry information
+discordant(counts);                                 // 26, the only pairs that carry information
 Math.exp(pairedLogE(counts.worse, discordant(counts)));  // 429 -> certified
 
 mcnemarSamplesForEvidence(0.90, 0.15, 0.6, Math.log(bar));  // 103 pairs, planned in advance
 ```
 
 It costs two runs per observation and is routinely still cheaper, and it is the only design that works at all for a case whose ceiling is under the bar.
+
+### Paired cases in `gate`
+
+A case can carry its pair table instead of candidate counts and a stored baseline, and paired and unpaired cases share one e-BH family:
+
+```ts
+import { gate, shouldStopPaired } from 'peeksafe';
+
+const result = gate([
+  { id: 'routing/fallback', paired: { bothPass: 70, worse: 22, better: 4, bothFail: 4 } },
+  { id: 'parsing/nested', successes: 88, trials: 96, baseline: { caseId: 'parsing/nested', successes: 51, trials: 60 } },
+]);
+result.regressed.map((c) => c.id);   // ['routing/fallback']
+result.cases[0].design;              // 'paired'
+
+shouldStopPaired({ bothPass: 150, worse: 12, better: 12, bothFail: 26 }, { suiteSize: 10 }).reason;   // 'settled'
+```
+
+A paired case is never `undetectable`, `impossible` or `futile`: its null is exact at every rate, whichever `evidence` the unpaired cases use. `shouldStopPaired` has no ceiling to stop a healthy case with, so `settled` comes from a second e-value, against "the candidate dropped by at least `mde`", and a case that really dropped that far is settled with probability at most `1 - futilityConfidence` however often you ask.
+
+The seed is optional. Two independent runs paired in the order they finished are still valid, because under "not worse" a discordant pair points the worse way with probability at most one half either way. A shared seed makes discordances rarer and more one-sided, which is where the extra power comes from. `pairedCertifyProbability` computes the power exactly; `coupling` is the share of pairs whose two runs see the same draw. Within 200 pairs, so 200 candidate runs plus 200 fresh baseline runs, against the default statistic's 200 candidate runs and a 240-run stored baseline:
+
+| suite | rate | `mde` | default, 240-run baseline | paired, independent runs | paired, coupling 0.5 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 10 cases | 0.75 | 0.15 | 0.502 | 0.435 | 0.745 |
+| 10 cases | 0.95 | 0.15 | 0.935 | 0.917 | 0.983 |
+| 10 cases | 0.75 | 0.25 | 0.979 | 0.958 | 0.998 |
+| 200 cases | 0.75 | 0.15 | 0.212 | 0.169 | 0.427 |
+
+With no stored baseline at all, independent pairs come within seven points of the default and have about twice the power of `universal` against the same 240-run baseline, with error control that is proven rather than computed. Seeded pairs beat both. The price is the baseline runs, paid again on every pull request instead of once.
 
 ## Suites are not independent draws
 
@@ -390,11 +420,11 @@ A case with no baseline is not an error, though. It comes back in `newCases`, ta
 
 Four layers. Most callers need the first.
 
-**The decision.** `gate` for a whole suite from final counts, `shouldStop` for one case mid-run, and the types around them.
+**The decision.** `gate` for a whole suite from final counts or pair tables, `shouldStop` and `shouldStopPaired` for one case mid-run, and the types around them.
 
 **The budget.** `makePlan`, `planCase`, `affordabilityGrid`, `computeFrontier`, `enumerateFrontier`.
 
-**The check.** `typeOneError` and `certifyProbability`, the error rate and power the gate delivers at rates and a baseline size you name.
+**The check.** `typeOneError`, `certifyProbability` and `pairedCertifyProbability`, the error rate and power the gate delivers at rates and a baseline size you name.
 
 **The statistics.** Everything the first two are built from, exported so you can check the arithmetic or build a different gate: special functions (`logGamma`, `ibeta`, `normalQuantile`), intervals (`wilsonInterval`, `betaCredibleInterval`, `diffInterval`), fixed-sample tests for comparison (`fisherExact2x2`, `twoProportionZTest`), sequential (`sprtDecision`, `sprtExpectedN`), multiplicity (`bhCorrect`, `ebhCorrect`, `ebhSoloThreshold`), e-values (`twoSampleLogE`, `evidenceCeilingLogE`, `samplesForEvidence`), paired designs (`pairedLogE`, `mcnemarSamplesForEvidence`), and clustering.
 
