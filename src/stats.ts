@@ -712,7 +712,10 @@ export function twoSampleLogE(
   // the contract its own module header states.)
   requireCounts(candidateSuccesses, candidateTrials, 'twoSampleLogE(candidate)');
   requireCounts(baselineSuccesses, baselineTrials, 'twoSampleLogE(baseline)');
-  requireProbability(mde, 'mde', 'twoSampleLogE');
+  // Open, not closed: `requireProbability` here accepted an mde of 0 and 1,
+  // which `gate`, `shouldStop`, `makePlan` and `twoSamplePriors` all refuse, so
+  // the primitive was looser than every entry point that calls it.
+  requireOpenProbability(mde, 'mde', 'twoSampleLogE');
   requireConcentration(altConcentration, 'altConcentration', 'twoSampleLogE');
   const a0 = 1 + baselineSuccesses;
   const b0 = 1 + baselineTrials - baselineSuccesses;
@@ -846,6 +849,13 @@ export function twoSamplePriors(
   // `twoSampleLogE` guarded itself and this did not, so the same option threw
   // on `evidence: 'bayes'` and silently moved the verdict on `'universal'`.
   requireConcentration(altConcentration, 'altConcentration', 'twoSamplePriors');
+  // `mde` was the same gap one argument over, and the clamp below hides it the
+  // same way: `Math.min(0.995, Math.max(0.005, ...))` turns a negative mde into
+  // an alternative centred *above* the baseline, so asking to detect a drop of
+  // -15 points returned evidence rather than a refusal. The endpoints are out
+  // too, because mde is an effect and not a rate: a drop of 0 is one every
+  // design answers "no" to for reasons that look like a ceiling problem.
+  requireOpenProbability(mde, 'mde', 'twoSamplePriors');
   const a0 = 1 + baselineSuccesses;
   const b0 = 1 + baselineTrials - baselineSuccesses;
   const kappa = a0 + b0;
