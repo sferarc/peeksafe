@@ -4,9 +4,9 @@ Both [[gate]] and [[should-stop]] get their evidence through `src/evidence.ts`, 
 
 ## `bayes`, the default: `twoSampleLogE`
 
-A Bayes factor. The null keeps the baseline's uncertainty, `Beta(1 + s_b, 1 + f_b)`; the alternative is a Beta centred `mde` below the baseline's posterior mean with concentration `altConcentration` (default 8), clamped to `[0.005, 0.995]` with shape parameters floored at 0.35.
+A Bayes factor. The null keeps the baseline's uncertainty, `Beta(1 + s_b, 1 + f_b)`; the alternative is a Beta centred `mde` below the baseline's posterior mean with concentration `altConcentration` (default 8), clamped to `[0.005, 0.995]` with shape parameters floored at 1 (`ALT_SHAPE_FLOOR`; it was 0.35, see [[decisions/2026-10-02-alt-shape-floor]]).
 
-What it guarantees, stated precisely: a Bayes factor between two joint distributions is a test martingale with mean exactly 1 under the null's own marginal, here the shared rate drawn from the uniform prior. At a fixed rate the mean can exceed 1; at a true rate of 0.5% with a 30-run baseline and `mde` 0.05, the fixed-rate mean after 1,000 runs is above 2.5 (README, "What that guarantee rests on"). Error control is therefore computed, not proven: see [[error-control-check]].
+What it guarantees, stated precisely: a Bayes factor between two joint distributions is a test martingale with mean exactly 1 under the null's own marginal, here the shared rate drawn from the uniform prior. At a fixed rate the mean can exceed 1; at a true rate of 30% with a 240-run baseline and `mde` 0.3, the fixed-rate mean after 100 runs is above 1.15 (`test/error-control.test.ts`) (README, "What that guarantee rests on"). Error control is therefore computed, not proven: see [[error-control-check]].
 
 When the candidate's observed rate is at or above the baseline's, the statistic is capped at log 0 (e at most 1). See [[decisions/2026-09-29-cap-improved-candidates]].
 

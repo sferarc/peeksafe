@@ -376,8 +376,8 @@ describe('README: what it refuses to do', () => {
 describe('What that guarantee rests on', () => {
   it('typeOneError returns the two figures quoted', () => {
     expect(typeOneError({ rate: 0.5, baselineTrials: 60, alpha: 0.05 / 10, horizon: 200 })).toBeCloseTo(0.0014, 4);
-    const corner = typeOneError({ rate: 0.005, baselineTrials: 30, mde: 0.05, alpha: 1 / 4000, horizon: 1000 });
-    expect(corner).toBeCloseTo(0.00027, 5);
+    const corner = typeOneError({ rate: 0.15, baselineTrials: 240, mde: 0.15, altConcentration: 100, alpha: 1 / 4000, horizon: 600 });
+    expect(corner).toBeCloseTo(0.00028, 5);
     expect(corner).toBeGreaterThan(1 / 4000);
   });
 });

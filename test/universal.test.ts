@@ -45,16 +45,14 @@ describe('the construction', () => {
 });
 
 describe('error control', () => {
-  it('stays under alpha in the three corners where the default statistic does not', () => {
+  it('stays under alpha in the corners where the default statistic does or did not', () => {
     const cells = [
       { rate: 0.005, baselineTrials: 30, mde: 0.05, alpha: 1 / 4000, horizon: 1000 },
       { rate: 0.005, baselineTrials: 5, mde: 0.15, alpha: 0.005, horizon: 600, altConcentration: 2 },
       { rate: 0.15, baselineTrials: 240, mde: 0.15, alpha: 1 / 4000, horizon: 600, altConcentration: 100 },
     ];
-    for (const c of cells) {
-      expect(typeOneError(c), JSON.stringify(c)).toBeGreaterThan(c.alpha);
-      expect(typeOneError({ ...c, evidence: 'universal' }), JSON.stringify(c)).toBeLessThanOrEqual(c.alpha);
-    }
+    for (const c of cells) expect(typeOneError({ ...c, evidence: 'universal' }), JSON.stringify(c)).toBeLessThanOrEqual(c.alpha);
+    expect(typeOneError(cells[2]!)).toBeGreaterThan(cells[2]!.alpha);
   });
 
   it('certifyProbability computes the universal statistic it names', () => {

@@ -8,7 +8,7 @@ Add `universalTwoSampleLogE` and `universalCeilingLogE`, and an `evidence` optio
 
 ## Why opt-in rather than default
 
-It is valid at every rate by construction and holds in the three corners where the default does not. It also never exceeds the default statistic, and the gap grows like half the log of the run count. Measured power to certify a real `mde`-sized drop within 200 candidate runs, from the README table that `test/universal.test.ts` checks:
+It is valid at every rate by construction and holds in the three corners where the default did not (two of them were later fixed for the default too, [[2026-10-02-alt-shape-floor]]). It also never exceeds the default statistic, and the gap grows like half the log of the run count. Measured power to certify a real `mde`-sized drop within 200 candidate runs, from the README table that `test/universal.test.ts` checks:
 
 | suite | baseline runs | rate | `mde` | default | `universal` |
 | --- | ---: | ---: | ---: | ---: | ---: |

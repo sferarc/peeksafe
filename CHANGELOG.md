@@ -47,6 +47,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- The default statistic exceeded its type I error in two thin-baseline corners at very low rates,
+  1.09 times alpha for a 30-run baseline at 0.5% with `mde` 0.05 and 2.42 times with an
+  `altConcentration` of 2 and a 5-run baseline. The alternative's Beta shapes were floored at
+  0.35, and a shape below 1 piles the alternative's mass onto a rate of zero, which is where those
+  baselines sit. The floor is now 1, which puts the two corners at 0.09 and 0.05 of alpha and the
+  worst cell of the tested grid at 0.75 of alpha, where it was 0.84. None of the README's power,
+  e-value or run-count figures moved.
+  The one remaining known corner needs an `altConcentration` of 100; at 32 it is under alpha.
 - `shouldStop` reported `evalue: Infinity` on a strong regression, because `exp()` of a log
   e-value past about 709 overflows; 0/1000 against 990/1000 has a log e-value near 1291. `gate`
   already clamped the same quantity to `Number.MAX_VALUE`, so the two entry points reported the

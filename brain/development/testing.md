@@ -13,7 +13,7 @@ Any figure in the README, a doc comment or a commit message must be reproducible
 | `test/paper.test.ts` | Produces and prints the README's measured figures from seeded draws. Not a regression suite: if `src/rand.ts`, the statistics or the simulation change, these numbers move and the README must follow |
 | `test/readme.test.ts` | Runs every README example and asserts every number quoted as output |
 | `test/error-control.test.ts` | Exact type I error over a grid, improved candidates, the three known failing corners, and the `shouldStop` then `gate` loop end to end |
-| `test/universal.test.ts` | The universal statistic: construction, error control in the three corners, and the power comparison grid |
+| `test/universal.test.ts` | The universal statistic: construction, error control in the corners, and the power comparison grid |
 | `test/gate.test.ts` | Refusals. Most assertions are that `gate` throws or excludes. Do not relax one to make a test pass |
 | `test/stop.test.ts` | Stopping rules, including that a catastrophic regression is never stopped early |
 | `test/budget.test.ts` | The planner and frontier, and `baselineRunsNeeded` against a brute-force scan |

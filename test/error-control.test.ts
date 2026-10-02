@@ -63,6 +63,7 @@ describe('what the gate promises at every fixed rate', () => {
       }
     }
     console.log(`worst type I error over the grid: ${worst.ratio.toFixed(3)} x alpha at ${worst.cell}`);
+    expect(worst.ratio).toBeLessThan(0.75);
   });
 
   it('an improved case is certified with probability at most alpha, however long it runs', () => {
@@ -78,16 +79,15 @@ describe('what the gate promises at every fixed rate', () => {
   });
 
   it('is not an e-value at every fixed rate, which is why the crossing is checked directly', () => {
-    // At 0.5% the uniform prior's posterior sits well above the truth, so the
-    // candidate looks worse than a baseline it matches.
-    const [p, nb, n, mde] = [0.005, 30, 1000, 0.05];
+    // At a rate equal to mde, the baselines that survive the impossible rule are the lucky ones.
+    const [p, nb, n, mde] = [0.3, 240, 100, 0.3];
     let mean = 0;
     for (let sb = 0; sb <= nb; sb++) {
       const weight = Math.exp(logBinom(nb, sb, p));
       if (weight < 1e-15 || sb / nb <= mde) continue;
       for (let s = 0; s <= n; s++) mean += weight * Math.exp(logBinom(n, s, p) + twoSampleLogE(s, n, sb, nb, mde));
     }
-    expect(mean).toBeGreaterThan(2.5);
+    expect(mean).toBeGreaterThan(1.15);
   });
 
   it('certifyProbability agrees with a brute-force scan of every count', () => {
@@ -137,14 +137,17 @@ describe('typeOneError refuses what it cannot compute', () => {
 
 describe('where the bound is known not to hold', () => {
   // Pinned so the README's list of exceptions stays true; a fix should flip these.
-  it('exceeds alpha in the corners the README names', () => {
-    const cells = [
-      { label: '30-run baseline at 0.5%, mde 0.05', ratio: typeOne(0.005, 30, 0.05, 1 / 4000, 1000) * 4000 },
-      { label: 'altConcentration 2, 5-run baseline', ratio: typeOne(0.005, 5, 0.15, 0.005, 600, 2) / 0.005 },
-      { label: 'altConcentration 100, rate at mde', ratio: typeOne(0.15, 240, 0.15, 1 / 4000, 600, 100) * 4000 },
-    ];
-    for (const c of cells) console.log(`type I error ${c.ratio.toFixed(2)} x alpha: ${c.label}`);
-    for (const c of cells) expect(c.ratio, c.label).toBeGreaterThan(1);
+  it('exceeds alpha in the corner the README names, and only with a concentrated alternative', () => {
+    const corner = typeOne(0.15, 240, 0.15, 1 / 4000, 600, 100) * 4000;
+    console.log(`type I error ${corner.toFixed(2)} x alpha: altConcentration 100, rate at mde`);
+    expect(corner).toBeGreaterThan(1);
+    expect(typeOne(0.15, 240, 0.15, 1 / 4000, 600, 32) * 4000).toBeLessThan(1);
+  });
+
+  it('stays under alpha in the two thin-baseline corners the 0.35 shape floor failed', () => {
+    // Shapes below 1 piled the alternative onto a rate of 0, where these baselines sit; they were 1.09x and 2.42x.
+    expect(typeOne(0.005, 30, 0.05, 1 / 4000, 1000) * 4000).toBeLessThan(0.1);
+    expect(typeOne(0.005, 5, 0.15, 0.005, 600, 2) / 0.005).toBeLessThan(0.05);
   });
 });
 

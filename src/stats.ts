@@ -664,8 +664,8 @@ export function logMarginalBetaBinomial(s: number, n: number, a: number, b: numb
 
 /**
  * A prior concentration, which multiplies a rate to make Beta shapes. Every
- * caller floors the product at 0.35, so a non-positive concentration does not
- * produce a bad shape, it produces Beta(0.35, 0.35) and a plausible number
+ * caller floors the product, so a non-positive concentration does not
+ * produce a bad shape, it produces a floored Beta and a plausible number
  * from a prior nobody asked for.
  */
 function requireConcentration(k: number, name: string, where: string): void {
@@ -675,6 +675,9 @@ function requireConcentration(k: number, name: string, where: string): void {
     });
   }
 }
+
+// Below 1 a shape piles alternative mass onto 0 or 1, which pushed type I error past alpha for thin baselines.
+const ALT_SHAPE_FLOOR = 1;
 
 /**
  * A **two-sample e-value** for "the candidate is worse than the baseline".
@@ -722,8 +725,8 @@ export function twoSampleLogE(
   const kappa = a0 + b0;
   const shifted = Math.min(0.995, Math.max(0.005, a0 / kappa - mde));
   const k1 = altConcentration;
-  const a1 = Math.max(0.35, k1 * shifted);
-  const b1 = Math.max(0.35, k1 * (1 - shifted));
+  const a1 = Math.max(ALT_SHAPE_FLOOR, k1 * shifted);
+  const b1 = Math.max(ALT_SHAPE_FLOOR, k1 * (1 - shifted));
   const logE =
     logMarginalBetaBinomial(candidateSuccesses, candidateTrials, a1, b1) -
     logMarginalBetaBinomial(candidateSuccesses, candidateTrials, a0, b0);
@@ -845,7 +848,7 @@ export function twoSamplePriors(
   requireCounts(baselineSuccesses, baselineTrials, 'twoSamplePriors');
   // The floor below is what makes an unguarded concentration dangerous rather
   // than merely wrong: at `altConcentration <= 0` both shapes collapse onto it
-  // and the caller gets a decision from Beta(0.35, 0.35) instead of an error.
+  // and the caller gets a decision from Beta(1, 1) instead of an error.
   // `twoSampleLogE` guarded itself and this did not, so the same option threw
   // on `evidence: 'bayes'` and silently moved the verdict on `'universal'`.
   requireConcentration(altConcentration, 'altConcentration', 'twoSamplePriors');
@@ -863,8 +866,8 @@ export function twoSamplePriors(
   return {
     nullPrior: { a: a0, b: b0 },
     altPrior: {
-      a: Math.max(0.35, altConcentration * shifted),
-      b: Math.max(0.35, altConcentration * (1 - shifted)),
+      a: Math.max(ALT_SHAPE_FLOOR, altConcentration * shifted),
+      b: Math.max(ALT_SHAPE_FLOOR, altConcentration * (1 - shifted)),
     },
   };
 }

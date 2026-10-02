@@ -137,13 +137,13 @@ This is the reason the library exists. Stop each case whenever you like, for any
 
 ### What that guarantee rests on
 
-Read this before relying on the gate outside its defaults. The per-case statistic is a Bayes factor whose null is the baseline's posterior, and the martingale argument gives it mean exactly 1 when the shared rate is drawn from the uniform prior that posterior starts from. It does not give mean at most 1 at every fixed rate, and there are rates where it is not: at a true rate of 0.5% with a 30-run baseline and `mde` 0.05, the fixed-rate mean after 1,000 runs is above 2.5.
+Read this before relying on the gate outside its defaults. The per-case statistic is a Bayes factor whose null is the baseline's posterior, and the martingale argument gives it mean exactly 1 when the shared rate is drawn from the uniform prior that posterior starts from. It does not give mean at most 1 at every fixed rate, and there are rates where it is not: at a true rate of 30% with a 240-run baseline and `mde` 0.3, the fixed-rate mean after 100 runs is above 1.15.
 
 The null is "not worse", so a candidate that improved is a null case too. The Bayes factor alone also grows for a candidate far above its baseline, because the alternative is wider than the null, so the statistic is capped at 1 whenever the candidate's observed rate is at or above the baseline's. Lowering an e-value never breaks one.
 
-So the property you actually rely on, that a case which did not move clears `1/a` with probability at most `a` however long it runs, is computed rather than inferred. `test/error-control.test.ts` computes it exactly, with no sampling error, at the default `altConcentration` over baselines of 10 to 240 runs, rates from 0.05 to 0.99, `mde` from 0.05 to 0.3, `a` of 0.05 and 1/4000, and up to 600 candidate runs. The worst cell is 0.84 of `a`. It checks improved candidates the same way, from 30% to 50% up to 90% to 99%. It also runs the loop above end to end, `shouldStop` then `gate`, on 400 simulated pull requests with nothing moved and 400 with three real regressions out of ten, and checks the false alarm rate and the mean false discovery proportion stay under `fdr`.
+So the property you actually rely on, that a case which did not move clears `1/a` with probability at most `a` however long it runs, is computed rather than inferred. `test/error-control.test.ts` computes it exactly, with no sampling error, at the default `altConcentration` over baselines of 10 to 240 runs, rates from 0.05 to 0.99, `mde` from 0.05 to 0.3, `a` of 0.05 and 1/4000, and up to 600 candidate runs. The worst cell is 0.75 of `a`. It checks improved candidates the same way, from 30% to 50% up to 90% to 99%. It also runs the loop above end to end, `shouldStop` then `gate`, on 400 simulated pull requests with nothing moved and 400 with three real regressions out of ten, and checks the false alarm rate and the mean false discovery proportion stay under `fdr`.
 
-Outside that grid it is not proven, and the same test pins three places it fails: 1.09 times `a` for a 30-run baseline at a true rate of 0.5% with `mde` 0.05; 2.42 times `a` with an `altConcentration` of 2 and a 5-run baseline; and 1.14 times `a` with an `altConcentration` of 100 at a true rate equal to `mde`. If your suite lives near those corners, run the same computation on your own rates before trusting a verdict:
+Outside that grid it is not proven, and the same test pins the one place known to fail: 1.14 times `a` with an `altConcentration` of 100 at a true rate equal to `mde`, where the alternative is so concentrated that the few lucky baselines carry it over the bar. At 32 the same cell is under `a`, so keep `altConcentration` at or below that unless you have checked. Two thin-baseline corners at very low rates used to fail as well (1.09 and 2.42 times `a`), because the alternative's shape parameters could fall to 0.35 and pile its mass onto a rate of zero; the shapes are now floored at 1 and those corners are at 0.09 and 0.05 of `a`. If your suite lives near a corner, run the same computation on your own rates before trusting a verdict:
 
 ```ts
 import { typeOneError } from 'peeksafe';
@@ -151,15 +151,15 @@ import { typeOneError } from 'peeksafe';
 // A case at 50% with a 60-run baseline, in a 10-case suite at 5% FDR, capped at 200 runs.
 typeOneError({ rate: 0.5, baselineTrials: 60, alpha: 0.05 / 10, horizon: 200 });   // 0.0014, under 0.005
 
-// The first corner above.
-typeOneError({ rate: 0.005, baselineTrials: 30, mde: 0.05, alpha: 1 / 4000, horizon: 1000 });   // 0.00027, over 0.00025
+// The corner above.
+typeOneError({ rate: 0.15, baselineTrials: 240, mde: 0.15, altConcentration: 100, alpha: 1 / 4000, horizon: 600 });   // 0.00028, over 0.00025
 ```
 
 It is exact, not simulated, and takes milliseconds. `alpha` is `fdr / suiteSize`, the bar a case clears on its own evidence. `certifyProbability` is the same computation with separate baseline and candidate rates: the power when the candidate is lower, the type I error when it is not.
 
 ### An always-valid alternative
 
-If you would rather have a proof than a computation, pass `evidence: 'universal'` to `gate` and `shouldStop` (and to `typeOneError` and `certifyProbability` when you plan). It uses `universalTwoSampleLogE`, which is valid at every pair of rates and at any stopping time by construction: universal inference (Wasserman, Ramdas and Balakrishnan 2020), a joint alternative for baseline and candidate over the largest likelihood any null pair of rates gives the data. It holds in all three corners above.
+If you would rather have a proof than a computation, pass `evidence: 'universal'` to `gate` and `shouldStop` (and to `typeOneError` and `certifyProbability` when you plan). It uses `universalTwoSampleLogE`, which is valid at every pair of rates and at any stopping time by construction: universal inference (Wasserman, Ramdas and Balakrishnan 2020), a joint alternative for baseline and candidate over the largest likelihood any null pair of rates gives the data. It holds in all of the corners above.
 
 It is not the default because it costs evidence. It is the default statistic times the pooled data's uniform mixture over its maximum likelihood, so it is never larger, and the gap grows like half the log of the run count. On this page's examples, with `mde` 0.15:
 
@@ -382,7 +382,7 @@ A gate that fails open is worse than no gate, because it produces a green check 
 
 The first one is the one that matters. The prototype this library came from treated a missing baseline as `0/0`, whose Beta(1,1) posterior median is 0.5, and gated the case against a null of "this case passes half the time". It reported a verdict of PASS and a suite-level improvement of +87.5 points, measured against nothing at all.
 
-A case whose baseline passes at or below `mde` is not tested either. It cannot lose `mde` points, and testing it anyway put the alternative on top of the rate the case already runs at, which let the false positive rate exceed `fdr`. It stays in the e-BH family with an e-value of 1, is marked `impossible`, and the headline names it. `makePlan` has always called these cases `IMPOSSIBLE`.
+A case whose baseline passes at or below `mde` is not tested either. It cannot lose `mde` points, and testing it anyway puts the alternative on top of the rate the case already runs at, which with the original prior let the false positive rate exceed `fdr`. It stays in the e-BH family with an e-value of 1, is marked `impossible`, and the headline names it. `makePlan` has always called these cases `IMPOSSIBLE`.
 
 A case with no baseline is not an error, though. It comes back in `newCases`, takes no part in the verdict or the e-BH family, and is reported so you know it is not being gated.
 
