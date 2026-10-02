@@ -6,7 +6,31 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 0.1.0
+
+First release.
+
 ### Added
+
+- `gate()`, the decision: given per-case candidate and baseline counts, which
+  cases regressed, at a false discovery rate you name. Valid at any stopping
+  time, so it does not matter when or why you stopped a case.
+- Planning: `makePlan`, `planCase`, `affordabilityGrid` answer how many runs a
+  suite needs before anything is spent, including the two ways the answer can be
+  "no budget does this". An effect larger than the rate is arithmetically
+  impossible; an effect under the evidence ceiling is impossible at any
+  *candidate* budget and needs more baseline runs instead.
+- The frontier: `computeFrontier` and `enumerateFrontier`, what is certifiable
+  inside a budget.
+- The statistical core, exported so callers can check the arithmetic or build a
+  different gate: special functions, intervals, the SPRT, two-sample and paired
+  e-values, e-BH, power, and the evidence ceiling with its closed form.
+- Cluster-robust suite inference (`clusteredEffect`, CR2 with small-cluster
+  degrees of freedom, a random-effects cross-check, and a diagnostic for a
+  grouping key that collapses the suite).
+- `RESEARCH-NOTES.md`, a literature check on what in this work is novel and what
+  is not. Two of the four claims the prototype made turned out to be documented
+  elsewhere, and the prose says so.
 
 - Paired cases in `gate`: a case may carry `paired: { bothPass, worse, better, bothFail }` instead
   of candidate counts and a stored baseline, and is decided by `pairedLogE` in the same e-BH family
@@ -161,47 +185,21 @@ All notable changes to this project are documented here. The format follows
   has mean exactly 1 averaged over the shared rate, and at some fixed rates more than 1. The
   README now says so, and `test/error-control.test.ts` computes the type I error exactly over a
   grid of baselines, rates and `mde`, and runs `shouldStop` and `gate` end to end on simulated
-  suites. At the defaults the worst cell found is 0.84 of alpha; the cells outside the defaults
-  where it exceeds alpha are pinned by the same test and listed in the README.
-
-### Notes
-
-Futility is judged at the most pessimistic rate the counts still permit, not at the point estimate,
-so it fires late and cannot abandon a case that was about to be certified. A catastrophic regression
-is never stopped early at any sample size.
-
-
-## 0.1.0
-
-First release.
-
-### Added
-
-- `gate()`, the decision: given per-case candidate and baseline counts, which
-  cases regressed, at a false discovery rate you name. Valid at any stopping
-  time, so it does not matter when or why you stopped a case.
-- Planning: `makePlan`, `planCase`, `affordabilityGrid` answer how many runs a
-  suite needs before anything is spent, including the two ways the answer can be
-  "no budget does this". An effect larger than the rate is arithmetically
-  impossible; an effect under the evidence ceiling is impossible at any
-  *candidate* budget and needs more baseline runs instead.
-- The frontier: `computeFrontier` and `enumerateFrontier`, what is certifiable
-  inside a budget.
-- The statistical core, exported so callers can check the arithmetic or build a
-  different gate: special functions, intervals, the SPRT, two-sample and paired
-  e-values, e-BH, power, and the evidence ceiling with its closed form.
-- Cluster-robust suite inference (`clusteredEffect`, CR2 with small-cluster
-  degrees of freedom, a random-effects cross-check, and a diagnostic for a
-  grouping key that collapses the suite).
-- `RESEARCH-NOTES.md`, a literature check on what in this work is novel and what
-  is not. Two of the four claims the prototype made turned out to be documented
-  elsewhere, and the prose says so.
+  suites. At the defaults the worst cell found is 0.75 of alpha (0.84 before the shape floor
+  below); the one cell outside the defaults where it exceeds alpha is pinned by the same test and
+  named in the README.
 
 ### Notes
 
 - Zero runtime dependencies, verified in CI against a packed tarball rather than
   against `package.json`.
+- The package ships `src/` next to `dist/`, so the source and declaration maps resolve and
+  go-to-definition lands on the TypeScript rather than on compiled output.
 - Extracted from an internal prototype and reduced to the statistical core. The
   runner, graders, store, CI adapters and CLI were deliberately left behind:
   this library takes counts and returns statistics, and has no opinion about how
   you run evals.
+
+- Futility is judged at the most pessimistic rate the counts still permit, not at the point
+  estimate, so it fires late and cannot abandon a case that was about to be certified. A
+  catastrophic regression is never stopped early at any sample size.

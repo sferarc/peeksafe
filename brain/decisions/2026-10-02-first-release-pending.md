@@ -6,13 +6,13 @@ Recorded 2026-10-02.
 
 - `package.json` says `0.1.0`.
 - `npm view peeksafe` returns 404 and the repository has no tags.
-- `CHANGELOG.md` has a `0.1.0` heading labelled "First release" and, above it, an `Unreleased` section with everything merged since, including `shouldStop`, the universal statistic and many fixes.
+- `CHANGELOG.md` folds everything into one `0.1.0` section, labelled "First release", under an empty `Unreleased` heading.
 - `ROADMAP.md` item 3 says `0.1.0` is not on npm yet.
 
 ## Decision
 
 The first publish is a manual `npm publish` by the owner, because npm cannot set up a trusted publisher for a package that does not yet exist ([[development/release]]). Nothing in this repository should publish, tag or bump the version on the owner's behalf.
 
-## Open question
+## Version
 
-Whether the first published version is `0.1.0` with the `Unreleased` entries folded into it, or `0.1.0` as the CHANGELOG describes it followed immediately by a later version, is not decided in the repository. Unknown until the owner releases.
+The first published version is `0.1.0` with the former `Unreleased` entries folded into it, so the package's first version describes everything in it. `package.json` was already `0.1.0`, so `npm version` is not used for this one; the tag is created on the merged release commit. The owner's commands are in [[development/release]].
