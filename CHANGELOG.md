@@ -47,6 +47,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `shouldStop` reported `evalue: Infinity` on a strong regression, because `exp()` of a log
+  e-value past about 709 overflows; 0/1000 against 990/1000 has a log e-value near 1291. `gate`
+  already clamped the same quantity to `Number.MAX_VALUE`, so the two entry points reported the
+  same case differently. Both now go through one clamp. The decision never depended on it.
+- `certifyProbability` and `typeOneError` did not check `altConcentration`, so a non-positive
+  value surfaced from deep inside as `PEEKSAFE_E_STAT_DOMAIN`, where `gate` and `shouldStop`
+  refuse the same input as `PEEKSAFE_E_CONFIG`. They now refuse it the same way.
 - `sprtExpectedN` returned a **negative** number of runs for any true rate strictly between the
   two hypotheses, under-estimated by about 18% for a rate far outside a tight pair of them
   (`(0.0025, 0.999, 0.99)` gave 1.035 where Wald's approximation is 1.258), and returned `Infinity`

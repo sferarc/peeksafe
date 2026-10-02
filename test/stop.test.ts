@@ -338,3 +338,15 @@ describe('GateResult.headline', () => {
     expect(r.headline).not.toContain('Read with care');
   });
 });
+
+describe('the reported e-value', () => {
+  it('stays finite on a strong regression, and matches what gate reports for the same counts', () => {
+    // logE here is about 1291, far past where exp() overflows.
+    const observed = { successes: 0, trials: 1000 };
+    const baseline = { caseId: 'a', successes: 990, trials: 1000 };
+    const stop = shouldStop(observed, baseline, { suiteSize: 1 });
+    expect(stop.reason).toBe('regressed');
+    expect(Number.isFinite(stop.evalue)).toBe(true);
+    expect(stop.evalue).toBe(gate([{ id: 'a', ...observed, baseline }]).cases[0]!.evalue);
+  });
+});

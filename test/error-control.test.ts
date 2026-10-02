@@ -125,6 +125,14 @@ describe('typeOneError refuses what it cannot compute', () => {
     expect(() => typeOneError({ ...ok, baselineTrials: 2.5 })).toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_CONFIG' }));
     expect(() => typeOneError({ ...ok, rate: 1 })).toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_STAT_DOMAIN' }));
   });
+
+  it('refuses a non-positive altConcentration with the code gate and shouldStop use', () => {
+    const ok = { rate: 0.5, baselineTrials: 60, alpha: 0.05, horizon: 100 };
+    for (const altConcentration of [0, -1, NaN, Infinity]) {
+      expect(() => typeOneError({ ...ok, altConcentration }), `altConcentration=${altConcentration}`)
+        .toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_CONFIG' }));
+    }
+  });
 });
 
 describe('where the bound is known not to hold', () => {
