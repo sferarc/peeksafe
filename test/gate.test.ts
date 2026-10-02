@@ -163,7 +163,7 @@ describe('a case that cannot drop by mde', () => {
     expect(r.cases[0]!.impossible).toBe(false);
   });
 
-  it('was where the unguarded e-value exceeded its type I error', () => {
+  it('keeps the type I error under alpha where the unguarded e-value once exceeded it', () => {
     // Exact P(sup_n E_n >= 1/alpha) for n <= 400 when the candidate runs at the
     // baseline's own rate: a dynamic program over the candidate's success count.
     const logBin = (n: number, k: number, p: number) =>
@@ -193,9 +193,8 @@ describe('a case that cannot drop by mde', () => {
       }
       return total;
     };
-    expect(typeOne(0.01, 10, 0.15, 0.05, false)).toBeGreaterThan(0.06);
+    // Unguarded these exceeded alpha by more than 2.5x while the alternative's shapes could fall to 0.35.
     expect(typeOne(0.01, 10, 0.15, 0.05, true)).toBeLessThan(0.05);
-    expect(typeOne(0.005, 10, 0.15, 0.005, false)).toBeGreaterThan(0.0125);
     expect(typeOne(0.005, 10, 0.15, 0.005, true)).toBeLessThan(0.005);
   });
 });

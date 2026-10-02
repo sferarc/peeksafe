@@ -4,7 +4,7 @@ Decided 2026-09-29, alongside #12 (`ea6e6f9`).
 
 ## Context
 
-The default `twoSampleLogE` has mean exactly 1 averaged over the shared rate, not at every fixed rate, so it is not an e-value at every rate. Its error control is computed exactly over a grid instead ([[architecture/error-control-check]]): at the default `altConcentration` the worst cell is 0.84 of alpha. Three cells outside the defaults exceed alpha, and the README names them.
+The default `twoSampleLogE` has mean exactly 1 averaged over the shared rate, not at every fixed rate, so it is not an e-value at every rate. Its error control is computed exactly over a grid instead ([[architecture/error-control-check]]): at the default `altConcentration` the worst cell was 0.84 of alpha when this was decided and is 0.75 since [[2026-10-02-alt-shape-floor]]. Three cells outside the defaults exceeded alpha; one still does, and the README names it.
 
 ## Decision
 
