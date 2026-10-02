@@ -10,7 +10,7 @@
 import { twoSamplePriors, logGamma, logBeta } from './stats.js';
 import { requireEvidence, type Evidence } from './evidence.js';
 import { cannotDropBy, DEFAULT_GATE_OPTIONS } from './gate.js';
-import { PeeksafeError, requireOpenProbability } from './errors.js';
+import { PeeksafeError, requireOpenProbability, requirePositiveConfig } from './errors.js';
 
 export interface TypeOneErrorOptions {
   /** Shared true pass rate of the baseline and the candidate. */
@@ -53,6 +53,7 @@ export function certifyProbability(options: CertifyProbabilityOptions): number {
   requireOpenProbability(pc, 'candidateRate', 'certifyProbability');
   requireOpenProbability(alpha, 'alpha', 'certifyProbability');
   requireOpenProbability(mde, 'mde', 'certifyProbability');
+  requirePositiveConfig(concentration, 'altConcentration', 'certifyProbability');
   for (const [name, v] of [['baselineTrials', nb], ['horizon', horizon]] as const) {
     if (!Number.isInteger(v) || v < 1) {
       throw new PeeksafeError('PEEKSAFE_E_CONFIG', `certifyProbability: ${name} must be a positive integer, got ${v}`, {

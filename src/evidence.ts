@@ -26,6 +26,12 @@ export const logEvidence = (
     ? universalTwoSampleLogE(cs, cn, bs, bn, mde, altConcentration)
     : twoSampleLogE(cs, cn, bs, bn, mde, altConcentration);
 
+// exp() of a large logE overflows, and e-BH cannot rank an infinite entry; the largest double keeps the order.
+export const toEvalue = (logE: number): number => {
+  const e = Math.exp(logE);
+  return Number.isFinite(e) ? e : Number.MAX_VALUE;
+};
+
 /** The most evidence a candidate at rate `p` could ever reach against this baseline. */
 export const ceilingLogEvidence = (
   evidence: Evidence, p: number, bs: number, bn: number, mde: number, altConcentration: number

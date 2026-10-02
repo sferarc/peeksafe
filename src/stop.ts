@@ -45,7 +45,7 @@
  * about it. This is the safety net, not the plan.
  */
 import { ebhSoloThreshold, wilsonInterval, normalQuantile } from './stats.js';
-import { logEvidence, ceilingLogEvidence, requireEvidence, type Evidence } from './evidence.js';
+import { logEvidence, ceilingLogEvidence, requireEvidence, toEvalue, type Evidence } from './evidence.js';
 import { type BaselineStat } from './baseline.js';
 import { PeeksafeError, requireCounts, requireOpenProbability, requirePositiveConfig } from './errors.js';
 import { DEFAULT_GATE_OPTIONS, cannotDropBy } from './gate.js';
@@ -202,7 +202,7 @@ export function shouldStop(
   const logE = logEvidence(
     opts.evidence, observed.successes, observed.trials, baseline.successes, baseline.trials, opts.mde, opts.altConcentration
   );
-  const evalue = Math.exp(logE);
+  const evalue = toEvalue(logE);
 
   // The most pessimistic rate the counts still permit. With no trials the
   // Wilson interval is the whole line, so `low` is 0, the ceiling is enormous,

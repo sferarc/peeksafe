@@ -39,7 +39,7 @@
  * in `newCases` and take no part in the verdict or the e-BH family.
  */
 import { ebhCorrect, ebhSoloThreshold } from './stats.js';
-import { logEvidence, ceilingLogEvidence, requireEvidence, type Evidence } from './evidence.js';
+import { logEvidence, ceilingLogEvidence, requireEvidence, toEvalue, type Evidence } from './evidence.js';
 import { type BaselineStat } from './baseline.js';
 import { PeeksafeError, requireCounts, requireOpenProbability, requirePositiveConfig } from './errors.js';
 
@@ -187,10 +187,7 @@ export function gate(cases: readonly GateCase[], options: GateOptions = {}): Gat
       ? 0
       : logEvidence(opts.evidence, c.successes, c.trials, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration)
   );
-  // e-BH ranks on the e-value, and exp() of a large logE overflows to Infinity,
-  // which ebhCorrect rejects because an infinite entry corrupts the ranking.
-  // Clamping at the largest finite double preserves the order and the decision.
-  const evalues = logEs.map((l) => (Number.isFinite(Math.exp(l)) ? Math.exp(l) : Number.MAX_VALUE));
+  const evalues = logEs.map(toEvalue);
   const ebh = ebhCorrect(evalues, opts.fdr);
   const solo = ebhSoloThreshold(m, opts.fdr);
 
