@@ -121,6 +121,35 @@ export interface ClusterObservation {
   value: number;
 }
 
+/**
+ * The confidence level every interval in this module is taken at.
+ *
+ * Shared by `iidMean`, `clusterRobustMean` and `randomEffectsMean` so the three
+ * cannot drift on what they accept. They did drift: only `clusterRobustMean`
+ * checked, so `level: 0` reached the other two, `normalQuantile(0.5)` and
+ * `tQuantile(0.5, df)` are both legally 0, and the result was a **zero-width**
+ * interval reported with `degenerate: null` next to a positive `se`. That is the
+ * fabricated precision this module exists to remove, arriving through the
+ * argument that is supposed to control it. A level outside (0,1) was worse
+ * still: it ran the half-width to ±Infinity or NaN, so `low` came back above
+ * `high`, and a caller asking "does the interval exclude zero" got yes from
+ * both ends at once.
+ *
+ * Read before the early returns, not where the quantile is taken. Every
+ * degenerate path here (no cases, one family, singleton families, a suite with
+ * no variance at all) returns without reaching a quantile, so validating at the
+ * point of use accepted a level on the suites that short-circuit and threw on
+ * the ones that did not.
+ */
+function requireLevel(level: number, where: string): void {
+  if (!(level > 0 && level < 1)) {
+    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: level must be in (0,1), got ${level}`, {
+      detail: { level },
+      hint: 'a two-sided confidence level such as 0.95, not a percentage and not an error budget',
+    });
+  }
+}
+
 /** Group observations by cluster, preserving first-seen order. */
 export function groupByCluster(obs: ClusterObservation[]): Map<string, number[]> {
   const m = new Map<string, number[]>();
@@ -171,6 +200,7 @@ export interface ClusteredMean extends Interval {
 
 /** The naive iid interval, kept so the two can be printed side by side. */
 export function iidMean(values: number[], level = 0.95): Interval {
+  requireLevel(level, 'iidMean');
   const n = values.length;
   if (n === 0) return { low: -1, high: 1, point: 0, observations: 0 };
   const mean = values.reduce((a, b) => a + b, 0) / n;
@@ -190,11 +220,7 @@ export function iidMean(values: number[], level = 0.95): Interval {
  * and the Satterthwaite df to a closed form in the cluster sizes alone.
  */
 export function clusterRobustMean(obs: ClusterObservation[], level = 0.95): ClusteredMean {
-  if (!(level > 0 && level < 1)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `clusterRobustMean: level must be in (0,1), got ${level}`, {
-      detail: { level },
-    });
-  }
+  requireLevel(level, 'clusterRobustMean');
   const groups = groupByCluster(obs);
   const n = obs.length;
   const G = groups.size;
@@ -323,6 +349,7 @@ export interface RandomEffectsMean extends Interval {
  *    differ in size. That difference is a feature and it is reported.
  */
 export function randomEffectsMean(obs: ClusterObservation[], level = 0.95): RandomEffectsMean {
+  requireLevel(level, 'randomEffectsMean');
   const groups = groupByCluster(obs);
   const n = obs.length;
   const G = groups.size;
