@@ -156,13 +156,17 @@ describe('the rest of the statistical core', () => {
     const far = sprtExpectedN(0.0025, 0.999, 0.99);
     expect(Number.isNaN(far)).toBe(false);
     expect(far).toBeGreaterThan(0);
-    // The exact value, because the CHANGELOG quotes it against the 1.035 the
-    // interpolation gave here: that 18% gap is this function's real error far
-    // outside a tight pair, and it is the figure a reader can check.
+    // Wald's value, because the CHANGELOG quotes it against the 1.035 the
+    // interpolation gave here: that 18% gap is how far the interpolation sat
+    // from Wald's approximation, not how far this function sits from the truth.
+    // It is not the same quantity and it is the smaller of the two. Wald's ASN
+    // assumes the test stops exactly on a wall, and a real one overshoots, so
+    // this function under-states the simulated expected sample number here by
+    // more than the gap being quoted.
     expect(far).toBeCloseTo(1.2584, 4);
   });
 
-  it('sprtExpectedN is exact at both hypotheses however close together they are', () => {
+  it("sprtExpectedN meets Wald's endpoint values at both hypotheses however close together they are", () => {
     const [alpha, beta] = [0.05, 0.1];
     const A = Math.log((1 - beta) / alpha);
     const B = Math.log(beta / (1 - alpha));
@@ -173,8 +177,11 @@ describe('the rest of the statistical core', () => {
     // different threshold on the tilt for every pair: for anything closer
     // together than an mde of about 1e-3 it covered the corridor end to end and
     // answered with the 0/0 limit at the hypotheses themselves, where the
-    // general form is not merely accurate but exact. (0.5, 0.4999) came back at
-    // 1.3692x the right answer at `p1` and 1.6315x at `p0`.
+    // general form reproduces Wald's endpoint values rather than merely
+    // approaching them. Exactness throughout here is against those values and
+    // not against a simulated run count, which Wald under-states everywhere.
+    // (0.5, 0.4999) came back at 1.3692x Wald's value at `p1` and 1.6315x at
+    // `p0`.
     for (const [p0, p1] of [[0.5, 0.4999], [0.3, 0.2995], [0.9, 0.8996], [0.01, 0.0099]] as const) {
       const drift = (p: number) => p * Math.log(p1 / p0) + (1 - p) * Math.log((1 - p1) / (1 - p0));
       const atP1 = ((1 - beta) * A + beta * B) / drift(p1);

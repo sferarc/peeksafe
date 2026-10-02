@@ -516,11 +516,15 @@ function sprtTilt(p: number, logR1: number, logR0: number, drift: number): numbe
 }
 
 /**
- * Expected sample number for Wald's SPRT under a true rate p.
+ * Expected sample number for Wald's SPRT under a true rate p (Wald's
+ * approximation).
  *
  * `(L₁·log A + (1−L₁)·log B) / E_p[log λ]`, where `L₁` is the probability of
- * finishing at the H₁ wall. `L₁` is Wald's operating characteristic in exact
- * form, `(1 − B^h) / (A^h − B^h)` at the tilt `h` above, rather than the
+ * finishing at the H₁ wall. Exactness here is about `L₁` and not about the
+ * result: the formula treats the test as stopping exactly on a wall, where a
+ * real one overshoots it, so the answer under-states the true expected sample
+ * number. `L₁` is Wald's operating characteristic in exact form,
+ * `(1 − B^h) / (A^h − B^h)` at the tilt `h` above, rather than the
  * textbook three-point interpolation: both the numerator and the drift have to
  * change sign at the same rate, and an interpolation that misses that rate by
  * even a little returns a *negative* number of runs. The version this replaces
@@ -553,10 +557,11 @@ export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, b
   // different threshold on `h` for every pair of them. A guard of
   // `|drift| < 1e-6` covered the whole corridor of any pair closer together
   // than about an `mde` of 1e-3, including the two hypotheses themselves, where
-  // `h` is exactly −1 and +1 and the general form is not merely accurate but
-  // exact: for (0.5, 0.4999) it returned 1.37x the right answer at `p1` and
-  // 1.63x at `p0`, which is the one property this function is documented to
-  // preserve. Scaling by `second` fires on a vanishing tilt instead.
+  // `h` is exactly −1 and +1 and the general form reproduces Wald's endpoint
+  // values rather than merely approaching them: for (0.5, 0.4999) it returned
+  // 1.37x Wald's value at `p1` and 1.63x at `p0`, which is the one property
+  // this function is documented to preserve. Scaling by `second` fires on a
+  // vanishing tilt instead.
   //
   // The constant is a minimax between the two forms. The limit is first order
   // in the tilt, so its error is of order `|h|` and wants the threshold small;
