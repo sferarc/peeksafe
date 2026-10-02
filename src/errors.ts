@@ -1,37 +1,20 @@
 /**
  * errors.ts: one error class, stable codes, structured detail.
  *
- * Nothing in peeksafe throws a bare string, and no internal invariant failure is
- * allowed to surface as `undefined is not a function`. Every code below is part
- * of the public contract: a caller may branch on `err.code` and we will not
- * repurpose one.
+ * Nothing in peeksafe throws a bare string. Every code below is thrown
+ * somewhere in `src/` and is part of the public contract: a caller may branch
+ * on `err.code` and we will not repurpose one.
  */
 
 export type PeeksafeErrorCode =
   /* input the user handed us */
-  | 'PEEKSAFE_E_USAGE'
   | 'PEEKSAFE_E_CONFIG'
-  | 'PEEKSAFE_E_CASE_PARSE'
   | 'PEEKSAFE_E_CASE_DUPLICATE'
   | 'PEEKSAFE_E_SUITE_EMPTY'
   /* the baseline */
   | 'PEEKSAFE_E_BASELINE_MISSING'
-  | 'PEEKSAFE_E_BASELINE_STALE'
-  | 'PEEKSAFE_E_BASELINE_INCOMPLETE'
   /* statistics that were asked something impossible */
-  | 'PEEKSAFE_E_STAT_DOMAIN'
-  | 'PEEKSAFE_E_UNDETECTABLE'
-  /* persistence */
-  | 'PEEKSAFE_E_STORE_OPEN'
-  | 'PEEKSAFE_E_STORE_VERSION'
-  | 'PEEKSAFE_E_STORE_CORRUPT'
-  | 'PEEKSAFE_E_RESUME_MISMATCH'
-  /* the subject under test */
-  | 'PEEKSAFE_E_HARNESS'
-  | 'PEEKSAFE_E_HARNESS_ASYNC'
-  | 'PEEKSAFE_E_BUDGET_EXHAUSTED'
-  /* we broke our own rules */
-  | 'PEEKSAFE_E_INTERNAL';
+  | 'PEEKSAFE_E_STAT_DOMAIN';
 
 export interface PeeksafeErrorOptions {
   detail?: Record<string, unknown>;
@@ -66,22 +49,6 @@ export class PeeksafeError extends Error {
 
   static is(e: unknown): e is PeeksafeError {
     return e instanceof PeeksafeError;
-  }
-}
-
-export const err = (
-  code: PeeksafeErrorCode,
-  message: string,
-  opts?: PeeksafeErrorOptions
-): PeeksafeError => new PeeksafeError(code, message, opts);
-
-/** Invariant guard. Use where a violation means *we* have a bug, not the user. */
-export function invariant(cond: unknown, message: string, detail?: Record<string, unknown>): asserts cond {
-  if (!cond) {
-    throw new PeeksafeError('PEEKSAFE_E_INTERNAL', `invariant: ${message}`, {
-      detail: detail ?? {},
-      hint: 'this is a peeksafe bug, please report it with the detail block',
-    });
   }
 }
 

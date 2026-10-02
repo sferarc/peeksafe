@@ -26,6 +26,6 @@ Errors are `PeeksafeError` with a `PEEKSAFE_E_*` code (`src/errors.ts`). Randomn
 - **No runtime dependencies.** CI packs the tarball, installs it in a scratch project and fails if more than two packages resolve (`.github/workflows/ci.yml`). See [[development/ci]].
 - **Counts in, statistics out.** A runner, graders, a baseline store, CI adapters and a CLI are explicitly not planned (`ROADMAP.md`, "Not planned").
 
-## Error codes that look unused
+## Error codes
 
-`PeeksafeErrorCode` in `src/errors.ts` lists codes such as `PEEKSAFE_E_STORE_OPEN`, `PEEKSAFE_E_HARNESS` and `PEEKSAFE_E_RESUME_MISMATCH` that name a store and a harness this package does not have. `CHANGELOG.md` says the library was extracted from a prototype that had those parts. Whether any `src/` path still throws them has not been audited; unknown.
+`PeeksafeErrorCode` in `src/errors.ts` lists exactly the codes `src/` throws: `PEEKSAFE_E_CONFIG`, `PEEKSAFE_E_CASE_DUPLICATE`, `PEEKSAFE_E_SUITE_EMPTY`, `PEEKSAFE_E_BASELINE_MISSING` and `PEEKSAFE_E_STAT_DOMAIN`. The prototype's store, harness and runner codes were removed before the first release, and `test/exports.test.ts` fails if a listed code has no `new PeeksafeError('<code>'` in `src/`. Adding a code means throwing it.

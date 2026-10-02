@@ -27,6 +27,19 @@ describe('every runtime export', () => {
   });
 });
 
+describe('every error code', () => {
+  it('is thrown somewhere in src, so the public union names nothing that cannot happen', () => {
+    const dir = new URL('../src/', import.meta.url);
+    const errors = readFileSync(new URL('errors.ts', dir), 'utf8');
+    const union = errors.slice(errors.indexOf('export type PeeksafeErrorCode'), errors.indexOf(';', errors.indexOf('export type PeeksafeErrorCode')));
+    const codes = [...union.matchAll(/'(PEEKSAFE_E_[A-Z_]+)'/g)].map((m) => m[1]!);
+    const src = readdirSync(dir).filter((f) => f.endsWith('.ts') && f !== 'errors.ts')
+      .map((f) => readFileSync(new URL(f, dir), 'utf8')).join('\n') + errors.slice(errors.indexOf(';', errors.indexOf('export type PeeksafeErrorCode')));
+    expect(codes.length).toBeGreaterThan(0);
+    expect(codes.filter((c) => !src.includes(`new PeeksafeError('${c}'`))).toEqual([]);
+  });
+});
+
 describe('statistics', () => {
   it('expectedLogE, the mean-trajectory plug-in, stays within 0.3 nats of the exact expectation', () => {
     for (const [p, n] of [[0.75, 96], [0.75, 300], [0.6, 48], [0.85, 200]] as const) {

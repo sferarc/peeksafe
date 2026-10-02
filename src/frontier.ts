@@ -3,9 +3,9 @@
  *
  * ## Why this module exists
  *
- * Round 3 published a negative: at $1 a run a 200-case suite at a 15-point MDE
- * is $1,320 a pull request, so peeksafe is not a per-PR gate for a coding-agent
- * benchmark. That is true and it is half an answer. The other half, the one a
+ * At $1 a run a 200-case suite at a 15-point MDE is $1,320 a pull request, so
+ * peeksafe is not a per-PR gate for a coding-agent benchmark at that size. That
+ * is true and it is half an answer. The other half, the one a
  * buyer actually needs, is **which configurations *are* affordable**, and
  * nobody had drawn it.
  *
@@ -14,8 +14,8 @@
  *     suite size m  ×  MDE δ  ×  design  ×  screening  ×  baseline runs n_b
  *
  * and it is usable only if it is *both* affordable and **certifiable**. Those
- * are different constraints and conflating them is how the round-2 numbers went
- * wrong. Cheap is easy: run fewer cases. Cheap *and able to decide anything* is
+ * are different constraints, and a plan that conflates them quotes the wrong
+ * numbers. Cheap is easy: run fewer cases. Cheap *and able to decide anything* is
  * the hard part, because `evidenceCeilingLogE` says a case whose unpaired
  * ceiling sits under the e-BH bar cannot be certified at any budget, and the
  * bar `m/q` moves with the suite size, so shrinking the suite raises the
@@ -54,8 +54,7 @@
  * been measured**. Screening is the largest cost lever available and it is paid
  * for in missed regressions, which the caller supplies as `screenRecall`
  * against planted ground truth, and until someone has, the honest price of a
- * screened plan is unknown rather than low. Round 3's lesson, applied to the
- * one number this module would most like to assume.
+ * screened plan is unknown rather than low.
  */
 import {
   evidenceCeilingLogE, samplesForEvidence, mcnemarSamplesForEvidence,
@@ -80,12 +79,12 @@ export type FrontierScreen = 'none' | 'expensive' | 'proxy';
 
 /**
  * Which bill the budget is checked against. Three, because they are three
- * genuinely different questions, and answering one while quoting another is
- * the round-3 error this module exists downstream of.
+ * genuinely different questions, and answering one while quoting another
+ * misprices the plan.
  *
  *  `'typical'`, a pull request that changed nothing. Almost every pull request
  *  is this one. Budget from it and a genuine regression overruns and comes
- *  back INCONCLUSIVE rather than uncertified, which is a survivable failure.
+ *  back uncertified, which is a survivable failure.
  *
  *  `'certify-all'`, every case regressed by exactly the MDE and every one had
  *  to be certified. It was once called "the ceiling", and
@@ -477,7 +476,7 @@ export function enumerateFrontier(cfg: FrontierConfig, axes: FrontierAxes = DEFA
   if (!Number.isInteger(cfg.amortisePrs) || cfg.amortisePrs < 1) {
     throw new PeeksafeError('PEEKSAFE_E_CONFIG', `frontier: amortisePrs must be a positive integer, got ${cfg.amortisePrs}`, {
       detail: { amortisePrs: cfg.amortisePrs },
-      hint: 'a baseline spread over "infinity" pull requests is how the baseline cost disappeared from the round-3 model',
+      hint: 'a baseline spread over "infinity" pull requests is how the baseline cost disappears from a plan',
     });
   }
   for (const [name, xs] of Object.entries(axes) as Array<[string, unknown[]]>) {

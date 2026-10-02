@@ -3,14 +3,14 @@
  *
  * ## The bug this module exists to fix
  *
- * Round 2 reported the suite effect as an ordinary normal interval over the
- * per-case prefix differences:
+ * The obvious summary of a suite effect is an ordinary normal interval over the
+ * per-case differences:
  *
  *     mean ± 1.96 · sd / √n         with n = 200 cases
  *
  * That formula is only correct if the 200 numbers are 200 independent draws.
- * They are not. peeksafe's suite is **40 case files, each expanded into 5
- * variants** by `expandCase`. `extract.pricing#saas` and `extract.pricing#api`
+ * They usually are not. A suite of **40 case files, each expanded into 5
+ * variants**, is typical: `extract.pricing#saas` and `extract.pricing#api`
  * share a prompt template, a grader, an expectation shape and a failure mode.
  * When one moves, its four siblings move with it. The effective number of
  * independent observations is closer to 40 than to 200, the true standard error
@@ -25,18 +25,17 @@
  * Clustering touches **only the suite-level (and family-level) summary**.
  * Specifically:
  *
- *   affected      `GateResult.suiteEffect`, the across-case mean difference
- *                 and its interval, plus any family-level roll-up.
+ *   affected      the across-case mean difference and its interval
+ *                 (`clusteredEffect`), plus any family-level roll-up.
  *
  *   NOT affected  every per-case quantity. Each case's e-value is its own
  *                 self-contained test on that case's own runs; nothing about
  *                 case *A* enters case *B*'s likelihood ratio. And the
  *                 multiplicity correction is **e-BH**, which controls FDR under
  *                 *arbitrary* dependence between the tested hypotheses, that
- *                 is the whole reason it was chosen over BH. So PASS / REGRESS
- *                 / INCONCLUSIVE, the blocked-case list, `ebhThreshold` and the
- *                 resume plan are all bit-for-bit identical whether or not the
- *                 cases cluster.
+ *                 is the whole reason it was chosen over BH. So `gate`'s
+ *                 verdict, its regressed cases and its thresholds are all
+ *                 bit-for-bit identical whether or not the cases cluster.
  *
  * In other words: clustering makes the *description* honest. It does not, and
  * must not, move the *decision*.
@@ -84,7 +83,7 @@ import { PeeksafeError } from './errors.js';
 /**
  * The cluster a case belongs to: its **case file**.
  *
- * `expandCase` mints variant ids as `<fileId>#<variant>`, so everything before
+ * Variant ids are expected as `<fileId>#<variant>`, so everything before
  * the first `#` is the file, and the file is the unit an author actually wrote.
  * A case with no `#` is its own family of one, which is correct, not a
  * degenerate case: an unexpanded case file shares its template with nobody.
@@ -449,7 +448,7 @@ export interface ClusteredEffect {
   cr2: ClusteredMean;
   /** the hierarchical cross-check, and where the ICC comes from */
   randomEffects: RandomEffectsMean;
-  /** what round 2 reported: the iid interval that assumes 200 independent cases */
+  /** the naive iid interval, which assumes every case is independent */
   naive: Interval;
   /** (clustered SE / naive SE)² */
   designEffect: number;

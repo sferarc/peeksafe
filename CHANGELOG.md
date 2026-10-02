@@ -33,6 +33,18 @@ All notable changes to this project are documented here. The format follows
 - `shouldStop` accepts any `futilityConfidence` strictly between 0 and 1. It used to accept only
   0.9, 0.95 and 0.99 from a lookup table.
 
+### Removed
+
+- Twelve `PeeksafeErrorCode` values that nothing throws: `PEEKSAFE_E_USAGE`, `PEEKSAFE_E_CASE_PARSE`,
+  `PEEKSAFE_E_BASELINE_STALE`, `PEEKSAFE_E_BASELINE_INCOMPLETE`, `PEEKSAFE_E_UNDETECTABLE`,
+  `PEEKSAFE_E_STORE_OPEN`, `PEEKSAFE_E_STORE_VERSION`, `PEEKSAFE_E_STORE_CORRUPT`,
+  `PEEKSAFE_E_RESUME_MISMATCH`, `PEEKSAFE_E_HARNESS`, `PEEKSAFE_E_HARNESS_ASYNC` and
+  `PEEKSAFE_E_BUDGET_EXHAUSTED`, plus `PEEKSAFE_E_INTERNAL`, whose only thrower was an internal
+  helper nothing called. They named a store, a harness and a runner this package does not have, and
+  a caller branching on one was waiting for an error that cannot happen. The union is now the five
+  codes the library throws, and `test/exports.test.ts` fails if a code is listed that no source
+  file throws.
+
 ### Fixed
 
 - `sprtExpectedN` returned a **negative** number of runs for any true rate strictly between the

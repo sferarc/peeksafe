@@ -7,8 +7,8 @@
  * compiling everywhere except in the prose, and the prose is what a new user
  * runs first.
  *
- * This file exists because that already happened. Before Round 6 the README's
- * clustering example read `eff.designEffect` off a call it introduced as
+ * This file exists because that already happened. The README's clustering
+ * example once read `eff.designEffect` off a call it introduced as
  * `clusteredEffect(observations)` and showed no other field, while the object's
  * actual headline is `cr2`, and a snippet for `samplesForEvidence` had the
  * argument list wrong, so the documented call threw. Neither was caught by 71
