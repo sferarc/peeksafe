@@ -99,7 +99,7 @@ describe('the paired design refuses rather than inventing', () => {
       expect(() => mcnemarSamplesForEvidence(0.9, 0.15, 0.5, Math.log(4000), 100_000, k),
         `concentration=${k}`).toThrow(PeeksafeError);
     }
-    expect(pairedLogE(40, 50, 0.75, 6)).toBeCloseTo(8.4988, 4);
+    expect(pairedLogE(40, 50, 0.75, 6)).toBeCloseTo(8.5906, 4);
   });
 });
 

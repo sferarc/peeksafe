@@ -287,8 +287,8 @@ describe('README: the paired alternative', () => {
   it('reproduces every number in the snippet', () => {
     expect(ebhSoloThreshold(10, 0.05)).toBe(200);
     expect(discordant(counts)).toBe(26);
-    expect(Math.exp(pairedLogE(counts.worse, discordant(counts)))).toBeCloseTo(391, -1);
-    expect(mcnemarSamplesForEvidence(0.9, 0.15, 0.6, Math.log(200))).toBe(104);
+    expect(Math.exp(pairedLogE(counts.worse, discordant(counts)))).toBeCloseTo(429, -1);
+    expect(mcnemarSamplesForEvidence(0.9, 0.15, 0.6, Math.log(200))).toBe(103);
   });
 
   it('certifies against the bar, which is the point of the example', () => {

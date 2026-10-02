@@ -1213,10 +1213,12 @@ export function pairPhi(p: PairedCounts): number {
 /**
  * A **paired e-value** for "the candidate is worse".
  *
- * Null: each discordant pair points the wrong way with probability exactly ½.
+ * Null: each discordant pair points the wrong way with probability at most ½.
  * Alternative: it points the wrong way with probability θ ~ Beta centred on
- * `thetaAlt`. The ratio of the two marginal likelihoods of the discordance
- * sequence is a Bayes factor, hence an e-value valid under optional stopping.
+ * `thetaAlt`, truncated to θ > ½. Every θ in that support gives a likelihood
+ * ratio against ½ that is a supermartingale whenever the true probability is
+ * ½ or less, so the mixture is an e-value valid under optional stopping for a
+ * candidate that is unchanged or better, not only for one that is unchanged.
  */
 export function pairedLogE(
   worse: number,
@@ -1230,9 +1232,12 @@ export function pairedLogE(
   if (discordantPairs === 0) return 0;
   const a1 = Math.max(0.35, concentration * thetaAlt);
   const b1 = Math.max(0.35, concentration * (1 - thetaAlt));
-  const alt = logMarginalBetaBinomial(worse, discordantPairs, a1, b1);
-  const nul = discordantPairs * Math.log(0.5);
-  return alt - nul;
+  return logUpperHalfMarginal(worse, discordantPairs, a1, b1) - discordantPairs * Math.log(0.5);
+}
+
+// The marginal of `w` in `d` under Beta(a, b) restricted to (½, 1]: P(θ > ½ | a, b) is I_½(b, a).
+function logUpperHalfMarginal(w: number, d: number, a: number, b: number): number {
+  return logBeta(a + w, b + d - w) + Math.log(ibeta(b + d - w, a + w, 0.5)) - logBeta(a, b) - Math.log(ibeta(b, a, 0.5));
 }
 
 /**
@@ -1296,13 +1301,9 @@ export function mcnemarSamplesForEvidence(
   }
   const { rate, theta } = pairedDiscordance(pBaseline, mde, rho);
   if (rate <= 0 || theta <= 0.5) return Infinity;
-  const f = (n: number) => {
-    const nd = n * rate;
-    const a1 = Math.max(0.35, concentration * theta);
-    const b1 = Math.max(0.35, concentration * (1 - theta));
-    const w = nd * theta;
-    return (logBeta(a1 + w, b1 + nd - w) - logBeta(a1, b1)) - nd * Math.log(0.5);
-  };
+  const a1 = Math.max(0.35, concentration * theta);
+  const b1 = Math.max(0.35, concentration * (1 - theta));
+  const f = (n: number) => logUpperHalfMarginal(n * rate * theta, n * rate, a1, b1) - n * rate * Math.log(0.5);
   let hi = 1;
   while (hi < maxPairs && f(hi) < logThreshold) hi *= 2;
   if (f(hi) < logThreshold) return Infinity;

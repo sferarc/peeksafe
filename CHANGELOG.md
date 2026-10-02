@@ -54,6 +54,15 @@ All notable changes to this project are documented here. The format follows
 - `certifyProbability` and `typeOneError` did not check `altConcentration`, so a non-positive
   value surfaced from deep inside as `PEEKSAFE_E_STAT_DOMAIN`, where `gate` and `shouldStop`
   refuse the same input as `PEEKSAFE_E_CONFIG`. They now refuse it the same way.
+- `pairedLogE` certified improvements as regressions. Its alternative, a Beta centred at 0.75,
+  put about a tenth of its mass on discordances pointing the *better* way, and those components
+  grow without bound when the candidate really is better. With independent runs at alpha 1/200, a
+  case that went from 60% to 75% was certified within 600 discordant pairs 93% of the time, and
+  one from 50% to 95% every time. The alternative is now truncated to "worse more often than
+  not", which makes the statistic an e-value for every candidate that did not get worse, with a
+  proof rather than a cap. `test/paired.test.ts` computes it exactly. A real regression gains a
+  little evidence: the README's 26 discordant pairs go from e = 391 to 429, and
+  `mcnemarSamplesForEvidence` plans 103 pairs where it planned 104.
 - `sprtExpectedN` returned a **negative** number of runs for any true rate strictly between the
   two hypotheses, under-estimated by about 18% for a rate far outside a tight pair of them
   (`(0.0025, 0.999, 0.99)` gave 1.035 where Wald's approximation is 1.258), and returned `Infinity`
