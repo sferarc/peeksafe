@@ -322,14 +322,7 @@ import { pairedLogE, discordant, mcnemarSamplesForEvidence, ebhSoloThreshold } f
 const counts = { bothPass: 70, worse: 22, better: 4, bothFail: 4 };
 const bar = ebhSoloThreshold(10, 0.05);            // 10 cases at 5% FDR -> 200
 
-<<<<<<< HEAD
 discordant(counts);                                 // 26, the only pairs that carry information
-||||||| 4079684
-discordant(counts);                                 // 26 - the only pairs that carry information
-Math.exp(pairedLogE(counts.worse, discordant(counts)));  // 391 -> certified
-=======
-discordant(counts);                                 // 26 - the only pairs that carry information
->>>>>>> origin/main
 Math.exp(pairedLogE(counts.worse, discordant(counts)));  // 429 -> certified
 
 mcnemarSamplesForEvidence(0.90, 0.15, 0.6, Math.log(bar));  // 103 pairs, planned in advance
