@@ -10,7 +10,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   shouldStop, gate, PeeksafeError, makeRand,
-  twoSamplePriors, universalTwoSampleLogE, evidenceCeilingLogE, evidenceCeilingAsymptotic,
+  twoSamplePriors, twoSampleLogE, universalTwoSampleLogE, evidenceCeilingLogE, evidenceCeilingAsymptotic,
+  expectedLogE,
   type BaselineStat, type StopReason,
 } from '../src/index.js';
 
@@ -210,6 +211,56 @@ describe('the exported statistics refuse a concentration they cannot honour', ()
     for (const k of [0.35, 1, 8, 64]) {
       expect(Number.isFinite(universalTwoSampleLogE(20, 60, 54, 60, 0.15, k)), `k=${k}`).toBe(true);
       expect(Number.isFinite(evidenceCeilingLogE(0.5, 54, 60, 0.15, k)), `k=${k}`).toBe(true);
+    }
+  });
+});
+
+describe('the exported statistics refuse an mde that is not an effect they can detect', () => {
+  // The same gap as the concentration above, one argument over, and hidden by
+  // the same clamp: `shifted` is `Math.min(0.995, Math.max(0.005, p̄ - mde))`, so
+  // a negative mde does not produce a bad shape, it produces an alternative
+  // centred *above* the baseline and a plausible number from a question nobody
+  // asked. `pairedDiscordance` was fixed for this; the unpaired path was not.
+  const bad = [-0.15, -5, 0, 1, 1.5, NaN, Infinity];
+  const calls: Array<[string, (mde: number) => unknown]> = [
+    ['twoSamplePriors', (mde) => twoSamplePriors(54, 60, mde)],
+    ['twoSampleLogE', (mde) => twoSampleLogE(20, 60, 54, 60, mde)],
+    ['universalTwoSampleLogE', (mde) => universalTwoSampleLogE(20, 60, 54, 60, mde)],
+    ['evidenceCeilingLogE', (mde) => evidenceCeilingLogE(0.5, 54, 60, mde)],
+    ['evidenceCeilingAsymptotic', (mde) => evidenceCeilingAsymptotic(54, 60, 0.5, mde)],
+    ['expectedLogE', (mde) => expectedLogE(0.5, 60, 54, 60, mde)],
+  ];
+  for (const [name, fn] of calls) {
+    it(`${name} throws PEEKSAFE_E_STAT_DOMAIN`, () => {
+      for (const mde of bad) {
+        try {
+          fn(mde);
+          expect.unreachable(`${name} accepted mde ${mde}`);
+        } catch (e) {
+          expect(e, `${name} mde=${mde}`).toBeInstanceOf(PeeksafeError);
+          expect((e as PeeksafeError).code, `${name} mde=${mde}`).toBe('PEEKSAFE_E_STAT_DOMAIN');
+        }
+      }
+    });
+  }
+
+  it('does not let the two statistics disagree on which mde is acceptable', () => {
+    // This is what the defect actually cost: one options object was a refusal
+    // through `evidence: 'bayes'` and a verdict through `evidence: 'universal'`.
+    // At mde -0.15 the universal path returned 0.5326715690925283.
+    for (const mde of bad) {
+      const viaBayes = () => twoSampleLogE(20, 60, 54, 60, mde);
+      const viaUniversal = () => universalTwoSampleLogE(20, 60, 54, 60, mde);
+      expect(viaBayes, `bayes mde=${mde}`).toThrow(PeeksafeError);
+      expect(viaUniversal, `universal mde=${mde}`).toThrow(PeeksafeError);
+    }
+  });
+
+  it('still answers for every mde a caller may legitimately pass', () => {
+    for (const mde of [0.01, 0.05, 0.15, 0.5, 0.99]) {
+      expect(Number.isFinite(twoSampleLogE(20, 60, 54, 60, mde)), `mde=${mde}`).toBe(true);
+      expect(Number.isFinite(universalTwoSampleLogE(20, 60, 54, 60, mde)), `mde=${mde}`).toBe(true);
+      expect(Number.isFinite(evidenceCeilingLogE(0.5, 54, 60, mde)), `mde=${mde}`).toBe(true);
     }
   });
 });
