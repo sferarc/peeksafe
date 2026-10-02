@@ -35,6 +35,33 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `sprtExpectedN` returned a **negative** number of runs for any true rate strictly between the
+  two hypotheses, under-estimated by about 18% for a rate far outside a tight pair of them
+  (`(0.0025, 0.999, 0.99)` gave 1.035 where Wald's approximation is 1.258), and returned `Infinity`
+  for the one rate at which the drift vanishes. It interpolated Wald's
+  operating characteristic as `(p - p1) / (p0 - p1)`, which rises from 0 at `p1` to 1 at `p0` where
+  the real thing falls from `1 - beta` to `alpha`: it matched neither hypothesis, and the
+  interpolated numerator changed sign at a different rate than the drift it is divided by. The
+  operating characteristic is now evaluated exactly, `(1 - B^h) / (A^h - B^h)` at the tilt `h`
+  solving `E_p[lambda^h] = 1`, which is `-1` at `p1` and `+1` at `p0` and therefore still agrees
+  with both hypotheses. The powers are taken relative to the larger of the two, so a tilt in the
+  hundreds (which is what a rate far outside a tight pair produces) cannot overflow. Where the
+  drift vanishes the quotient is 0/0 and its limit, `-log A * log B / E_p[(log lambda)^2]`, is used
+  instead. What decides whether the quotient is really 0/0 is the tilt rather than the drift, since
+  the drift scales with the square of the gap between the hypotheses while the tilt does not, so the
+  limit takes over below a tilt of `3e-4`: a fixed threshold on the drift is a different threshold
+  on the tilt for every pair of hypotheses, and for any pair closer together than an `mde` of about
+  `1e-3` it covers the corridor end to end, including the two hypotheses themselves, where the
+  general form is exact. `expectedSequentialSamples`,
+  `typicalObservationsPerCase` and `affordabilityGrid` all test the result for `> 0` and fall back
+  to `maxTrials`, so an affected case was priced at the per-case cap: a 9/30 baseline, whose
+  posterior median sits above its own rate, costs 32 runs and was quoted at 96. No decision
+  changes; this is the expected-cost half of the planner, not the gate. What became exact here is
+  the operating characteristic, not the run count: the expected sample number is still Wald's
+  approximation, which treats the test as stopping exactly on a wall where a real one overshoots it,
+  so it under-states the true expected sample number and every cost built on it. An affected case
+  used to be priced at the per-case cap, which over-stated the bill, so this moves that case from
+  erring high to erring low.
 - `randomEffectsMean` returned `NaN` for its point estimate and both interval ends, with
   `degenerate` left `null`, on a suite where every case moved by the same amount. Its GLS weights
   are `1 / (tau^2 + sigma^2/n_g)`, and with no within-family and no between-family variance both
