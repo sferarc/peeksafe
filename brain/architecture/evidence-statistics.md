@@ -26,4 +26,4 @@ Turner, Ly and Grünwald's 2x2 e-values were considered and do not apply to a st
 
 ## The paired statistic is separate
 
-`pairedLogE` tests discordant pairs against an exact point null of one half, so it has no ceiling and is an e-value at every rate. `gate` does not take paired counts yet; see `ROADMAP.md` item 2.
+`pairedLogE` tests discordant pairs against a null of "worse with probability at most one half", so it has no ceiling and is an e-value at every rate. Its Beta alternative is truncated to the worse half; untruncated, the mass below one half certified improved candidates, as #11 found for the unpaired statistic (`test/paired.test.ts`). `gate` does not take paired counts yet; see `ROADMAP.md` item 2.

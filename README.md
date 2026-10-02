@@ -314,7 +314,7 @@ Read that as four different answers, not one number. `parsing/nested` has a 240-
 
 ## The paired alternative
 
-Re-run the baseline alongside the candidate on the same seed and the null becomes an exact point mass at one half: under "nothing changed", a discordant pair points either way with probability exactly 0.5. Nothing is estimated, so nothing caps the evidence, and the paired e-value grows linearly in discordant pairs.
+Re-run the baseline alongside the candidate on the same seed and the null becomes an exact point mass at one half: under "nothing changed", a discordant pair points either way with probability exactly 0.5, and under "the candidate improved" it points the worse way less often than that. The alternative only bets on the worse direction, so the paired e-value is valid against both. Nothing is estimated, so nothing caps the evidence, and the paired e-value grows linearly in discordant pairs.
 
 ```ts
 import { pairedLogE, discordant, mcnemarSamplesForEvidence, ebhSoloThreshold } from 'peeksafe';
@@ -323,9 +323,9 @@ const counts = { bothPass: 70, worse: 22, better: 4, bothFail: 4 };
 const bar = ebhSoloThreshold(10, 0.05);            // 10 cases at 5% FDR -> 200
 
 discordant(counts);                                 // 26 - the only pairs that carry information
-Math.exp(pairedLogE(counts.worse, discordant(counts)));  // 391 -> certified
+Math.exp(pairedLogE(counts.worse, discordant(counts)));  // 429 -> certified
 
-mcnemarSamplesForEvidence(0.90, 0.15, 0.6, Math.log(bar));  // 104 pairs, planned in advance
+mcnemarSamplesForEvidence(0.90, 0.15, 0.6, Math.log(bar));  // 103 pairs, planned in advance
 ```
 
 It costs two runs per observation and is routinely still cheaper, and it is the only design that works at all for a case whose ceiling is under the bar.
