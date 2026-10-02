@@ -121,26 +121,7 @@ export interface ClusterObservation {
   value: number;
 }
 
-/**
- * The confidence level every interval in this module is taken at.
- *
- * Shared by `iidMean`, `clusterRobustMean` and `randomEffectsMean` so the three
- * cannot drift on what they accept. They did drift: only `clusterRobustMean`
- * checked, so `level: 0` reached the other two, `normalQuantile(0.5)` and
- * `tQuantile(0.5, df)` are both legally 0, and the result was a **zero-width**
- * interval reported with `degenerate: null` next to a positive `se`. That is the
- * fabricated precision this module exists to remove, arriving through the
- * argument that is supposed to control it. A level outside (0,1) was worse
- * still: it ran the half-width to ±Infinity or NaN, so `low` came back above
- * `high`, and a caller asking "does the interval exclude zero" got yes from
- * both ends at once.
- *
- * Read before the early returns, not where the quantile is taken. Every
- * degenerate path here (no cases, one family, singleton families, a suite with
- * no variance at all) returns without reaching a quantile, so validating at the
- * point of use accepted a level on the suites that short-circuit and threw on
- * the ones that did not.
- */
+// Called before the early returns, which never reach a quantile, so every suite refuses the same level.
 function requireLevel(level: number, where: string): void {
   if (!(level > 0 && level < 1)) {
     throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: level must be in (0,1), got ${level}`, {

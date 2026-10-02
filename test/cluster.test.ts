@@ -236,10 +236,7 @@ describe('the confidence level is refused at every door', () => {
   const obs = correlated(6, 5, 0.2, 'level');
   const values = obs.map((o) => o.value);
 
-  // Only `clusterRobustMean` checked `level`, so the other two estimators took
-  // whatever they were handed. These pin the refusal rather than a result,
-  // because each of these values produced a *narrower* or an inverted interval,
-  // which reads as more certainty than the data holds.
+  // Each of these produced a narrower or inverted interval before it was refused.
   for (const level of [0, 1, -1, 2, 95, NaN, Infinity]) {
     it(`refuses level ${level} in all three estimators`, () => {
       expect(() => iidMean(values, level)).toThrow(/level must be in \(0,1\)/);
@@ -250,21 +247,13 @@ describe('the confidence level is refused at every door', () => {
   }
 
   it('refuses a level of 0 rather than reporting a zero-width interval as an estimate', () => {
-    // The sharp end of the above. `normalQuantile(0.5)` and `tQuantile(0.5, df)`
-    // are both legally 0, so `level: 0` did not fail anywhere: it returned
-    // low === high === the point estimate with `degenerate: null`, next to a
-    // positive `se` it had just computed and then multiplied away. A caller
-    // asking whether the suite moved got a definitive answer from an interval
-    // carrying none of the uncertainty behind it.
+    // Both quantiles are legally 0 at a level of 0, so nothing downstream failed.
     expect(() => iidMean(values, 0)).toThrow(/level must be in \(0,1\)/);
     expect(() => randomEffectsMean(obs, 0)).toThrow(/level must be in \(0,1\)/);
   });
 
   it('refuses it on the degenerate paths too, not only where a quantile is taken', () => {
-    // Every short-circuit in `randomEffectsMean` returns before it reaches
-    // `tQuantile`, so validating at the point of use accepted a level on these
-    // suites and threw on the ones that ran to the end. One loop over a suite
-    // would then refuse some families and not others for the same argument.
+    // These suites return before reaching a quantile, which pins where the guard sits.
     const empty: ClusterObservation[] = [];
     const oneFamily: ClusterObservation[] = [
       { cluster: 'a', value: 0.1 }, { cluster: 'a', value: 0.2 },
@@ -284,8 +273,6 @@ describe('the confidence level is refused at every door', () => {
   });
 
   it('still takes every level that is actually a confidence level', () => {
-    // The guard rejects the endpoints and nothing inside them, and a higher
-    // level is still the wider interval.
     for (const level of [0.5, 0.8, 0.9, 0.95, 0.99, 0.999]) {
       expect(() => iidMean(values, level)).not.toThrow();
       expect(() => randomEffectsMean(obs, level)).not.toThrow();
