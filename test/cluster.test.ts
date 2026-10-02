@@ -231,3 +231,55 @@ describe('the interval widens when it should', () => {
     expect(Number.isFinite(clusteredEffect(zero).randomEffects.high)).toBe(true);
   });
 });
+
+describe('the confidence level is refused at every door', () => {
+  const obs = correlated(6, 5, 0.2, 'level');
+  const values = obs.map((o) => o.value);
+
+  // Each of these produced a narrower or inverted interval before it was refused.
+  for (const level of [0, 1, -1, 2, 95, NaN, Infinity]) {
+    it(`refuses level ${level} in all three estimators`, () => {
+      expect(() => iidMean(values, level)).toThrow(/level must be in \(0,1\)/);
+      expect(() => randomEffectsMean(obs, level)).toThrow(/level must be in \(0,1\)/);
+      expect(() => clusterRobustMean(obs, level)).toThrow(/level must be in \(0,1\)/);
+      expect(() => clusteredEffect(obs, level)).toThrow(/level must be in \(0,1\)/);
+    });
+  }
+
+  it('refuses a level of 0 rather than reporting a zero-width interval as an estimate', () => {
+    // Both quantiles are legally 0 at a level of 0, so nothing downstream failed.
+    expect(() => iidMean(values, 0)).toThrow(/level must be in \(0,1\)/);
+    expect(() => randomEffectsMean(obs, 0)).toThrow(/level must be in \(0,1\)/);
+  });
+
+  it('refuses it on the degenerate paths too, not only where a quantile is taken', () => {
+    // These suites return before reaching a quantile, which pins where the guard sits.
+    const empty: ClusterObservation[] = [];
+    const oneFamily: ClusterObservation[] = [
+      { cluster: 'a', value: 0.1 }, { cluster: 'a', value: 0.2 },
+    ];
+    const singletons: ClusterObservation[] = [
+      { cluster: 'a', value: 0.1 }, { cluster: 'b', value: 0.2 },
+    ];
+    const noVariance: ClusterObservation[] = [
+      { cluster: 'a', value: 0.3 }, { cluster: 'a', value: 0.3 },
+      { cluster: 'b', value: 0.3 }, { cluster: 'b', value: 0.3 },
+    ];
+    for (const suite of [empty, oneFamily, singletons, noVariance]) {
+      expect(() => randomEffectsMean(suite, 95)).toThrow(/level must be in \(0,1\)/);
+      expect(() => randomEffectsMean(suite, NaN)).toThrow(/level must be in \(0,1\)/);
+    }
+    expect(() => iidMean([], 95)).toThrow(/level must be in \(0,1\)/);
+  });
+
+  it('still takes every level that is actually a confidence level', () => {
+    for (const level of [0.5, 0.8, 0.9, 0.95, 0.99, 0.999]) {
+      expect(() => iidMean(values, level)).not.toThrow();
+      expect(() => randomEffectsMean(obs, level)).not.toThrow();
+      expect(() => clusterRobustMean(obs, level)).not.toThrow();
+    }
+    const narrow = clusterRobustMean(obs, 0.8);
+    const wide = clusterRobustMean(obs, 0.99);
+    expect(wide.high - wide.low).toBeGreaterThan(narrow.high - narrow.low);
+  });
+});

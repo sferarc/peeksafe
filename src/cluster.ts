@@ -121,6 +121,16 @@ export interface ClusterObservation {
   value: number;
 }
 
+// Called before the early returns, which never reach a quantile, so every suite refuses the same level.
+function requireLevel(level: number, where: string): void {
+  if (!(level > 0 && level < 1)) {
+    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: level must be in (0,1), got ${level}`, {
+      detail: { level },
+      hint: 'a two-sided confidence level such as 0.95, not a percentage and not an error budget',
+    });
+  }
+}
+
 /** Group observations by cluster, preserving first-seen order. */
 export function groupByCluster(obs: ClusterObservation[]): Map<string, number[]> {
   const m = new Map<string, number[]>();
@@ -171,6 +181,7 @@ export interface ClusteredMean extends Interval {
 
 /** The naive iid interval, kept so the two can be printed side by side. */
 export function iidMean(values: number[], level = 0.95): Interval {
+  requireLevel(level, 'iidMean');
   const n = values.length;
   if (n === 0) return { low: -1, high: 1, point: 0, observations: 0 };
   const mean = values.reduce((a, b) => a + b, 0) / n;
@@ -190,11 +201,7 @@ export function iidMean(values: number[], level = 0.95): Interval {
  * and the Satterthwaite df to a closed form in the cluster sizes alone.
  */
 export function clusterRobustMean(obs: ClusterObservation[], level = 0.95): ClusteredMean {
-  if (!(level > 0 && level < 1)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `clusterRobustMean: level must be in (0,1), got ${level}`, {
-      detail: { level },
-    });
-  }
+  requireLevel(level, 'clusterRobustMean');
   const groups = groupByCluster(obs);
   const n = obs.length;
   const G = groups.size;
@@ -323,6 +330,7 @@ export interface RandomEffectsMean extends Interval {
  *    differ in size. That difference is a feature and it is reported.
  */
 export function randomEffectsMean(obs: ClusterObservation[], level = 0.95): RandomEffectsMean {
+  requireLevel(level, 'randomEffectsMean');
   const groups = groupByCluster(obs);
   const n = obs.length;
   const G = groups.size;
