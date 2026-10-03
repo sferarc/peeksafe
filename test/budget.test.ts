@@ -137,6 +137,30 @@ describe('the planner answers before anything is spent', () => {
     expect(grid.length).toBeGreaterThan(0);
     for (const cell of grid) expect(Number.isFinite(cell.mde)).toBe(true);
   });
+
+  it('refuses to grid a suite with no baseline rather than pricing it against Beta(1, 1)', () => {
+    // `affordabilityGrid` checked `baselineRate` and nothing else, so
+    // `baselineTrials: 0` reached `twoSamplePriors` as 0 successes in 0 trials.
+    // Its null prior is then Beta(1, 1), and the grid priced the whole suite
+    // against "every case passes half the time", which is the invented-baseline
+    // failure `src/baseline.ts` exists to refuse and which `planCase`,
+    // `evaluatePoint` and `gate` all do refuse.
+    //
+    // It did not fail loudly either. At 20 cases and a 15-point MDE it answered
+    // a complete cell, 504 runs and $1.06 a pull request, `affordable: true`,
+    // on a *cheaper* typical bill than the same call at a real 60-run baseline
+    // (196 runs against 288): the cheapest row on the page was the one with no
+    // baseline behind it at all.
+    expect(() => affordabilityGrid(0.85, 0, DEFAULT_PLAN, 5, [20], [0.15])).toThrow(/baselineTrials/);
+    // A negative or fractional count did reach a refusal, but three frames down
+    // in `requireCounts`, which reported a success count the caller never
+    // passed: "need 0 ≤ successes ≤ trials, got -8/-10".
+    expect(() => affordabilityGrid(0.85, -10, DEFAULT_PLAN, 5, [20], [0.15])).toThrow(/baselineTrials/);
+    expect(() => affordabilityGrid(0.85, 60.5, DEFAULT_PLAN, 5, [20], [0.15])).toThrow(/baselineTrials/);
+    // A recorded baseline still prices, so the guard refuses the missing
+    // baseline and not the grid.
+    expect(affordabilityGrid(0.85, 60, DEFAULT_PLAN, 5, [20], [0.15])).toHaveLength(1);
+  });
 });
 
 describe('the frontier', () => {

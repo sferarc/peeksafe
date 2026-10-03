@@ -595,6 +595,23 @@ export function affordabilityGrid(
   mdes: number[] = [0.1, 0.15, 0.25, 0.35]
 ): AffordabilityCell[] {
   requireProbability(baselineRate, 'baselineRate', 'affordabilityGrid');
+  // Every other planner entry point refuses a case with no baseline: `planCase`
+  // returns IMPOSSIBLE with "no baseline", `evaluatePoint` throws on
+  // `baselineRuns < 1`, and `gate` throws PEEKSAFE_E_BASELINE_MISSING. This one
+  // checked only the rate, so `baselineTrials: 0` reached `twoSamplePriors` as
+  // 0 successes in 0 trials, whose null prior is Beta(1, 1), and the grid
+  // priced the suite against "every case passes half the time" and reported it
+  // affordable, on a cheaper typical bill than the same call at a real
+  // baseline. A fractional or negative count did reach a refusal, but from
+  // `requireCounts` three frames down, naming a success count the caller never
+  // passed. `test/budget.test.ts` has the figures.
+  if (!Number.isInteger(baselineTrials) || baselineTrials < 1) {
+    throw new PeeksafeError('PEEKSAFE_E_CONFIG',
+      `affordabilityGrid: baselineTrials must be a positive integer, got ${baselineTrials}`, {
+        detail: { baselineTrials },
+        hint: 'this grid prices a suite against a recorded baseline; with none the null prior is Beta(1, 1), which reads as "every case passes half the time"',
+      });
+  }
   const out: AffordabilityCell[] = [];
   for (const m of caseCounts) {
     for (const mde of mdes) {
