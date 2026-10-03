@@ -6,10 +6,12 @@
 
 1. `jdx/mise-action` installs Node and pnpm from `mise.toml`, verified against `mise.lock`. On the 22 and 24 legs the matrix Node is then put ahead of it on `PATH`, so `tsc` and `vitest` run on that version; pnpm is a native binary and is unaffected.
 2. `pnpm install --frozen-lockfile`
-3. `pnpm typecheck`
-4. `pnpm test`
-5. `pnpm build`
-6. **No runtime dependencies.** `pnpm pack`, install the tarball into a scratch project, and count `pnpm ls --prod --depth Infinity --parseable`. Anything other than two lines (the scratch project and peeksafe) fails the job. Checking `package.json` alone would miss a dependency arriving through a bundled file or a postinstall.
+3. `pnpm lint` (Biome, read-only)
+4. `pnpm knip`
+5. `pnpm typecheck`
+6. `pnpm test`
+7. `pnpm build`
+8. **No runtime dependencies.** `pnpm pack`, install the tarball into a scratch project, and count `pnpm ls --prod --depth Infinity --parseable`. Anything other than two lines (the scratch project and peeksafe) fails the job. Checking `package.json` alone would miss a dependency arriving through a bundled file or a postinstall.
 
 Actions are pinned to full commit SHAs with the version in a trailing comment. Update both together.
 

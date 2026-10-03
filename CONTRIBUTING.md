@@ -8,8 +8,11 @@ Issues and pull requests are welcome here.
 pnpm install
 pnpm test         # a few seconds
 pnpm typecheck
+pnpm lint         # Biome; `pnpm fix` applies its fixes
 pnpm build
 ```
+
+`pnpm install` sets up a pre-commit hook that formats staged files with Biome.
 
 The library needs Node 22 or newer. `mise install` provides the Node and pnpm
 versions the repository is developed with. There are no runtime dependencies and
