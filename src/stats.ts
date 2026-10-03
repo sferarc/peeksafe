@@ -471,6 +471,15 @@ export function sprtDecision(opts: SprtOpts): SprtResult {
   requireProbability(p1, 'p1', 'sprtDecision');
   const alpha = opts.alpha ?? 0.05;
   const beta = opts.beta ?? 0.1;
+  // The two walls are `log((1-beta)/alpha)` and `log(beta/(1-alpha))`, and
+  // these were the arguments nothing checked. An alpha at or above 1 makes the
+  // second one the log of a negative number, so `lower` came back NaN, every
+  // comparison against it was false, and the test reported CONTINUE for ever
+  // against a wall that is not a number. An alpha of 0 puts `upper` at
+  // Infinity, which no evidence ever crosses. Open at both ends: an error rate
+  // of 0 is a test that never decides and one of 1 is a test that always does.
+  requireOpenProbability(alpha, 'alpha', 'sprtDecision');
+  requireOpenProbability(beta, 'beta', 'sprtDecision');
   const e = 1e-12;
   const cl = (x: number) => Math.min(1 - e, Math.max(e, x));
   const q0 = cl(p0), q1 = cl(p1);
@@ -540,6 +549,15 @@ export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, b
   requireProbability(p, 'p', 'sprtExpectedN');
   requireProbability(p0, 'p0', 'sprtExpectedN');
   requireProbability(p1, 'p1', 'sprtExpectedN');
+  // Same two walls as `sprtDecision`, and the same gap. The consequence here is
+  // quieter and worse: an alpha at or above 1 makes `B` the log of a negative
+  // number and the quotient NaN, and an alpha of 0 sends `A` to Infinity.
+  // `plan.ts` and `frontier.ts` both gate on `Number.isFinite(raw) && raw > 0`
+  // and quote `maxTrials` when that fails, which both answers do, so a plan
+  // built on an out-of-range error rate priced every case at the per-case cap
+  // and reported it as a budget, with nothing to say it was not a real answer.
+  requireOpenProbability(alpha, 'alpha', 'sprtExpectedN');
+  requireOpenProbability(beta, 'beta', 'sprtExpectedN');
   const A = Math.log((1 - beta) / alpha);
   const B = Math.log(beta / (1 - alpha));
   const logR1 = Math.log(p1 / p0);
@@ -549,6 +567,16 @@ export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, b
   // p0 === p1 leaves every trial uninformative, so the drift and the curvature
   // are both 0 and no number of runs ends the test.
   if (second === 0) return Infinity;
+  // `A === B` is `alpha + beta === 1`: both walls sit at a log likelihood ratio
+  // of 0, which is where the test starts, so it decides before it has seen
+  // anything and the expected sample number is 0. The general form is
+  // `(L1·(A − B) + B) / drift`, which is 0 whatever `L1` is, but it computes
+  // `L1` as `(1 − B^h) / (A^h − B^h)`, a genuine 0/0 here, and so returned NaN
+  // for in-domain error rates: (0.5, 0.5) and (0.25, 0.75) both landed on it.
+  // The neighbouring configurations already converge to 0 from both sides.
+  // Only the pairs where both logs round to exactly 0 were affected, which is
+  // why this survived the error-rate guards above.
+  if (A === B) return 0;
   // The ASN is 0/0 where the tilt vanishes, and that limit is the one place
   // Wald's formula needs a different expression. What decides whether the
   // quotient is really 0/0 is the *tilt*, not the drift: near the zero
@@ -802,6 +830,14 @@ export const ebhSoloThreshold = (m: number, q = 0.05): number => m / q;
  */
 export function sampleSizeTwoProportion(p0: number, delta: number, alpha = 0.05, beta = 0.1): number {
   requireProbability(p0, 'p0', 'sampleSizeTwoProportion');
+  // Checked before the Infinity branch, so the same error rate is refused
+  // whatever the effect. An alpha of 1 sets `zA` to Φ⁻¹(0.5) = 0, which drops
+  // the type I error term out of the formula and answers a run count for a
+  // design with no error control in it. This is the comparator the README
+  // measures peeksafe against, so a plausible number here understates what the
+  // naive design costs.
+  requireOpenProbability(alpha, 'alpha', 'sampleSizeTwoProportion');
+  requireOpenProbability(beta, 'beta', 'sampleSizeTwoProportion');
   if (delta <= 0 || delta >= p0) return Infinity;
   const p1 = p0 - delta;
   const pbar = (p0 + p1) / 2;
