@@ -21,7 +21,7 @@ pnpm build       # tsc -p tsconfig.build.json, emits dist/
 
 ## TypeScript
 
-`tsconfig.json` targets ES2023 with `module` and `moduleResolution` `NodeNext`, `strict`, `noUncheckedIndexedAccess` and `verbatimModuleSyntax`. Relative imports therefore carry a `.js` extension (`src/index.ts`). The package is ESM only (`"type": "module"`) with a single `.` export.
+`tsconfig.json` targets ES2023 with `module` and `moduleResolution` `NodeNext`, `strict`, `noUncheckedIndexedAccess` and `verbatimModuleSyntax`. Relative imports therefore carry a `.js` extension (`src/index.ts`). The package is ESM only (`"type": "module"`) with a single `.` export. `files` ships `dist`, `src` (so the maps in `dist` resolve), the README, CHANGELOG, LICENSE, NOTICE and RESEARCH-NOTES; `scripts/` and `test/` stay out. On 2026-10-02 the tarball was 66 files, 185 kB packed.
 
 ## Dependencies
 

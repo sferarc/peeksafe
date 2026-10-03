@@ -169,13 +169,11 @@ describe('the rest of the statistical core', () => {
     const far = sprtExpectedN(0.0025, 0.999, 0.99);
     expect(Number.isNaN(far)).toBe(false);
     expect(far).toBeGreaterThan(0);
-    // Wald's value, because the CHANGELOG quotes it against the 1.035 the
-    // interpolation gave here: that 18% gap is how far the interpolation sat
-    // from Wald's approximation, not how far this function sits from the truth.
-    // It is not the same quantity and it is the smaller of the two. Wald's ASN
-    // assumes the test stops exactly on a wall, and a real one overshoots, so
-    // this function under-states the simulated expected sample number here by
-    // more than the gap being quoted.
+    // Wald's value, which is what this function computes and not the truth:
+    // Wald's ASN assumes the test stops exactly on a wall, and a real one
+    // overshoots, so this under-states the simulated expected sample number
+    // here. What is exact at this rate is the operating characteristic, which
+    // the tilt gives in closed form; the run count built on it is not.
     expect(far).toBeCloseTo(1.2584, 4);
   });
 
