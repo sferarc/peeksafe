@@ -9,18 +9,18 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  shouldStop,
-  gate,
-  PeeksafeError,
-  makeRand,
-  twoSamplePriors,
-  twoSampleLogE,
-  universalTwoSampleLogE,
-  evidenceCeilingLogE,
-  evidenceCeilingAsymptotic,
-  expectedLogE,
   type BaselineStat,
+  evidenceCeilingAsymptotic,
+  evidenceCeilingLogE,
+  expectedLogE,
+  gate,
+  makeRand,
+  PeeksafeError,
   type StopReason,
+  shouldStop,
+  twoSampleLogE,
+  twoSamplePriors,
+  universalTwoSampleLogE,
 } from "../src/index.js";
 
 const FAT: BaselineStat = { caseId: "c", successes: 216, trials: 240 };
@@ -358,7 +358,7 @@ describe("the loop it is meant to be used in", () => {
       }
     }
 
-    expect(state["broken"]!.stopped).toBe("regressed");
+    expect(state.broken!.stopped).toBe("regressed");
     // the healthy ones settle rather than burning the whole cap
     for (const id of ["good", "alsoGood"]) {
       expect(state[id]!.stopped, id).toBe("settled");

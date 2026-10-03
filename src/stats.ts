@@ -21,10 +21,10 @@
  * `sampleSizeTwoProportion`.
  */
 import {
-  requireCounts,
-  requireProbability,
-  requireOpenProbability,
   PeeksafeError,
+  requireCounts,
+  requireOpenProbability,
+  requireProbability,
 } from "./errors.js";
 
 /* ────────────────────────── special functions ────────────────────────── */

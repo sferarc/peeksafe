@@ -73,8 +73,9 @@
  * size k it tracks the textbook 1 + (k − 1)ρ, which is the sanity check the
  * tests assert.
  */
-import { normalQuantile, tQuantile, type Interval } from "./stats.js";
+
 import { PeeksafeError } from "./errors.js";
+import { type Interval, normalQuantile, tQuantile } from "./stats.js";
 
 /* ────────────────────────── the clustering key ───────────────────────── */
 

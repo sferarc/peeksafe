@@ -7,15 +7,16 @@
  * or options sit outside the grid the tests check. Moving the candidate below
  * the baseline turns the same computation into the power.
  */
-import { twoSamplePriors, logGamma, logBeta, pairedLogE } from "./stats.js";
-import { requireEvidence, type Evidence } from "./evidence.js";
-import { cannotDropBy, DEFAULT_GATE_OPTIONS } from "./gate.js";
+
 import {
   PeeksafeError,
   requireOpenProbability,
   requirePositiveConfig,
   requireProbability,
 } from "./errors.js";
+import { type Evidence, requireEvidence } from "./evidence.js";
+import { cannotDropBy, DEFAULT_GATE_OPTIONS } from "./gate.js";
+import { logBeta, logGamma, pairedLogE, twoSamplePriors } from "./stats.js";
 
 export interface TypeOneErrorOptions {
   /** Shared true pass rate of the baseline and the candidate. */
@@ -133,8 +134,8 @@ const xlogy = (x: number, y: number): number => (x === 0 ? 0 : x * Math.log(y));
 const rawLogE = (
   s: number,
   n: number,
-  sb: number,
-  nb: number,
+  _sb: number,
+  _nb: number,
   n0: { a: number; b: number },
   a1: { a: number; b: number },
 ): number =>

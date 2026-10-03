@@ -19,28 +19,28 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  gate,
-  PeeksafeError,
-  twoSampleLogE,
+  type BaselineStat,
+  caseFamily,
+  certifyProbability,
+  clusteredEffect,
+  DEFAULT_PLAN,
+  discordant,
   ebhSoloThreshold,
   evidenceCeilingLogE,
   evidenceCeilingSlope,
-  samplesForEvidence,
+  gate,
   makePlan,
-  toBaselineMap,
-  DEFAULT_PLAN,
-  pairedLogE,
-  discordant,
-  mcnemarSamplesForEvidence,
-  clusteredEffect,
-  caseFamily,
-  shouldStop,
   makeRand,
-  typeOneError,
-  certifyProbability,
-  universalTwoSampleLogE,
+  mcnemarSamplesForEvidence,
+  PeeksafeError,
+  pairedLogE,
+  samplesForEvidence,
+  shouldStop,
   shouldStopPaired,
-  type BaselineStat,
+  toBaselineMap,
+  twoSampleLogE,
+  typeOneError,
+  universalTwoSampleLogE,
 } from "../src/index.js";
 
 describe("README: quick start", () => {
@@ -117,8 +117,10 @@ describe("README: stopping early", () => {
       "summary/tone": 0.9,
     };
     let seed = 7;
-    const flip = (p: number): boolean =>
-      (seed = (seed * 1664525 + 1013904223) >>> 0) / 0x1_0000_0000 < p;
+    const flip = (p: number): boolean => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0x1_0000_0000 < p;
+    };
 
     const ids = Object.keys(baseline);
     const bar = ebhSoloThreshold(ids.length, 0.05);

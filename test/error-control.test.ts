@@ -13,20 +13,20 @@
  * The crossing probabilities come from `typeOneError`, which is exact rather
  * than simulated.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  type BaselineStat,
+  certifyProbability,
+  type GateCase,
+  gate,
+  logBeta,
+  logGamma,
+  logMarginalBetaBinomial,
+  makeRand,
+  shouldStop,
   twoSampleLogE,
   twoSamplePriors,
-  logMarginalBetaBinomial,
-  logGamma,
-  logBeta,
-  gate,
-  shouldStop,
-  makeRand,
   typeOneError,
-  certifyProbability,
-  type BaselineStat,
-  type GateCase,
 } from "../src/index.js";
 
 const logChoose = (n: number, k: number): number =>

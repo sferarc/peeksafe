@@ -12,8 +12,8 @@
  * of "this case passes half the time" and reported a verdict of PASS with a
  * suite improvement of +87.5 points, measured against nothing at all.
  */
-import { describe, it, expect } from "vitest";
-import { gate, makeRand, twoSampleLogE, logGamma, type GateCase } from "../src/index.js";
+import { describe, expect, it } from "vitest";
+import { type GateCase, gate, logGamma, makeRand, twoSampleLogE } from "../src/index.js";
 
 const baselineOf = (id: string, successes: number, trials: number) => ({
   caseId: id,

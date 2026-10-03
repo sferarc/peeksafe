@@ -1,28 +1,27 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  logGamma,
-  logBeta,
-  ibeta,
-  erf,
-  gammaP,
-  normalCdf,
-  normalQuantile,
-  wilsonInterval,
-  betaPosterior,
-  betaQuantile,
+  bernoulliEntropy,
   betaCredibleInterval,
   betaMassBetween,
-  diffInterval,
-  cohensH,
-  twoProportionZTest,
-  fisherExact2x2,
-  sprtDecision,
+  betaPosterior,
+  betaQuantile,
   bhCorrect,
+  cohensH,
+  diffInterval,
   ebhCorrect,
-  twoSampleLogE,
+  erf,
+  fisherExact2x2,
+  ibeta,
+  logBeta,
+  logGamma,
   logMarginalBetaBinomial,
+  normalCdf,
+  normalQuantile,
   sampleSizeTwoProportion,
-  bernoulliEntropy,
+  sprtDecision,
+  twoProportionZTest,
+  twoSampleLogE,
+  wilsonInterval,
 } from "../src/index.js";
 import { makeRand } from "../src/rand.js";
 
@@ -74,7 +73,7 @@ describe("special functions vs closed forms", () => {
 
   it("betaQuantile inverts the CDF, including the closed-form case", () => {
     // Beta(a,1) has CDF x^a so the q-quantile is q^(1/a)
-    close(betaQuantile(3, 1, 0.5), Math.pow(0.5, 1 / 3), 1e-8);
+    close(betaQuantile(3, 1, 0.5), 0.5 ** (1 / 3), 1e-8);
     close(betaQuantile(1, 1, 0.37), 0.37, 1e-9);
     for (const [a, b, q] of [
       [2, 5, 0.1],

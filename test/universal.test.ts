@@ -5,19 +5,19 @@
  * tests check the construction was built as described, that it holds exactly
  * where the default statistic does not, and how much power it gives up.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  universalTwoSampleLogE,
-  universalCeilingLogE,
+  certifyProbability,
+  type Evidence,
+  gate,
+  ibeta,
+  logBeta,
+  logGamma,
+  shouldStop,
   twoSampleLogE,
   typeOneError,
-  certifyProbability,
-  gate,
-  shouldStop,
-  logGamma,
-  logBeta,
-  ibeta,
-  type Evidence,
+  universalCeilingLogE,
+  universalTwoSampleLogE,
 } from "../src/index.js";
 
 const logBinom = (n: number, k: number, p: number): number =>

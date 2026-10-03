@@ -44,22 +44,8 @@
  * is `makePlan`'s job, and `PlanCase.baselineRunsNeeded` tells you what to do
  * about it. This is the safety net, not the plan.
  */
-import {
-  ebhSoloThreshold,
-  wilsonInterval,
-  normalQuantile,
-  pairedLogE,
-  discordant,
-  type PairedCounts,
-} from "./stats.js";
-import {
-  logEvidence,
-  ceilingLogEvidence,
-  requireEvidence,
-  toEvalue,
-  type Evidence,
-} from "./evidence.js";
-import { type BaselineStat } from "./baseline.js";
+
+import type { BaselineStat } from "./baseline.js";
 import {
   PeeksafeError,
   requireCounts,
@@ -67,7 +53,22 @@ import {
   requirePairedCounts,
   requirePositiveConfig,
 } from "./errors.js";
-import { DEFAULT_GATE_OPTIONS, cannotDropBy } from "./gate.js";
+import {
+  ceilingLogEvidence,
+  type Evidence,
+  logEvidence,
+  requireEvidence,
+  toEvalue,
+} from "./evidence.js";
+import { cannotDropBy, DEFAULT_GATE_OPTIONS } from "./gate.js";
+import {
+  discordant,
+  ebhSoloThreshold,
+  normalQuantile,
+  type PairedCounts,
+  pairedLogE,
+  wilsonInterval,
+} from "./stats.js";
 
 export type StopReason =
   /** certified on its own evidence: the e-value cleared `m / fdr` */

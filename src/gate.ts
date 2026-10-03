@@ -47,21 +47,8 @@
  * The pairs need not share a seed: independent runs paired in order are still
  * valid, and a shared seed only makes discordances more informative.
  */
-import {
-  ebhCorrect,
-  ebhSoloThreshold,
-  pairedLogE,
-  discordant,
-  type PairedCounts,
-} from "./stats.js";
-import {
-  logEvidence,
-  ceilingLogEvidence,
-  requireEvidence,
-  toEvalue,
-  type Evidence,
-} from "./evidence.js";
-import { type BaselineStat } from "./baseline.js";
+
+import type { BaselineStat } from "./baseline.js";
 import {
   PeeksafeError,
   requireCounts,
@@ -69,6 +56,20 @@ import {
   requirePairedCounts,
   requirePositiveConfig,
 } from "./errors.js";
+import {
+  ceilingLogEvidence,
+  type Evidence,
+  logEvidence,
+  requireEvidence,
+  toEvalue,
+} from "./evidence.js";
+import {
+  discordant,
+  ebhCorrect,
+  ebhSoloThreshold,
+  type PairedCounts,
+  pairedLogE,
+} from "./stats.js";
 
 /**
  * True when the baseline's observed rate leaves no room for an `mde`-sized drop.

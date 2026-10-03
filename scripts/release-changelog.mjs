@@ -11,7 +11,7 @@ const lines = text.split("\n");
 
 const at = lines.findIndex((l) => l.trim() === "## Unreleased");
 if (at < 0) fail('CHANGELOG.md has no "## Unreleased" heading');
-if (lines.some((l) => new RegExp(`^## ${escape(version)}( |$)`).test(l))) {
+if (lines.some((l) => new RegExp(`^## ${escapeRegExp(version)}( |$)`).test(l))) {
   fail(`CHANGELOG.md already has a section for ${version}`);
 }
 
@@ -30,6 +30,6 @@ function fail(message) {
   process.exit(1);
 }
 
-function escape(s) {
+function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

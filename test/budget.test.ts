@@ -5,21 +5,21 @@
  * number is worse than one that sometimes says "no budget does this", because
  * the number gets put in a spreadsheet and the impossibility does not.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  makePlan,
-  planCase,
-  DEFAULT_PLAN,
   affordabilityGrid,
+  type BaselineStat,
+  type CaseRef,
   computeFrontier,
   DEFAULT_FRONTIER,
-  typicalObservationsPerCase,
-  toBaselineMap,
-  sampleSizeTwoProportion,
-  evidenceCeilingLogE,
+  DEFAULT_PLAN,
   ebhSoloThreshold,
-  type CaseRef,
-  type BaselineStat,
+  evidenceCeilingLogE,
+  makePlan,
+  planCase,
+  sampleSizeTwoProportion,
+  toBaselineMap,
+  typicalObservationsPerCase,
 } from "../src/index.js";
 
 const suite = (

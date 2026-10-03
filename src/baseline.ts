@@ -12,8 +12,9 @@
  * against nothing. Every entry point here therefore takes `BaselineStat |
  * undefined` explicitly and refuses to invent one.
  */
-import { betaQuantile } from "./stats.js";
+
 import { PeeksafeError, requireCounts, requireOpenProbability } from "./errors.js";
+import { betaQuantile } from "./stats.js";
 
 /** One case's recorded reference performance. */
 export interface BaselineStat {

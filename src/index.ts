@@ -38,169 +38,159 @@
  * the suite-level interval from being too narrow for that reason.
  */
 
-/* ── 1. the decision ─────────────────────────────────────────────────────── */
 export {
-  gate,
-  DEFAULT_GATE_OPTIONS,
-  type GateCase,
-  type PairedGateCase,
-  type GateOptions,
-  type GateResult,
-  type CaseVerdict,
-} from "./gate.js";
-
+  type BaselineStat,
+  baselineNullRate,
+  type CaseRef,
+  toBaselineMap,
+} from "./baseline.js";
 export {
-  shouldStop,
-  shouldStopPaired,
-  DEFAULT_STOP_OPTIONS,
-  type StopDecision,
-  type StopOptions,
-  type StopReason,
-  type PairedStopDecision,
-  type PairedStopOptions,
-  type PairedStopReason,
-} from "./stop.js";
-
-export { type Evidence } from "./evidence.js";
-
-export {
-  typeOneError,
+  type CertifyProbabilityOptions,
   certifyProbability,
+  type PairedCertifyProbabilityOptions,
   pairedCertifyProbability,
   type TypeOneErrorOptions,
-  type CertifyProbabilityOptions,
-  type PairedCertifyProbabilityOptions,
+  typeOneError,
 } from "./check.js";
-
 export {
-  baselineNullRate,
-  toBaselineMap,
-  type BaselineStat,
-  type CaseRef,
-} from "./baseline.js";
-
-/* ── 2. the budget ───────────────────────────────────────────────────────── */
-export {
-  makePlan,
-  planCase,
-  expectedSequentialSamples,
-  affordabilityGrid,
-  DEFAULT_PLAN,
-  type PlanConfig,
-  type Plan,
-  type PlanCase,
-  type PlanTotals,
-  type Detectability,
-  type AffordabilityCell,
-} from "./plan.js";
-
-export {
-  computeFrontier,
-  enumerateFrontier,
-  evaluatePoint,
-  typicalObservationsPerCase,
-  costShares,
-  fmtRate,
-  DEFAULT_FRONTIER,
-  DEFAULT_AXES,
-  type FrontierConfig,
-  type FrontierResult,
-  type FrontierPoint,
-  type FrontierCell,
-  type FrontierCost,
-  type FrontierDesign,
-  type FrontierScreen,
-  type FrontierBasis,
-  type FrontierAxes,
-} from "./frontier.js";
-
-/* ── 3. the statistics ───────────────────────────────────────────────────── */
-export {
-  /* special functions */
-  logGamma,
-  logBeta,
-  gammaP,
-  erf,
-  normalCdf,
-  normalQuantile,
-  ibeta,
-  /* intervals and posteriors */
-  wilsonInterval,
-  betaPosterior,
-  betaQuantile,
-  betaCredibleInterval,
-  betaMassBetween,
-  diffInterval,
-  cohensH,
-  type Interval,
-  type BetaPosterior,
-  /* fixed-sample tests, for comparison rather than for gating */
-  twoProportionZTest,
-  fisherExact2x2,
-  type TestResult,
-  /* sequential */
-  sprtDecision,
-  sprtExpectedN,
-  type SprtDecision,
-  type SprtResult,
-  type SprtOpts,
-  /* multiplicity */
-  bhCorrect,
-  ebhCorrect,
-  ebhSoloThreshold,
-  type BhResult,
-  type EbhResult,
-  /* e-values */
-  logMarginalBetaBinomial,
-  twoSampleLogE,
-  twoSamplePriors,
-  logBetaPdf,
-  universalTwoSampleLogE,
-  universalCeilingLogE,
-  evidenceCeilingLogE,
-  evidenceCeilingSlope,
-  evidenceCeilingAsymptotic,
-  expectedLogE,
-  expectedLogEExact,
-  samplesForEvidence,
-  /* paired designs */
-  pairedLogE,
-  pairedDiscordance,
-  mcnemarSamplesForEvidence,
-  discordant,
-  pairPhi,
-  probabilityMoved,
-  type PairedCounts,
-  /* power */
-  sampleSizeTwoProportion,
-  bernoulliEntropy,
-} from "./stats.js";
-
-export {
+  type ClusteredEffect,
+  type ClusteredMean,
+  type ClusterKeyDiagnostic,
+  type ClusterObservation,
   caseFamily,
+  clusteredEffect,
   clusterKey,
+  clusterKeyDiagnostic,
+  clusterRobustMean,
+  compareEstimators,
+  type FamilyEffect,
+  type GroupingSummary,
   groupByCluster,
   iidMean,
-  clusterRobustMean,
-  randomEffectsMean,
-  clusteredEffect,
-  compareEstimators,
-  clusterKeyDiagnostic,
   MIN_TRUSTWORTHY_CLUSTERS,
-  type ClusterObservation,
-  type ClusteredMean,
   type RandomEffectsMean,
-  type FamilyEffect,
-  type ClusteredEffect,
-  type GroupingSummary,
-  type ClusterKeyDiagnostic,
+  randomEffectsMean,
 } from "./cluster.js";
-
 /* ── errors and determinism ──────────────────────────────────────────────── */
 export {
   PeeksafeError,
   type PeeksafeErrorCode,
   type PeeksafeErrorOptions,
 } from "./errors.js";
-
-export { makeRand, streamFor, hash32, type Rand } from "./rand.js";
+export type { Evidence } from "./evidence.js";
+export {
+  computeFrontier,
+  costShares,
+  DEFAULT_AXES,
+  DEFAULT_FRONTIER,
+  enumerateFrontier,
+  evaluatePoint,
+  type FrontierAxes,
+  type FrontierBasis,
+  type FrontierCell,
+  type FrontierConfig,
+  type FrontierCost,
+  type FrontierDesign,
+  type FrontierPoint,
+  type FrontierResult,
+  type FrontierScreen,
+  fmtRate,
+  typicalObservationsPerCase,
+} from "./frontier.js";
+/* ── 1. the decision ─────────────────────────────────────────────────────── */
+export {
+  type CaseVerdict,
+  DEFAULT_GATE_OPTIONS,
+  type GateCase,
+  type GateOptions,
+  type GateResult,
+  gate,
+  type PairedGateCase,
+} from "./gate.js";
+/* ── 2. the budget ───────────────────────────────────────────────────────── */
+export {
+  type AffordabilityCell,
+  affordabilityGrid,
+  DEFAULT_PLAN,
+  type Detectability,
+  expectedSequentialSamples,
+  makePlan,
+  type Plan,
+  type PlanCase,
+  type PlanConfig,
+  type PlanTotals,
+  planCase,
+} from "./plan.js";
+export { hash32, makeRand, type Rand, streamFor } from "./rand.js";
+/* ── 3. the statistics ───────────────────────────────────────────────────── */
+export {
+  type BetaPosterior,
+  type BhResult,
+  bernoulliEntropy,
+  betaCredibleInterval,
+  betaMassBetween,
+  betaPosterior,
+  betaQuantile,
+  /* multiplicity */
+  bhCorrect,
+  cohensH,
+  diffInterval,
+  discordant,
+  type EbhResult,
+  ebhCorrect,
+  ebhSoloThreshold,
+  erf,
+  evidenceCeilingAsymptotic,
+  evidenceCeilingLogE,
+  evidenceCeilingSlope,
+  expectedLogE,
+  expectedLogEExact,
+  fisherExact2x2,
+  gammaP,
+  type Interval,
+  ibeta,
+  logBeta,
+  logBetaPdf,
+  /* special functions */
+  logGamma,
+  /* e-values */
+  logMarginalBetaBinomial,
+  mcnemarSamplesForEvidence,
+  normalCdf,
+  normalQuantile,
+  type PairedCounts,
+  pairedDiscordance,
+  /* paired designs */
+  pairedLogE,
+  pairPhi,
+  probabilityMoved,
+  type SprtDecision,
+  type SprtOpts,
+  type SprtResult,
+  /* power */
+  sampleSizeTwoProportion,
+  samplesForEvidence,
+  /* sequential */
+  sprtDecision,
+  sprtExpectedN,
+  type TestResult,
+  /* fixed-sample tests, for comparison rather than for gating */
+  twoProportionZTest,
+  twoSampleLogE,
+  twoSamplePriors,
+  universalCeilingLogE,
+  universalTwoSampleLogE,
+  /* intervals and posteriors */
+  wilsonInterval,
+} from "./stats.js";
+export {
+  DEFAULT_STOP_OPTIONS,
+  type PairedStopDecision,
+  type PairedStopOptions,
+  type PairedStopReason,
+  type StopDecision,
+  type StopOptions,
+  type StopReason,
+  shouldStop,
+  shouldStopPaired,
+} from "./stop.js";

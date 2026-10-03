@@ -3,42 +3,42 @@
  * left unreached again. The README says every export is covered by a test.
  */
 import { readdirSync, readFileSync } from "node:fs";
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import * as peeksafe from "../src/index.js";
 import {
-  expectedLogE,
-  expectedLogEExact,
-  pairPhi,
-  pairedDiscordance,
   baselineNullRate,
   betaQuantile,
-  toBaselineMap,
-  expectedSequentialSamples,
-  enumerateFrontier,
-  evaluatePoint,
-  costShares,
-  fmtRate,
-  DEFAULT_AXES,
-  DEFAULT_FRONTIER,
-  DEFAULT_PLAN,
-  DEFAULT_GATE_OPTIONS,
-  DEFAULT_STOP_OPTIONS,
-  compareEstimators,
   clusteredEffect,
   clusterKeyDiagnostic,
-  gate,
-  PeeksafeError,
-  makeRand,
-  gammaP,
+  compareEstimators,
+  costShares,
+  DEFAULT_AXES,
+  DEFAULT_FRONTIER,
+  DEFAULT_GATE_OPTIONS,
+  DEFAULT_PLAN,
+  DEFAULT_STOP_OPTIONS,
+  enumerateFrontier,
   erf,
-  sprtExpectedN,
-  probabilityMoved,
-  MIN_TRUSTWORTHY_CLUSTERS,
-  streamFor,
+  evaluatePoint,
+  expectedLogE,
+  expectedLogEExact,
+  expectedSequentialSamples,
+  fmtRate,
+  gammaP,
+  gate,
   hash32,
-  pairedLogE,
+  MIN_TRUSTWORTHY_CLUSTERS,
+  makeRand,
   mcnemarSamplesForEvidence,
+  PeeksafeError,
+  pairedDiscordance,
+  pairedLogE,
+  pairPhi,
+  probabilityMoved,
   samplesForEvidence,
+  sprtExpectedN,
+  streamFor,
+  toBaselineMap,
 } from "../src/index.js";
 
 describe("every runtime export", () => {
@@ -48,7 +48,7 @@ describe("every runtime export", () => {
     const tests = readdirSync(dir)
       .filter((f) => f.endsWith(".test.ts"))
       .map((f) =>
-        readFileSync(new URL(f, dir), "utf8").replace(/^import[\s\S]*?from '[^']+';$/gm, ""),
+        readFileSync(new URL(f, dir), "utf8").replace(/^import[\s\S]*?from "[^"]+";$/gm, ""),
       )
       .join("\n");
     const missing = Object.keys(peeksafe).filter(
@@ -66,7 +66,7 @@ describe("every error code", () => {
       errors.indexOf("export type PeeksafeErrorCode"),
       errors.indexOf(";", errors.indexOf("export type PeeksafeErrorCode")),
     );
-    const codes = [...union.matchAll(/'(PEEKSAFE_E_[A-Z_]+)'/g)].map((m) => m[1]!);
+    const codes = [...union.matchAll(/"(PEEKSAFE_E_[A-Z_]+)"/g)].map((m) => m[1]!);
     const src =
       readdirSync(dir)
         .filter((f) => f.endsWith(".ts") && f !== "errors.ts")
@@ -74,7 +74,9 @@ describe("every error code", () => {
         .join("\n") +
       errors.slice(errors.indexOf(";", errors.indexOf("export type PeeksafeErrorCode")));
     expect(codes.length).toBeGreaterThan(0);
-    expect(codes.filter((c) => !src.includes(`new PeeksafeError('${c}'`))).toEqual([]);
+    expect(codes.filter((c) => !new RegExp(`new PeeksafeError\\(\\s*"${c}"`).test(src))).toEqual(
+      [],
+    );
   });
 });
 

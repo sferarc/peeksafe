@@ -21,22 +21,22 @@
  * The simulation is self-contained: seeded Bernoulli draws, no runner, no
  * subject, no suite loader. A user can read it, run it, and disagree with it.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  fisherExact2x2,
   bhCorrect,
   ebhCorrect,
-  twoSampleLogE,
+  ebhSoloThreshold,
+  evidenceCeilingAsymptotic,
   evidenceCeilingLogE,
   evidenceCeilingSlope,
-  evidenceCeilingAsymptotic,
   expectedLogE,
-  samplesForEvidence,
-  ebhSoloThreshold,
-  twoSamplePriors,
+  fisherExact2x2,
   logBetaPdf,
-  pairedLogE,
   makeRand,
+  pairedLogE,
+  samplesForEvidence,
+  twoSampleLogE,
+  twoSamplePriors,
 } from "../src/index.js";
 
 const Q = 0.05;
@@ -306,7 +306,7 @@ describe("the evidence ceiling", () => {
         `${(p0 * 100).toFixed(0)}% -${(d * 100).toFixed(0)}pts: rule ${ruleOfThumb.toFixed(0)}, exact ${n}`,
       );
     }
-    console.log("baseline runs needed at bar log(4000): " + rows.join("  |  "));
+    console.log(`baseline runs needed at bar log(4000): ${rows.join("  |  ")}`);
   });
 
   it("while the paired e-value has no such limit, growing linearly in discordant pairs", () => {

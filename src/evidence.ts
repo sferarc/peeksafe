@@ -6,13 +6,14 @@
  * `universalTwoSampleLogE`: valid at every rate by construction, with less
  * evidence per run. README, "What that guarantee rests on", has the numbers.
  */
-import {
-  twoSampleLogE,
-  evidenceCeilingLogE,
-  universalTwoSampleLogE,
-  universalCeilingLogE,
-} from "./stats.js";
+
 import { PeeksafeError } from "./errors.js";
+import {
+  evidenceCeilingLogE,
+  twoSampleLogE,
+  universalCeilingLogE,
+  universalTwoSampleLogE,
+} from "./stats.js";
 
 export type Evidence = "bayes" | "universal";
 

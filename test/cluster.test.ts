@@ -6,20 +6,19 @@
  * makes the suite-level interval too narrow, which is the direction that
  * produces confident wrong answers rather than cautious ones.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  type ClusterObservation,
   caseFamily,
+  clusteredEffect,
   clusterKey,
+  clusterKeyDiagnostic,
+  clusterRobustMean,
+  compareEstimators,
   groupByCluster,
   iidMean,
-  clusterRobustMean,
-  randomEffectsMean,
-  clusteredEffect,
-  compareEstimators,
-  clusterKeyDiagnostic,
-  MIN_TRUSTWORTHY_CLUSTERS,
   makeRand,
-  type ClusterObservation,
+  randomEffectsMean,
 } from "../src/index.js";
 
 /** k families of size n, with a shared per-family shift of size `shift`. */

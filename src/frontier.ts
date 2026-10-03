@@ -56,16 +56,17 @@
  * against planted ground truth, and until someone has, the honest price of a
  * screened plan is unknown rather than low.
  */
-import {
-  evidenceCeilingLogE,
-  samplesForEvidence,
-  mcnemarSamplesForEvidence,
-  ebhSoloThreshold,
-  sprtExpectedN,
-  betaQuantile,
-} from "./stats.js";
-import { PeeksafeError, requireProbability, requireOpenProbability } from "./errors.js";
+
+import { PeeksafeError, requireOpenProbability, requireProbability } from "./errors.js";
 import { DEFAULT_PLAN } from "./plan.js";
+import {
+  betaQuantile,
+  ebhSoloThreshold,
+  evidenceCeilingLogE,
+  mcnemarSamplesForEvidence,
+  samplesForEvidence,
+  sprtExpectedN,
+} from "./stats.js";
 
 export type FrontierDesign = "unpaired" | "paired";
 

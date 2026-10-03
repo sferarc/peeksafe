@@ -5,14 +5,14 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  pairedLogE,
-  pairedCertifyProbability,
-  shouldStopPaired,
   gate,
   makeRand,
-  PeeksafeError,
   type PairedCounts,
   type PairedGateCase,
+  PeeksafeError,
+  pairedCertifyProbability,
+  pairedLogE,
+  shouldStopPaired,
 } from "../src/index.js";
 
 function crossWithinDiscordant(theta: number, alpha: number, horizon: number): number {

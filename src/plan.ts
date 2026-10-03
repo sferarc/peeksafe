@@ -31,18 +31,18 @@
  * scores exactly its expected successes). Realised sample counts vary around
  * it.
  */
+
+import { type BaselineStat, baselineNullRate, type CaseRef } from "./baseline.js";
+import { PeeksafeError, requireOpenProbability, requireProbability } from "./errors.js";
 import {
-  evidenceCeilingLogE,
-  samplesForEvidence,
-  mcnemarSamplesForEvidence,
-  pairedDiscordance,
-  ebhSoloThreshold,
-  sampleSizeTwoProportion,
-  sprtExpectedN,
   betaQuantile,
+  ebhSoloThreshold,
+  evidenceCeilingLogE,
+  mcnemarSamplesForEvidence,
+  sampleSizeTwoProportion,
+  samplesForEvidence,
+  sprtExpectedN,
 } from "./stats.js";
-import { PeeksafeError, requireProbability, requireOpenProbability } from "./errors.js";
-import { baselineNullRate, type BaselineStat, type CaseRef } from "./baseline.js";
 
 export interface PlanConfig {
   /** the drop we want to be able to detect, in probability units (0.15 = 15 points) */
