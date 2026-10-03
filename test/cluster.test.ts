@@ -6,13 +6,21 @@
  * makes the suite-level interval too narrow, which is the direction that
  * produces confident wrong answers rather than cautious ones.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
-  caseFamily, clusterKey, groupByCluster,
-  iidMean, clusterRobustMean, randomEffectsMean, clusteredEffect, compareEstimators,
-  clusterKeyDiagnostic, MIN_TRUSTWORTHY_CLUSTERS, makeRand,
+  caseFamily,
+  clusterKey,
+  groupByCluster,
+  iidMean,
+  clusterRobustMean,
+  randomEffectsMean,
+  clusteredEffect,
+  compareEstimators,
+  clusterKeyDiagnostic,
+  MIN_TRUSTWORTHY_CLUSTERS,
+  makeRand,
   type ClusterObservation,
-} from '../src/index.js';
+} from "../src/index.js";
 
 /** k families of size n, with a shared per-family shift of size `shift`. */
 function correlated(k: number, n: number, shift: number, seed: string): ClusterObservation[] {
@@ -27,31 +35,31 @@ function correlated(k: number, n: number, shift: number, seed: string): ClusterO
   return out;
 }
 
-describe('family grouping', () => {
-  it('derives a family from a case id', () => {
-    expect(caseFamily('parsing#variant-a')).toBe(caseFamily('parsing#variant-b'));
-    expect(caseFamily('parsing#a')).not.toBe(caseFamily('routing#a'));
+describe("family grouping", () => {
+  it("derives a family from a case id", () => {
+    expect(caseFamily("parsing#variant-a")).toBe(caseFamily("parsing#variant-b"));
+    expect(caseFamily("parsing#a")).not.toBe(caseFamily("routing#a"));
   });
 
-  it('groups observations by family', () => {
-    const obs = correlated(4, 5, 0.1, 'group');
+  it("groups observations by family", () => {
+    const obs = correlated(4, 5, 0.1, "group");
     const groups = groupByCluster(obs);
     expect(groups.size).toBe(4);
     for (const xs of groups.values()) expect(xs).toHaveLength(5);
   });
 
-  it('treats an all-whitespace cluster key as no key, not as a distinct family', () => {
+  it("treats an all-whitespace cluster key as no key, not as a distinct family", () => {
     // A blank declared key used to become a family of its own, silently merging
     // every case that had one into a single cluster.
-    expect(clusterKey({ id: 'parsing#a', cluster: '   ' })).toBe(caseFamily('parsing#a'));
-    expect(clusterKey({ id: 'parsing#a', cluster: 'shared-grader' })).toBe('shared-grader');
-    expect(clusterKey({ id: 'parsing#a' })).toBe(caseFamily('parsing#a'));
+    expect(clusterKey({ id: "parsing#a", cluster: "   " })).toBe(caseFamily("parsing#a"));
+    expect(clusterKey({ id: "parsing#a", cluster: "shared-grader" })).toBe("shared-grader");
+    expect(clusterKey({ id: "parsing#a" })).toBe(caseFamily("parsing#a"));
   });
 });
 
-describe('the interval widens when it should', () => {
-  it('the iid interval is too narrow when families move together', () => {
-    const obs = correlated(8, 10, 0.30, 'corr');
+describe("the interval widens when it should", () => {
+  it("the iid interval is too narrow when families move together", () => {
+    const obs = correlated(8, 10, 0.3, "corr");
     const naive = iidMean(obs.map((o) => o.value));
     const cr2 = clusterRobustMean(obs);
     const naiveWidth = naive.high - naive.low;
@@ -61,8 +69,8 @@ describe('the interval widens when it should', () => {
     expect(cr2Width).toBeGreaterThan(naiveWidth);
   });
 
-  it('costs little when the change is not family-correlated', () => {
-    const obs = correlated(8, 10, 0.0, 'uncorr');
+  it("costs little when the change is not family-correlated", () => {
+    const obs = correlated(8, 10, 0.0, "uncorr");
     const naive = iidMean(obs.map((o) => o.value));
     const cr2 = clusterRobustMean(obs);
     const ratio = (cr2.high - cr2.low) / (naive.high - naive.low);
@@ -71,8 +79,8 @@ describe('the interval widens when it should', () => {
     expect(ratio).toBeLessThan(2.5);
   });
 
-  it('reports the three estimators side by side, with the design effect', () => {
-    const obs = correlated(8, 10, 0.25, 'three');
+  it("reports the three estimators side by side, with the design effect", () => {
+    const obs = correlated(8, 10, 0.25, "three");
     const eff = clusteredEffect(obs);
     expect(eff.clusters).toBe(8);
     expect(eff.observations).toBe(80);
@@ -84,19 +92,22 @@ describe('the interval widens when it should', () => {
     expect(eff.widthRatio).toBeGreaterThan(1);
   });
 
-  it('compares a declared grouping against the default, and flags a collapse', () => {
+  it("compares a declared grouping against the default, and flags a collapse", () => {
     // The dangerous shape: a declared key that merges everything into one
     // family, which has too few clusters for CR2 and can report a *narrower*
     // interval than the default. That direction is the one that misleads.
-    const fallback = correlated(8, 10, 0.25, 'diagnostic');
-    const declared: ClusterObservation[] = fallback.map((o) => ({ cluster: 'everything', value: o.value }));
+    const fallback = correlated(8, 10, 0.25, "diagnostic");
+    const declared: ClusterObservation[] = fallback.map((o) => ({
+      cluster: "everything",
+      value: o.value,
+    }));
     const diag = clusterKeyDiagnostic(declared, fallback);
     expect(diag.declared.clusters).toBe(1);
     expect(diag.fallback.clusters).toBe(8);
     expect(diag.declared.degenerate).not.toBeNull();
   });
 
-  it('does not call a per-case declared key a collapse, or its interval inestimable', () => {
+  it("does not call a per-case declared key a collapse, or its interval inestimable", () => {
     // The other direction from the test above: a declared key that gives every
     // case its own cluster. It merges nothing, and CR2 over n singleton
     // clusters is the iid interval, which is perfectly estimable. What used to
@@ -106,8 +117,11 @@ describe('the interval widens when it should', () => {
     // suite-level interval is estimable ... it is no claim at all" about a
     // grouping whose standard error it had just computed, in a sentence that
     // read "collapses 8 case-file groups into 80".
-    const fallback = correlated(8, 10, 0.25, 'splitting');
-    const declared: ClusterObservation[] = fallback.map((o, i) => ({ cluster: `case${i}`, value: o.value }));
+    const fallback = correlated(8, 10, 0.25, "splitting");
+    const declared: ClusterObservation[] = fallback.map((o, i) => ({
+      cluster: `case${i}`,
+      value: o.value,
+    }));
     const diag = clusterKeyDiagnostic(declared, fallback);
 
     expect(diag.declared.clusters).toBe(80);
@@ -115,11 +129,11 @@ describe('the interval widens when it should', () => {
     expect(diag.declared.degenerate).toBeNull();
     expect(Number.isFinite(diag.declared.se)).toBe(true);
     expect(diag.mergesUncorrelatedCases).toBe(false);
-    expect(diag.verdict).not.toContain('collapses');
-    expect(diag.verdict).not.toContain('no claim at all');
+    expect(diag.verdict).not.toContain("collapses");
+    expect(diag.verdict).not.toContain("no claim at all");
   });
 
-  it('flags a declared key that dissolves real correlation into a narrower interval', () => {
+  it("flags a declared key that dissolves real correlation into a narrower interval", () => {
     // Same grouping again, judged rather than merely described. The case files
     // here move together hard (ICC ~0.9), so splitting them apart is a claim
     // that the suite carries 80 independent cases' worth of evidence when it
@@ -127,33 +141,39 @@ describe('the interval widens when it should', () => {
     // That is the too-narrow headline `cluster.ts` exists to remove,
     // reintroduced by a user-supplied key, so it has to be named and not
     // reported as "not changing the answer either way".
-    const fallback = correlated(8, 10, 0.25, 'splitting');
-    const declared: ClusterObservation[] = fallback.map((o, i) => ({ cluster: `case${i}`, value: o.value }));
+    const fallback = correlated(8, 10, 0.25, "splitting");
+    const declared: ClusterObservation[] = fallback.map((o, i) => ({
+      cluster: `case${i}`,
+      value: o.value,
+    }));
     const diag = clusterKeyDiagnostic(declared, fallback);
 
     // The two figures the `narrowsBySplitting` doc comment quotes.
     expect(diag.declared.widthRatio).toBeCloseTo(1.02, 2);
-    expect(diag.fallback.widthRatio).toBeCloseTo(3.90, 2);
+    expect(diag.fallback.widthRatio).toBeCloseTo(3.9, 2);
     expect(diag.narrowsBySplitting).toBe(true);
     expect(diag.findsHiddenCorrelation).toBe(false);
     expect(diag.verdict).toMatch(/narrower/);
   });
 
-  it('does not report an intra-class correlation for a grouping that cannot identify one', () => {
+  it("does not report an intra-class correlation for a grouping that cannot identify one", () => {
     // Every family of size one: τ² and σ² are not separable, so the ANOVA ICC
     // comes out at exactly 1 as an artifact of σ̂² = 0 and not as a
     // measurement. Printing "ICC 1.00" for it says the cases are perfectly
     // correlated, which is the opposite of what a singleton grouping means.
-    const fallback = correlated(8, 10, 0.25, 'unidentified');
-    const declared: ClusterObservation[] = fallback.map((o, i) => ({ cluster: `case${i}`, value: o.value }));
+    const fallback = correlated(8, 10, 0.25, "unidentified");
+    const declared: ClusterObservation[] = fallback.map((o, i) => ({
+      cluster: `case${i}`,
+      value: o.value,
+    }));
     const diag = clusterKeyDiagnostic(declared, fallback);
 
     expect(diag.declared.iccEstimable).toBe(false);
     expect(diag.fallback.iccEstimable).toBe(true);
-    expect(diag.verdict).not.toContain('ICC 1.00');
+    expect(diag.verdict).not.toContain("ICC 1.00");
   });
 
-  it('catches every dissolved cluster, and inherits the ICC floor\'s noise where it cannot', () => {
+  it("catches every dissolved cluster, and inherits the ICC floor's noise where it cannot", () => {
     // `narrowsBySplitting` is gated on the same ICC_FLOOR as
     // `mergesUncorrelatedCases`, so it inherits the same sensitivity the floor's
     // own comment warns about: the ANOVA ICC on 8 families of 10 lands above
@@ -173,27 +193,27 @@ describe('the interval widens when it should', () => {
 
     // Families that really move: caught every time, at a 10-point shift and at
     // a 25-point one.
-    expect(firingRate(0.25, 'corr')).toBe(1);
-    expect(firingRate(0.10, 'mild')).toBe(1);
+    expect(firingRate(0.25, "corr")).toBe(1);
+    expect(firingRate(0.1, "mild")).toBe(1);
     // Families that do not move at all: 0.195 on these 400 seeds. Loose bound,
     // because the point is the order of magnitude, not the third digit.
-    expect(firingRate(0.0, 'flat')).toBeLessThan(0.3);
+    expect(firingRate(0.0, "flat")).toBeLessThan(0.3);
   });
 
-  it('refuses two groupings that do not cover the same observations', () => {
-    const a = correlated(4, 5, 0.1, 'a');
-    const b = correlated(3, 5, 0.1, 'b');
+  it("refuses two groupings that do not cover the same observations", () => {
+    const a = correlated(4, 5, 0.1, "a");
+    const b = correlated(3, 5, 0.1, "b");
     expect(() => clusterKeyDiagnostic(a, b)).toThrow(/same observations/);
   });
 
-  it('random effects returns a finite estimate on well-separated families', () => {
-    const obs = correlated(10, 8, 0.4, 're');
+  it("random effects returns a finite estimate on well-separated families", () => {
+    const obs = correlated(10, 8, 0.4, "re");
     const re = randomEffectsMean(obs);
     expect(Number.isFinite(re.point)).toBe(true);
     expect(re.high).toBeGreaterThan(re.low);
   });
 
-  it('random effects estimates a suite with no variance at all, rather than reporting NaN as a success', () => {
+  it("random effects estimates a suite with no variance at all, rather than reporting NaN as a success", () => {
     // A pull request that moved nothing gives every case a per-case difference
     // of exactly the same number, so the within-family and the between-family
     // variance are both zero. The GLS weights are 1/(τ² + σ²/n_g), which is
@@ -203,8 +223,10 @@ describe('the interval widens when it should', () => {
     // answer the mean with a zero-width interval here, so the cross-check has
     // to as well.
     const flat: ClusterObservation[] = [
-      { cluster: 'a', value: -0.04 }, { cluster: 'a', value: -0.04 },
-      { cluster: 'b', value: -0.04 }, { cluster: 'b', value: -0.04 },
+      { cluster: "a", value: -0.04 },
+      { cluster: "a", value: -0.04 },
+      { cluster: "b", value: -0.04 },
+      { cluster: "b", value: -0.04 },
     ];
     const re = randomEffectsMean(flat);
     expect(re.point).toBeCloseTo(-0.04, 12);
@@ -232,8 +254,8 @@ describe('the interval widens when it should', () => {
   });
 });
 
-describe('the confidence level is refused at every door', () => {
-  const obs = correlated(6, 5, 0.2, 'level');
+describe("the confidence level is refused at every door", () => {
+  const obs = correlated(6, 5, 0.2, "level");
   const values = obs.map((o) => o.value);
 
   // Each of these produced a narrower or inverted interval before it was refused.
@@ -246,24 +268,28 @@ describe('the confidence level is refused at every door', () => {
     });
   }
 
-  it('refuses a level of 0 rather than reporting a zero-width interval as an estimate', () => {
+  it("refuses a level of 0 rather than reporting a zero-width interval as an estimate", () => {
     // Both quantiles are legally 0 at a level of 0, so nothing downstream failed.
     expect(() => iidMean(values, 0)).toThrow(/level must be in \(0,1\)/);
     expect(() => randomEffectsMean(obs, 0)).toThrow(/level must be in \(0,1\)/);
   });
 
-  it('refuses it on the degenerate paths too, not only where a quantile is taken', () => {
+  it("refuses it on the degenerate paths too, not only where a quantile is taken", () => {
     // These suites return before reaching a quantile, which pins where the guard sits.
     const empty: ClusterObservation[] = [];
     const oneFamily: ClusterObservation[] = [
-      { cluster: 'a', value: 0.1 }, { cluster: 'a', value: 0.2 },
+      { cluster: "a", value: 0.1 },
+      { cluster: "a", value: 0.2 },
     ];
     const singletons: ClusterObservation[] = [
-      { cluster: 'a', value: 0.1 }, { cluster: 'b', value: 0.2 },
+      { cluster: "a", value: 0.1 },
+      { cluster: "b", value: 0.2 },
     ];
     const noVariance: ClusterObservation[] = [
-      { cluster: 'a', value: 0.3 }, { cluster: 'a', value: 0.3 },
-      { cluster: 'b', value: 0.3 }, { cluster: 'b', value: 0.3 },
+      { cluster: "a", value: 0.3 },
+      { cluster: "a", value: 0.3 },
+      { cluster: "b", value: 0.3 },
+      { cluster: "b", value: 0.3 },
     ];
     for (const suite of [empty, oneFamily, singletons, noVariance]) {
       expect(() => randomEffectsMean(suite, 95)).toThrow(/level must be in \(0,1\)/);
@@ -272,7 +298,7 @@ describe('the confidence level is refused at every door', () => {
     expect(() => iidMean([], 95)).toThrow(/level must be in \(0,1\)/);
   });
 
-  it('still takes every level that is actually a confidence level', () => {
+  it("still takes every level that is actually a confidence level", () => {
     for (const level of [0.5, 0.8, 0.9, 0.95, 0.99, 0.999]) {
       expect(() => iidMean(values, level)).not.toThrow();
       expect(() => randomEffectsMean(obs, level)).not.toThrow();

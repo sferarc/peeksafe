@@ -47,7 +47,7 @@ export {
   type GateOptions,
   type GateResult,
   type CaseVerdict,
-} from './gate.js';
+} from "./gate.js";
 
 export {
   shouldStop,
@@ -59,21 +59,25 @@ export {
   type PairedStopDecision,
   type PairedStopOptions,
   type PairedStopReason,
-} from './stop.js';
+} from "./stop.js";
 
-export { type Evidence } from './evidence.js';
+export { type Evidence } from "./evidence.js";
 
 export {
-  typeOneError, certifyProbability, pairedCertifyProbability,
-  type TypeOneErrorOptions, type CertifyProbabilityOptions, type PairedCertifyProbabilityOptions,
-} from './check.js';
+  typeOneError,
+  certifyProbability,
+  pairedCertifyProbability,
+  type TypeOneErrorOptions,
+  type CertifyProbabilityOptions,
+  type PairedCertifyProbabilityOptions,
+} from "./check.js";
 
 export {
   baselineNullRate,
   toBaselineMap,
   type BaselineStat,
   type CaseRef,
-} from './baseline.js';
+} from "./baseline.js";
 
 /* ── 2. the budget ───────────────────────────────────────────────────────── */
 export {
@@ -88,7 +92,7 @@ export {
   type PlanTotals,
   type Detectability,
   type AffordabilityCell,
-} from './plan.js';
+} from "./plan.js";
 
 export {
   computeFrontier,
@@ -108,48 +112,95 @@ export {
   type FrontierScreen,
   type FrontierBasis,
   type FrontierAxes,
-} from './frontier.js';
+} from "./frontier.js";
 
 /* ── 3. the statistics ───────────────────────────────────────────────────── */
 export {
   /* special functions */
-  logGamma, logBeta, gammaP, erf, normalCdf, normalQuantile, ibeta,
+  logGamma,
+  logBeta,
+  gammaP,
+  erf,
+  normalCdf,
+  normalQuantile,
+  ibeta,
   /* intervals and posteriors */
-  wilsonInterval, betaPosterior, betaQuantile, betaCredibleInterval, betaMassBetween,
-  diffInterval, cohensH,
-  type Interval, type BetaPosterior,
+  wilsonInterval,
+  betaPosterior,
+  betaQuantile,
+  betaCredibleInterval,
+  betaMassBetween,
+  diffInterval,
+  cohensH,
+  type Interval,
+  type BetaPosterior,
   /* fixed-sample tests, for comparison rather than for gating */
-  twoProportionZTest, fisherExact2x2, type TestResult,
+  twoProportionZTest,
+  fisherExact2x2,
+  type TestResult,
   /* sequential */
-  sprtDecision, sprtExpectedN, type SprtDecision, type SprtResult, type SprtOpts,
+  sprtDecision,
+  sprtExpectedN,
+  type SprtDecision,
+  type SprtResult,
+  type SprtOpts,
   /* multiplicity */
-  bhCorrect, ebhCorrect, ebhSoloThreshold, type BhResult, type EbhResult,
+  bhCorrect,
+  ebhCorrect,
+  ebhSoloThreshold,
+  type BhResult,
+  type EbhResult,
   /* e-values */
-  logMarginalBetaBinomial, twoSampleLogE, twoSamplePriors, logBetaPdf,
-  universalTwoSampleLogE, universalCeilingLogE,
-  evidenceCeilingLogE, evidenceCeilingSlope, evidenceCeilingAsymptotic,
-  expectedLogE, expectedLogEExact, samplesForEvidence,
+  logMarginalBetaBinomial,
+  twoSampleLogE,
+  twoSamplePriors,
+  logBetaPdf,
+  universalTwoSampleLogE,
+  universalCeilingLogE,
+  evidenceCeilingLogE,
+  evidenceCeilingSlope,
+  evidenceCeilingAsymptotic,
+  expectedLogE,
+  expectedLogEExact,
+  samplesForEvidence,
   /* paired designs */
-  pairedLogE, pairedDiscordance, mcnemarSamplesForEvidence, discordant, pairPhi,
-  probabilityMoved, type PairedCounts,
+  pairedLogE,
+  pairedDiscordance,
+  mcnemarSamplesForEvidence,
+  discordant,
+  pairPhi,
+  probabilityMoved,
+  type PairedCounts,
   /* power */
-  sampleSizeTwoProportion, bernoulliEntropy,
-} from './stats.js';
+  sampleSizeTwoProportion,
+  bernoulliEntropy,
+} from "./stats.js";
 
 export {
-  caseFamily, clusterKey, groupByCluster,
-  iidMean, clusterRobustMean, randomEffectsMean, clusteredEffect,
-  compareEstimators, clusterKeyDiagnostic, MIN_TRUSTWORTHY_CLUSTERS,
-  type ClusterObservation, type ClusteredMean, type RandomEffectsMean,
-  type FamilyEffect, type ClusteredEffect, type GroupingSummary,
+  caseFamily,
+  clusterKey,
+  groupByCluster,
+  iidMean,
+  clusterRobustMean,
+  randomEffectsMean,
+  clusteredEffect,
+  compareEstimators,
+  clusterKeyDiagnostic,
+  MIN_TRUSTWORTHY_CLUSTERS,
+  type ClusterObservation,
+  type ClusteredMean,
+  type RandomEffectsMean,
+  type FamilyEffect,
+  type ClusteredEffect,
+  type GroupingSummary,
   type ClusterKeyDiagnostic,
-} from './cluster.js';
+} from "./cluster.js";
 
 /* ── errors and determinism ──────────────────────────────────────────────── */
 export {
   PeeksafeError,
   type PeeksafeErrorCode,
   type PeeksafeErrorOptions,
-} from './errors.js';
+} from "./errors.js";
 
-export { makeRand, streamFor, hash32, type Rand } from './rand.js';
+export { makeRand, streamFor, hash32, type Rand } from "./rand.js";

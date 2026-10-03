@@ -12,8 +12,8 @@
  * against nothing. Every entry point here therefore takes `BaselineStat |
  * undefined` explicitly and refuses to invent one.
  */
-import { betaQuantile } from './stats.js';
-import { PeeksafeError, requireCounts, requireOpenProbability } from './errors.js';
+import { betaQuantile } from "./stats.js";
+import { PeeksafeError, requireCounts, requireOpenProbability } from "./errors.js";
 
 /** One case's recorded reference performance. */
 export interface BaselineStat {
@@ -45,8 +45,8 @@ export interface CaseRef {
  * `q` is that quantile. Lower is more conservative.
  */
 export function baselineNullRate(b: BaselineStat, q = 0.25): number {
-  requireCounts(b.successes, b.trials, 'baselineNullRate');
-  requireOpenProbability(q, 'q', 'baselineNullRate');
+  requireCounts(b.successes, b.trials, "baselineNullRate");
+  requireOpenProbability(q, "q", "baselineNullRate");
   return betaQuantile(1 + b.successes, 1 + b.trials - b.successes, q);
 }
 
@@ -55,10 +55,14 @@ export function toBaselineMap(stats: readonly BaselineStat[]): Map<string, Basel
   const m = new Map<string, BaselineStat>();
   for (const b of stats) {
     if (m.has(b.caseId)) {
-      throw new PeeksafeError('PEEKSAFE_E_CASE_DUPLICATE', `toBaselineMap: duplicate baseline for case ${b.caseId}`, {
-        detail: { caseId: b.caseId },
-        hint: 'merging two baselines for one case would count its runs twice; dedupe them before calling',
-      });
+      throw new PeeksafeError(
+        "PEEKSAFE_E_CASE_DUPLICATE",
+        `toBaselineMap: duplicate baseline for case ${b.caseId}`,
+        {
+          detail: { caseId: b.caseId },
+          hint: "merging two baselines for one case would count its runs twice; dedupe them before calling",
+        },
+      );
     }
     requireCounts(b.successes, b.trials, `toBaselineMap(${b.caseId})`);
     m.set(b.caseId, b);

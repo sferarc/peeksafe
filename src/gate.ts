@@ -47,17 +47,37 @@
  * The pairs need not share a seed: independent runs paired in order are still
  * valid, and a shared seed only makes discordances more informative.
  */
-import { ebhCorrect, ebhSoloThreshold, pairedLogE, discordant, type PairedCounts } from './stats.js';
-import { logEvidence, ceilingLogEvidence, requireEvidence, toEvalue, type Evidence } from './evidence.js';
-import { type BaselineStat } from './baseline.js';
-import { PeeksafeError, requireCounts, requireOpenProbability, requirePairedCounts, requirePositiveConfig } from './errors.js';
+import {
+  ebhCorrect,
+  ebhSoloThreshold,
+  pairedLogE,
+  discordant,
+  type PairedCounts,
+} from "./stats.js";
+import {
+  logEvidence,
+  ceilingLogEvidence,
+  requireEvidence,
+  toEvalue,
+  type Evidence,
+} from "./evidence.js";
+import { type BaselineStat } from "./baseline.js";
+import {
+  PeeksafeError,
+  requireCounts,
+  requireOpenProbability,
+  requirePairedCounts,
+  requirePositiveConfig,
+} from "./errors.js";
 
 /**
  * True when the baseline's observed rate leaves no room for an `mde`-sized drop.
  * `makePlan` calls the same cases IMPOSSIBLE, by the same rule.
  */
-export const cannotDropBy = (baseline: { successes: number; trials: number }, mde: number): boolean =>
-  baseline.successes / baseline.trials <= mde;
+export const cannotDropBy = (
+  baseline: { successes: number; trials: number },
+  mde: number,
+): boolean => baseline.successes / baseline.trials <= mde;
 
 /** One case's candidate result, and the baseline it is measured against. */
 export interface GateCase {
@@ -101,7 +121,7 @@ export const DEFAULT_GATE_OPTIONS = {
   mde: 0.15,
   fdr: 0.05,
   altConcentration: 8,
-  evidence: 'bayes',
+  evidence: "bayes",
 } as const;
 
 export interface CaseVerdict {
@@ -130,14 +150,14 @@ export interface CaseVerdict {
   /** For a paired case, each arm's passes over the number of pairs. */
   observed: { successes: number; trials: number };
   baseline: { successes: number; trials: number };
-  design: 'unpaired' | 'paired';
+  design: "unpaired" | "paired";
   /** The pair table, for a paired case. */
   paired?: PairedCounts;
 }
 
 export interface GateResult {
   /** PASS when nothing was certified as regressed. */
-  verdict: 'PASS' | 'FAIL';
+  verdict: "PASS" | "FAIL";
   cases: CaseVerdict[];
   /** Cases certified as regressed, in the order given. */
   regressed: CaseVerdict[];
@@ -169,19 +189,22 @@ export interface GateResult {
  * the moment it looks decided, or anything in between; the guarantee does not
  * depend on the rule you used.
  */
-export function gate(cases: readonly (GateCase | PairedGateCase)[], options: GateOptions = {}): GateResult {
+export function gate(
+  cases: readonly (GateCase | PairedGateCase)[],
+  options: GateOptions = {},
+): GateResult {
   const opts: Required<GateOptions> = { ...DEFAULT_GATE_OPTIONS, ...options };
-  requireOpenProbability(opts.mde, 'mde', 'gate');
-  requireOpenProbability(opts.fdr, 'fdr', 'gate');
-  requireEvidence(opts.evidence, 'gate');
-  requirePositiveConfig(opts.altConcentration, 'altConcentration', 'gate');
+  requireOpenProbability(opts.mde, "mde", "gate");
+  requireOpenProbability(opts.fdr, "fdr", "gate");
+  requireEvidence(opts.evidence, "gate");
+  requirePositiveConfig(opts.altConcentration, "altConcentration", "gate");
 
   const seen = new Set<string>();
   for (const c of cases) {
     if (seen.has(c.id)) {
-      throw new PeeksafeError('PEEKSAFE_E_CASE_DUPLICATE', `gate: duplicate case id ${c.id}`, {
+      throw new PeeksafeError("PEEKSAFE_E_CASE_DUPLICATE", `gate: duplicate case id ${c.id}`, {
         detail: { id: c.id },
-        hint: 'two cases sharing an id would be merged into one baseline entry and counted once',
+        hint: "two cases sharing an id would be merged into one baseline entry and counted once",
       });
     }
     seen.add(c.id);
@@ -190,18 +213,24 @@ export function gate(cases: readonly (GateCase | PairedGateCase)[], options: Gat
       continue;
     }
     requireCounts(c.successes, c.trials, `gate(${c.id})`);
-    if (c.baseline) requireCounts(c.baseline.successes, c.baseline.trials, `gate(${c.id}).baseline`);
+    if (c.baseline)
+      requireCounts(c.baseline.successes, c.baseline.trials, `gate(${c.id}).baseline`);
   }
 
-  const hasBaseline = (c: GateCase | PairedGateCase): boolean => c.paired !== undefined || (c.baseline !== undefined && c.baseline.trials > 0);
+  const hasBaseline = (c: GateCase | PairedGateCase): boolean =>
+    c.paired !== undefined || (c.baseline !== undefined && c.baseline.trials > 0);
   const newCases = cases.filter((c) => !hasBaseline(c)).map((c) => c.id);
   const gated = cases.filter(hasBaseline);
 
   if (gated.length === 0) {
-    throw new PeeksafeError('PEEKSAFE_E_BASELINE_MISSING', 'gate: no case has a baseline, so there is nothing to test against', {
-      detail: { cases: cases.length, newCases: newCases.length },
-      hint: 'record a baseline on the reference revision first; gating without one compares against a Beta(1,1) prior, which reads as "this case passes half the time"',
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_BASELINE_MISSING",
+      "gate: no case has a baseline, so there is nothing to test against",
+      {
+        detail: { cases: cases.length, newCases: newCases.length },
+        hint: 'record a baseline on the reference revision first; gating without one compares against a Beta(1,1) prior, which reads as "this case passes half the time"',
+      },
+    );
   }
 
   const m = gated.length;
@@ -213,7 +242,15 @@ export function gate(cases: readonly (GateCase | PairedGateCase)[], options: Gat
     if (c.paired) return pairedLogE(c.paired.worse, discordant(c.paired));
     return impossible[i]
       ? 0
-      : logEvidence(opts.evidence, c.successes, c.trials, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration);
+      : logEvidence(
+          opts.evidence,
+          c.successes,
+          c.trials,
+          c.baseline!.successes,
+          c.baseline!.trials,
+          opts.mde,
+          opts.altConcentration,
+        );
   });
   const evalues = logEs.map(toEvalue);
   const ebh = ebhCorrect(evalues, opts.fdr);
@@ -231,7 +268,7 @@ export function gate(cases: readonly (GateCase | PairedGateCase)[], options: Gat
         impossible: false,
         observed: { successes: p.bothPass + p.better, trials: pairs },
         baseline: { successes: p.bothPass + p.worse, trials: pairs },
-        design: 'paired',
+        design: "paired",
         paired: { ...p },
       };
     }
@@ -243,7 +280,16 @@ export function gate(cases: readonly (GateCase | PairedGateCase)[], options: Gat
     const pAlt = Math.max(1e-6, Math.min(1 - 1e-6, bRate - opts.mde));
     const ceiling = impossible[i]
       ? 1
-      : Math.exp(ceilingLogEvidence(opts.evidence, pAlt, c.baseline!.successes, c.baseline!.trials, opts.mde, opts.altConcentration));
+      : Math.exp(
+          ceilingLogEvidence(
+            opts.evidence,
+            pAlt,
+            c.baseline!.successes,
+            c.baseline!.trials,
+            opts.mde,
+            opts.altConcentration,
+          ),
+        );
     return {
       ...shared,
       ceiling,
@@ -251,7 +297,7 @@ export function gate(cases: readonly (GateCase | PairedGateCase)[], options: Gat
       impossible: impossible[i]!,
       observed: { successes: c.successes, trials: c.trials },
       baseline: { successes: c.baseline!.successes, trials: c.baseline!.trials },
-      design: 'unpaired',
+      design: "unpaired",
     };
   });
 
@@ -263,21 +309,27 @@ export function gate(cases: readonly (GateCase | PairedGateCase)[], options: Gat
   if (blind.length > 0) {
     caveats.push(
       `${blind.length} of ${m} gated case(s) have a baseline too thin to certify a ` +
-      `${(opts.mde * 100).toFixed(0)}pt drop at any candidate budget (${blind.slice(0, 3).map((v) => v.id).join(', ')}` +
-      `${blind.length > 3 ? ', …' : ''}), which needs more baseline runs, not more candidate runs`
+        `${(opts.mde * 100).toFixed(0)}pt drop at any candidate budget (${blind
+          .slice(0, 3)
+          .map((v) => v.id)
+          .join(", ")}` +
+        `${blind.length > 3 ? ", …" : ""}), which needs more baseline runs, not more candidate runs`,
     );
   }
   if (untested.length > 0) {
     caveats.push(
       `${untested.length} case(s) pass at or below ${(opts.mde * 100).toFixed(0)}% and cannot drop by ` +
-      `${(opts.mde * 100).toFixed(0)}pts, so they were not tested (${untested.slice(0, 3).map((v) => v.id).join(', ')}` +
-      `${untested.length > 3 ? ', …' : ''})`
+        `${(opts.mde * 100).toFixed(0)}pts, so they were not tested (${untested
+          .slice(0, 3)
+          .map((v) => v.id)
+          .join(", ")}` +
+        `${untested.length > 3 ? ", …" : ""})`,
     );
   }
   if (newCases.length > 0) {
     caveats.push(
       `${newCases.length} case(s) have no baseline and were not gated ` +
-      `(${newCases.slice(0, 3).join(', ')}${newCases.length > 3 ? ', …' : ''})`
+        `(${newCases.slice(0, 3).join(", ")}${newCases.length > 3 ? ", …" : ""})`,
     );
   }
 
@@ -285,11 +337,14 @@ export function gate(cases: readonly (GateCase | PairedGateCase)[], options: Gat
     (regressed.length === 0
       ? `PASS: no case cleared the bar of ${solo.toFixed(0)} at ${(opts.fdr * 100).toFixed(0)}% FDR over ${m} gated case(s)`
       : `FAIL: ${regressed.length} of ${m} gated case(s) certified as regressed at ${(opts.fdr * 100).toFixed(0)}% FDR ` +
-        `(${regressed.slice(0, 3).map((v) => v.id).join(', ')}${regressed.length > 3 ? ', …' : ''})`) +
-    (caveats.length > 0 ? `. Read with care: ${caveats.join('; ')}.` : '');
+        `(${regressed
+          .slice(0, 3)
+          .map((v) => v.id)
+          .join(", ")}${regressed.length > 3 ? ", …" : ""})`) +
+    (caveats.length > 0 ? `. Read with care: ${caveats.join("; ")}.` : "");
 
   return {
-    verdict: regressed.length === 0 ? 'PASS' : 'FAIL',
+    verdict: regressed.length === 0 ? "PASS" : "FAIL",
     cases: verdicts,
     regressed,
     newCases,

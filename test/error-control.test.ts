@@ -13,23 +13,44 @@
  * The crossing probabilities come from `typeOneError`, which is exact rather
  * than simulated.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
-  twoSampleLogE, twoSamplePriors, logMarginalBetaBinomial, logGamma, logBeta, gate, shouldStop, makeRand,
-  typeOneError, certifyProbability, type BaselineStat, type GateCase,
-} from '../src/index.js';
+  twoSampleLogE,
+  twoSamplePriors,
+  logMarginalBetaBinomial,
+  logGamma,
+  logBeta,
+  gate,
+  shouldStop,
+  makeRand,
+  typeOneError,
+  certifyProbability,
+  type BaselineStat,
+  type GateCase,
+} from "../src/index.js";
 
-const logChoose = (n: number, k: number): number => logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1);
+const logChoose = (n: number, k: number): number =>
+  logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1);
 const logBinom = (n: number, k: number, p: number): number =>
   logChoose(n, k) + k * Math.log(p) + (n - k) * Math.log(1 - p);
 
-const typeOne = (rate: number, baselineTrials: number, mde: number, alpha: number, horizon: number, altConcentration = 8) =>
-  typeOneError({ rate, baselineTrials, mde, alpha, horizon, altConcentration });
+const typeOne = (
+  rate: number,
+  baselineTrials: number,
+  mde: number,
+  alpha: number,
+  horizon: number,
+  altConcentration = 8,
+) => typeOneError({ rate, baselineTrials, mde, alpha, horizon, altConcentration });
 
-describe('what the martingale argument does guarantee', () => {
-  it('has mean exactly 1 when the shared rate is drawn from the uniform prior, before the cap', () => {
+describe("what the martingale argument does guarantee", () => {
+  it("has mean exactly 1 when the shared rate is drawn from the uniform prior, before the cap", () => {
     // Integrating p out of Binom(nb, p) x Binom(n, p) leaves C(nb,sb) C(n,s) B(1+sb+s, 1+fb+f).
-    for (const [nb, n, mde] of [[10, 20, 0.15], [60, 96, 0.15], [24, 200, 0.05]] as const) {
+    for (const [nb, n, mde] of [
+      [10, 20, 0.15],
+      [60, 96, 0.15],
+      [24, 200, 0.05],
+    ] as const) {
       let raw = 0;
       let capped = 0;
       for (let sb = 0; sb <= nb; sb++) {
@@ -37,7 +58,8 @@ describe('what the martingale argument does guarantee', () => {
         for (let s = 0; s <= n; s++) {
           const w = logChoose(nb, sb) + logChoose(n, s) + logBeta(1 + sb + s, 1 + nb - sb + n - s);
           const bayesFactor =
-            logMarginalBetaBinomial(s, n, altPrior.a, altPrior.b) - logMarginalBetaBinomial(s, n, nullPrior.a, nullPrior.b);
+            logMarginalBetaBinomial(s, n, altPrior.a, altPrior.b) -
+            logMarginalBetaBinomial(s, n, nullPrior.a, nullPrior.b);
           raw += Math.exp(w + bayesFactor);
           capped += Math.exp(w + twoSampleLogE(s, n, sb, nb, mde));
         }
@@ -48,49 +70,68 @@ describe('what the martingale argument does guarantee', () => {
   });
 });
 
-describe('what the gate promises at every fixed rate', () => {
-  it('a case that did not move clears 1/alpha with probability at most alpha, however long it runs', () => {
-    let worst = { ratio: 0, cell: '' };
+describe("what the gate promises at every fixed rate", () => {
+  it("a case that did not move clears 1/alpha with probability at most alpha, however long it runs", () => {
+    let worst = { ratio: 0, cell: "" };
     for (const alpha of [0.05, 1 / 4000]) {
       for (const nb of [10, 30, 60, 240]) {
         for (const mde of [0.05, 0.15, 0.3]) {
           for (const p of [0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 0.95, 0.99]) {
             const ratio = typeOne(p, nb, mde, alpha, 600) / alpha;
-            if (ratio > worst.ratio) worst = { ratio, cell: `alpha=${alpha} nb=${nb} mde=${mde} p=${p}` };
+            if (ratio > worst.ratio)
+              worst = { ratio, cell: `alpha=${alpha} nb=${nb} mde=${mde} p=${p}` };
             expect(ratio, `alpha=${alpha} nb=${nb} mde=${mde} p=${p}`).toBeLessThanOrEqual(1);
           }
         }
       }
     }
-    console.log(`worst type I error over the grid: ${worst.ratio.toFixed(3)} x alpha at ${worst.cell}`);
+    console.log(
+      `worst type I error over the grid: ${worst.ratio.toFixed(3)} x alpha at ${worst.cell}`,
+    );
     expect(worst.ratio).toBeLessThan(0.75);
   });
 
-  it('an improved case is certified with probability at most alpha, however long it runs', () => {
+  it("an improved case is certified with probability at most alpha, however long it runs", () => {
     // The null is "not worse", so a candidate above its baseline is a null case too.
     for (const alpha of [0.05, 1 / 4000]) {
       for (const nb of [10, 60, 240]) {
-        for (const [baselineRate, candidateRate] of [[0.3, 0.5], [0.5, 0.6], [0.5, 0.95], [0.85, 0.9], [0.9, 0.99]] as const) {
-          const p = certifyProbability({ baselineRate, candidateRate, baselineTrials: nb, alpha, horizon: 600 });
-          expect(p / alpha, `alpha=${alpha} nb=${nb} ${baselineRate} -> ${candidateRate}`).toBeLessThanOrEqual(1);
+        for (const [baselineRate, candidateRate] of [
+          [0.3, 0.5],
+          [0.5, 0.6],
+          [0.5, 0.95],
+          [0.85, 0.9],
+          [0.9, 0.99],
+        ] as const) {
+          const p = certifyProbability({
+            baselineRate,
+            candidateRate,
+            baselineTrials: nb,
+            alpha,
+            horizon: 600,
+          });
+          expect(
+            p / alpha,
+            `alpha=${alpha} nb=${nb} ${baselineRate} -> ${candidateRate}`,
+          ).toBeLessThanOrEqual(1);
         }
       }
     }
   });
 
-  it('is not an e-value at every fixed rate, which is why the crossing is checked directly', () => {
+  it("is not an e-value at every fixed rate, which is why the crossing is checked directly", () => {
     // At a rate equal to mde, the baselines that survive the impossible rule are the lucky ones.
     const [p, nb, n, mde] = [0.3, 240, 100, 0.3];
     let mean = 0;
     for (let sb = 0; sb <= nb; sb++) {
       const weight = Math.exp(logBinom(nb, sb, p));
       if (weight < 1e-15 || sb / nb <= mde) continue;
-      for (let s = 0; s <= n; s++) mean += weight * Math.exp(logBinom(n, s, p) + twoSampleLogE(s, n, sb, nb, mde));
+      for (let s = 0; s <= n; s++)
+        mean += weight * Math.exp(logBinom(n, s, p) + twoSampleLogE(s, n, sb, nb, mde));
     }
     expect(mean).toBeGreaterThan(1.15);
   });
 
-  it('certifyProbability agrees with a brute-force scan of every count', () => {
+  it("certifyProbability agrees with a brute-force scan of every count", () => {
     const [pb, pc, nb, mde, alpha, horizon] = [0.8, 0.6, 20, 0.15, 0.01, 60];
     let brute = 0;
     for (let sb = 0; sb <= nb; sb++) {
@@ -114,44 +155,61 @@ describe('what the gate promises at every fixed rate', () => {
       }
       brute += Math.exp(logBinom(nb, sb, pb)) * crossed;
     }
-    expect(certifyProbability({ baselineRate: pb, candidateRate: pc, baselineTrials: nb, mde, alpha, horizon })).toBeCloseTo(brute, 10);
+    expect(
+      certifyProbability({
+        baselineRate: pb,
+        candidateRate: pc,
+        baselineTrials: nb,
+        mde,
+        alpha,
+        horizon,
+      }),
+    ).toBeCloseTo(brute, 10);
   });
 });
 
-describe('typeOneError refuses what it cannot compute', () => {
-  it('throws on a horizon or baseline that is not a positive integer, and on a rate at 0 or 1', () => {
+describe("typeOneError refuses what it cannot compute", () => {
+  it("throws on a horizon or baseline that is not a positive integer, and on a rate at 0 or 1", () => {
     const ok = { rate: 0.5, baselineTrials: 60, alpha: 0.05, horizon: 100 };
-    expect(() => typeOneError({ ...ok, horizon: 0 })).toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_CONFIG' }));
-    expect(() => typeOneError({ ...ok, baselineTrials: 2.5 })).toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_CONFIG' }));
-    expect(() => typeOneError({ ...ok, rate: 1 })).toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_STAT_DOMAIN' }));
+    expect(() => typeOneError({ ...ok, horizon: 0 })).toThrow(
+      expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" }),
+    );
+    expect(() => typeOneError({ ...ok, baselineTrials: 2.5 })).toThrow(
+      expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" }),
+    );
+    expect(() => typeOneError({ ...ok, rate: 1 })).toThrow(
+      expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+    );
   });
 
-  it('refuses a non-positive altConcentration with the code gate and shouldStop use', () => {
+  it("refuses a non-positive altConcentration with the code gate and shouldStop use", () => {
     const ok = { rate: 0.5, baselineTrials: 60, alpha: 0.05, horizon: 100 };
     for (const altConcentration of [0, -1, NaN, Infinity]) {
-      expect(() => typeOneError({ ...ok, altConcentration }), `altConcentration=${altConcentration}`)
-        .toThrow(expect.objectContaining({ code: 'PEEKSAFE_E_CONFIG' }));
+      expect(
+        () => typeOneError({ ...ok, altConcentration }),
+        `altConcentration=${altConcentration}`,
+      ).toThrow(expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" }));
     }
   });
 });
 
-describe('where the bound is known not to hold', () => {
+describe("where the bound is known not to hold", () => {
   // Pinned so the README's list of exceptions stays true; a fix should flip these.
-  it('exceeds alpha in the corner the README names, and only with a concentrated alternative', () => {
+  it("exceeds alpha in the corner the README names, and only with a concentrated alternative", () => {
     const corner = typeOne(0.15, 240, 0.15, 1 / 4000, 600, 100) * 4000;
     console.log(`type I error ${corner.toFixed(2)} x alpha: altConcentration 100, rate at mde`);
     expect(corner).toBeGreaterThan(1);
     expect(typeOne(0.15, 240, 0.15, 1 / 4000, 600, 32) * 4000).toBeLessThan(1);
   });
 
-  it('stays under alpha in the two thin-baseline corners the 0.35 shape floor failed', () => {
+  it("stays under alpha in the two thin-baseline corners the 0.35 shape floor failed", () => {
     // Shapes below 1 piled the alternative onto a rate of 0, where these baselines sit; they were 1.09x and 2.42x.
     expect(typeOne(0.005, 30, 0.05, 1 / 4000, 1000) * 4000).toBeLessThan(0.1);
     expect(typeOne(0.005, 5, 0.15, 0.005, 600, 2) / 0.005).toBeLessThan(0.05);
   });
 });
 
-describe('the whole loop: shouldStop to decide when to stop, gate to decide', () => {
+describe("the whole loop: shouldStop to decide when to stop, gate to decide", () => {
   const M = 10;
   const PRS = 400;
   const CAP = 200;
@@ -164,7 +222,11 @@ describe('the whole loop: shouldStop to decide when to stop, gate to decide', ()
       for (let i = 0; i < n; i++) if (r.bernoulli(p)) s++;
       return s;
     };
-    const baselines: BaselineStat[] = rates.map((p, i) => ({ caseId: `c${i}`, successes: draw(p, 60), trials: 60 }));
+    const baselines: BaselineStat[] = rates.map((p, i) => ({
+      caseId: `c${i}`,
+      successes: draw(p, 60),
+      trials: 60,
+    }));
     const cases: GateCase[] = rates.map((p, i) => {
       const truth = Math.max(0, p - drops[i]!);
       const s = { successes: 0, trials: 0 };
@@ -183,16 +245,17 @@ describe('the whole loop: shouldStop to decide when to stop, gate to decide', ()
     return Array.from({ length: M }, () => 0.55 + r() * 0.44);
   };
 
-  it('a suite where nothing moved raises a false alarm on at most fdr of pull requests', () => {
+  it("a suite where nothing moved raises a false alarm on at most fdr of pull requests", () => {
     let alarms = 0;
     for (let k = 0; k < PRS; k++) {
-      if (runPr(`noop|${k}`, rates(`rates|${k}`), new Array(M).fill(0)).regressed.some(Boolean)) alarms++;
+      if (runPr(`noop|${k}`, rates(`rates|${k}`), new Array(M).fill(0)).regressed.some(Boolean))
+        alarms++;
     }
     console.log(`no-op pull requests with a false alarm: ${alarms}/${PRS}`);
     expect(alarms / PRS).toBeLessThanOrEqual(0.05);
   });
 
-  it('a suite with three real regressions keeps the false discovery proportion under fdr on average', () => {
+  it("a suite with three real regressions keeps the false discovery proportion under fdr on average", () => {
     const drops = [0.3, 0.3, 0.3, 0, 0, 0, 0, 0, 0, 0];
     let fdp = 0;
     let caught = 0;

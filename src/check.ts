@@ -7,10 +7,15 @@
  * or options sit outside the grid the tests check. Moving the candidate below
  * the baseline turns the same computation into the power.
  */
-import { twoSamplePriors, logGamma, logBeta, pairedLogE } from './stats.js';
-import { requireEvidence, type Evidence } from './evidence.js';
-import { cannotDropBy, DEFAULT_GATE_OPTIONS } from './gate.js';
-import { PeeksafeError, requireOpenProbability, requirePositiveConfig, requireProbability } from './errors.js';
+import { twoSamplePriors, logGamma, logBeta, pairedLogE } from "./stats.js";
+import { requireEvidence, type Evidence } from "./evidence.js";
+import { cannotDropBy, DEFAULT_GATE_OPTIONS } from "./gate.js";
+import {
+  PeeksafeError,
+  requireOpenProbability,
+  requirePositiveConfig,
+  requireProbability,
+} from "./errors.js";
 
 export interface TypeOneErrorOptions {
   /** Shared true pass rate of the baseline and the candidate. */
@@ -27,7 +32,7 @@ export interface TypeOneErrorOptions {
   evidence?: Evidence;
 }
 
-export interface CertifyProbabilityOptions extends Omit<TypeOneErrorOptions, 'rate'> {
+export interface CertifyProbabilityOptions extends Omit<TypeOneErrorOptions, "rate"> {
   /** True pass rate of the baseline revision. */
   baselineRate: number;
   /** True pass rate of the candidate revision. */
@@ -48,25 +53,35 @@ export function certifyProbability(options: CertifyProbabilityOptions): number {
   const mde = options.mde ?? DEFAULT_GATE_OPTIONS.mde;
   const concentration = options.altConcentration ?? DEFAULT_GATE_OPTIONS.altConcentration;
   const evidence = options.evidence ?? DEFAULT_GATE_OPTIONS.evidence;
-  requireEvidence(evidence, 'certifyProbability');
-  requireOpenProbability(baselineRate, 'baselineRate', 'certifyProbability');
-  requireOpenProbability(pc, 'candidateRate', 'certifyProbability');
-  requireOpenProbability(alpha, 'alpha', 'certifyProbability');
-  requireOpenProbability(mde, 'mde', 'certifyProbability');
-  requirePositiveConfig(concentration, 'altConcentration', 'certifyProbability');
-  for (const [name, v] of [['baselineTrials', nb], ['horizon', horizon]] as const) {
+  requireEvidence(evidence, "certifyProbability");
+  requireOpenProbability(baselineRate, "baselineRate", "certifyProbability");
+  requireOpenProbability(pc, "candidateRate", "certifyProbability");
+  requireOpenProbability(alpha, "alpha", "certifyProbability");
+  requireOpenProbability(mde, "mde", "certifyProbability");
+  requirePositiveConfig(concentration, "altConcentration", "certifyProbability");
+  for (const [name, v] of [
+    ["baselineTrials", nb],
+    ["horizon", horizon],
+  ] as const) {
     if (!Number.isInteger(v) || v < 1) {
-      throw new PeeksafeError('PEEKSAFE_E_CONFIG', `certifyProbability: ${name} must be a positive integer, got ${v}`, {
-        detail: { [name]: v },
-      });
+      throw new PeeksafeError(
+        "PEEKSAFE_E_CONFIG",
+        `certifyProbability: ${name} must be a positive integer, got ${v}`,
+        {
+          detail: { [name]: v },
+        },
+      );
     }
   }
 
   const bar = Math.log(1 / alpha);
-  const logChoose = (n: number, k: number) => logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1);
+  const logChoose = (n: number, k: number) =>
+    logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1);
   let total = 0;
   for (let sb = 0; sb <= nb; sb++) {
-    const weight = Math.exp(logChoose(nb, sb) + sb * Math.log(baselineRate) + (nb - sb) * Math.log(1 - baselineRate));
+    const weight = Math.exp(
+      logChoose(nb, sb) + sb * Math.log(baselineRate) + (nb - sb) * Math.log(1 - baselineRate),
+    );
     if (weight < 1e-12 || cannotDropBy({ successes: sb, trials: nb }, mde)) continue;
     const { nullPrior: n0, altPrior: a1 } = twoSamplePriors(sb, nb, mde, concentration);
     let alive = new Float64Array(horizon + 1);
@@ -89,12 +104,15 @@ export function certifyProbability(options: CertifyProbabilityOptions): number {
       for (let s = lo; s <= hi; s++) {
         if (s > lo) {
           const f = n - s + 1;
-          logE += Math.log((a1.a + s - 1) / (a1.b + f - 1)) - Math.log((n0.a + s - 1) / (n0.b + f - 1));
+          logE +=
+            Math.log((a1.a + s - 1) / (a1.b + f - 1)) - Math.log((n0.a + s - 1) / (n0.b + f - 1));
         }
         const decided =
-          evidence === 'universal'
+          evidence === "universal"
             ? universalFromBayes(logE, s, n, sb, nb)
-            : s / n >= sb / nb ? Math.min(0, logE) : logE;
+            : s / n >= sb / nb
+              ? Math.min(0, logE)
+              : logE;
         if (decided >= bar) {
           crossed += next[s]!;
           next[s] = 0;
@@ -113,10 +131,16 @@ const xlogy = (x: number, y: number): number => (x === 0 ? 0 : x * Math.log(y));
 
 /** The uncapped Bayes factor, which both statistics are built from. */
 const rawLogE = (
-  s: number, n: number, sb: number, nb: number,
-  n0: { a: number; b: number }, a1: { a: number; b: number }
+  s: number,
+  n: number,
+  sb: number,
+  nb: number,
+  n0: { a: number; b: number },
+  a1: { a: number; b: number },
 ): number =>
-  logBeta(a1.a + s, a1.b + n - s) - logBeta(a1.a, a1.b) - (logBeta(n0.a + s, n0.b + n - s) - logBeta(n0.a, n0.b));
+  logBeta(a1.a + s, a1.b + n - s) -
+  logBeta(a1.a, a1.b) -
+  (logBeta(n0.a + s, n0.b + n - s) - logBeta(n0.a, n0.b));
 
 /** `universalTwoSampleLogE`, from the uncapped Bayes factor: times the pooled mixture over the null maximum. */
 function universalFromBayes(rawLog: number, s: number, n: number, sb: number, nb: number): number {
@@ -124,9 +148,10 @@ function universalFromBayes(rawLog: number, s: number, n: number, sb: number, nb
   const N = nb + n;
   const pb = sb / nb;
   const pc = s / n;
-  const sup = pc >= pb
-    ? xlogy(sb, pb) + xlogy(nb - sb, 1 - pb) + xlogy(s, pc) + xlogy(n - s, 1 - pc)
-    : xlogy(S, S / N) + xlogy(N - S, 1 - S / N);
+  const sup =
+    pc >= pb
+      ? xlogy(sb, pb) + xlogy(nb - sb, 1 - pb) + xlogy(s, pc) + xlogy(n - s, 1 - pc)
+      : xlogy(S, S / N) + xlogy(N - S, 1 - S / N);
   return rawLog + logBeta(1 + S, 1 + N - S) - sup;
 }
 
@@ -137,7 +162,7 @@ function universalFromBayes(rawLog: number, s: number, n: number, sb: number, nb
  */
 export function typeOneError(options: TypeOneErrorOptions): number {
   const { rate, ...rest } = options;
-  requireOpenProbability(rate, 'rate', 'typeOneError');
+  requireOpenProbability(rate, "rate", "typeOneError");
   return certifyProbability({ ...rest, baselineRate: rate, candidateRate: rate });
 }
 
@@ -161,21 +186,26 @@ export interface PairedCertifyProbabilityOptions {
 export function pairedCertifyProbability(options: PairedCertifyProbabilityOptions): number {
   const { baselineRate: pb, candidateRate: pc, alpha, horizon } = options;
   const rho = options.coupling ?? 0;
-  requireOpenProbability(pb, 'baselineRate', 'pairedCertifyProbability');
-  requireOpenProbability(pc, 'candidateRate', 'pairedCertifyProbability');
-  requireOpenProbability(alpha, 'alpha', 'pairedCertifyProbability');
-  requireProbability(rho, 'coupling', 'pairedCertifyProbability');
+  requireOpenProbability(pb, "baselineRate", "pairedCertifyProbability");
+  requireOpenProbability(pc, "candidateRate", "pairedCertifyProbability");
+  requireOpenProbability(alpha, "alpha", "pairedCertifyProbability");
+  requireProbability(rho, "coupling", "pairedCertifyProbability");
   if (!Number.isInteger(horizon) || horizon < 1) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `pairedCertifyProbability: horizon must be a positive integer, got ${horizon}`, {
-      detail: { horizon },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `pairedCertifyProbability: horizon must be a positive integer, got ${horizon}`,
+      {
+        detail: { horizon },
+      },
+    );
   }
   const worse = rho * Math.max(0, pb - pc) + (1 - rho) * pb * (1 - pc);
   const better = rho * Math.max(0, pc - pb) + (1 - rho) * pc * (1 - pb);
   const bar = Math.log(1 / alpha);
   // The e-value depends on (worse, discordant) only, so crossing is tabulated once per state.
   const crosses = Array.from({ length: horizon + 1 }, (_, d) =>
-    Uint8Array.from({ length: d + 1 }, (_, w) => (pairedLogE(w, d) >= bar ? 1 : 0)));
+    Uint8Array.from({ length: d + 1 }, (_, w) => (pairedLogE(w, d) >= bar ? 1 : 0)),
+  );
   // alive[d][w]: probability of d discordant pairs, w of them worse, and no crossing yet.
   let alive: Float64Array[] = [Float64Array.of(1)];
   let crossed = 0;

@@ -20,14 +20,18 @@
  * whose honest answer is "no finite sample size will do", see
  * `sampleSizeTwoProportion`.
  */
-import { requireCounts, requireProbability, requireOpenProbability, PeeksafeError } from './errors.js';
+import {
+  requireCounts,
+  requireProbability,
+  requireOpenProbability,
+  PeeksafeError,
+} from "./errors.js";
 
 /* ────────────────────────── special functions ────────────────────────── */
 
 const LANCZOS = [
-  676.5203681218851, -1259.1392167224028, 771.32342877765313,
-  -176.61502916214059, 12.507343278686905, -0.13857109526572012,
-  9.9843695780195716e-6, 1.5056327351493116e-7,
+  676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
+  12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7,
 ];
 
 /** Lanczos approximation to log Γ(x), x > 0. ~15 significant digits. */
@@ -104,28 +108,36 @@ export const normalCdf = (x: number): number => 0.5 * (1 + erf(x / Math.SQRT2));
 export function normalQuantile(p: number): number {
   if (p <= 0) return -Infinity;
   if (p >= 1) return Infinity;
-  const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
-    1.383577518672690e2, -3.066479806614716e1, 2.506628277459239];
-  const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
-    6.680131188771972e1, -1.328068155288572e1];
-  const cc = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838,
-    -2.549732539343734, 4.374664141464968, 2.938163982698783];
-  const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996,
-    3.754408661907416];
+  const a = [
+    -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2,
+    -3.066479806614716e1, 2.506628277459239,
+  ];
+  const b = [
+    -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1,
+    -1.328068155288572e1,
+  ];
+  const cc = [
+    -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838, -2.549732539343734,
+    4.374664141464968, 2.938163982698783,
+  ];
+  const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996, 3.754408661907416];
   const pl = 0.02425;
   let x: number;
   if (p < pl) {
     const q = Math.sqrt(-2 * Math.log(p));
-    x = (((((cc[0]! * q + cc[1]!) * q + cc[2]!) * q + cc[3]!) * q + cc[4]!) * q + cc[5]!) /
+    x =
+      (((((cc[0]! * q + cc[1]!) * q + cc[2]!) * q + cc[3]!) * q + cc[4]!) * q + cc[5]!) /
       ((((d[0]! * q + d[1]!) * q + d[2]!) * q + d[3]!) * q + 1);
   } else if (p <= 1 - pl) {
     const q = p - 0.5;
     const r = q * q;
-    x = (((((a[0]! * r + a[1]!) * r + a[2]!) * r + a[3]!) * r + a[4]!) * r + a[5]!) * q /
+    x =
+      ((((((a[0]! * r + a[1]!) * r + a[2]!) * r + a[3]!) * r + a[4]!) * r + a[5]!) * q) /
       (((((b[0]! * r + b[1]!) * r + b[2]!) * r + b[3]!) * r + b[4]!) * r + 1);
   } else {
     const q = Math.sqrt(-2 * Math.log(1 - p));
-    x = -(((((cc[0]! * q + cc[1]!) * q + cc[2]!) * q + cc[3]!) * q + cc[4]!) * q + cc[5]!) /
+    x =
+      -(((((cc[0]! * q + cc[1]!) * q + cc[2]!) * q + cc[3]!) * q + cc[4]!) * q + cc[5]!) /
       ((((d[0]! * q + d[1]!) * q + d[2]!) * q + d[3]!) * q + 1);
   }
   // One Halley refinement against our own Φ. Skipped in the far tails, where
@@ -199,16 +211,23 @@ function betaContinuedFraction(a: number, b: number, x: number): number {
 /** Regularized incomplete beta Iₓ(a,b) = P(Beta(a,b) ≤ x). */
 export function ibeta(a: number, b: number, x: number): number {
   if (!(a > 0) || !(b > 0) || !Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(x)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'ibeta: need finite a > 0, b > 0 and finite x', {
-      detail: { a, b, x },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "ibeta: need finite a > 0, b > 0 and finite x",
+      {
+        detail: { a, b, x },
+      },
+    );
   }
   if (x <= 0) return 0;
   if (x >= 1) return 1;
   const front = Math.exp(a * Math.log(x) + b * Math.log(1 - x) - logBeta(a, b));
   return x < (a + 1) / (a + b + 2)
     ? (front * betaContinuedFraction(a, b, x)) / a
-    : 1 - (Math.exp(b * Math.log(1 - x) + a * Math.log(x) - logBeta(b, a)) * betaContinuedFraction(b, a, 1 - x)) / b;
+    : 1 -
+        (Math.exp(b * Math.log(1 - x) + a * Math.log(x) - logBeta(b, a)) *
+          betaContinuedFraction(b, a, 1 - x)) /
+          b;
 }
 
 /* ─────────────────────────────── estimation ──────────────────────────── */
@@ -231,7 +250,7 @@ export interface Interval {
  * exactly where eval cases live.
  */
 export function wilsonInterval(successes: number, n: number, z = 1.959963984540054): Interval {
-  requireCounts(successes, n, 'wilsonInterval');
+  requireCounts(successes, n, "wilsonInterval");
   // No data is not "p = 0.5". The interval is the whole line and the point
   // estimate is NaN-free only because callers must check `n`, which is why
   // `n` is echoed back in `observations`.
@@ -241,32 +260,47 @@ export function wilsonInterval(successes: number, n: number, z = 1.9599639845400
   const denom = 1 + z2 / n;
   const centre = (p + z2 / (2 * n)) / denom;
   const margin = (z / denom) * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n));
-  return { low: Math.max(0, centre - margin), high: Math.min(1, centre + margin), point: p, observations: n };
+  return {
+    low: Math.max(0, centre - margin),
+    high: Math.min(1, centre + margin),
+    point: p,
+    observations: n,
+  };
 }
 
 export interface BetaPosterior {
-  alpha: number; beta: number;
-  mean: number; mode: number; variance: number; sd: number;
-  n: number; successes: number;
+  alpha: number;
+  beta: number;
+  mean: number;
+  mode: number;
+  variance: number;
+  sd: number;
+  n: number;
+  successes: number;
 }
 
 /** Conjugate Beta posterior for a per-case latent success probability. */
 export function betaPosterior(
   successes: number,
   failures: number,
-  prior: { alpha: number; beta: number } = { alpha: 1, beta: 1 }
+  prior: { alpha: number; beta: number } = { alpha: 1, beta: 1 },
 ): BetaPosterior {
-  requireCounts(successes, successes + failures, 'betaPosterior');
+  requireCounts(successes, successes + failures, "betaPosterior");
   if (!(prior.alpha > 0) || !(prior.beta > 0)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'betaPosterior: prior parameters must be positive', {
-      detail: { prior },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "betaPosterior: prior parameters must be positive",
+      {
+        detail: { prior },
+      },
+    );
   }
   const alpha = prior.alpha + successes;
   const beta = prior.beta + failures;
   const s = alpha + beta;
   return {
-    alpha, beta,
+    alpha,
+    beta,
     mean: alpha / s,
     mode: alpha > 1 && beta > 1 ? (alpha - 1) / (s - 2) : alpha / s,
     variance: (alpha * beta) / (s * s * (s + 1)),
@@ -279,13 +313,18 @@ export function betaPosterior(
 /** Inverse of the Beta CDF by bisection on ibeta (monotone, so this is exact to 1e-10). */
 export function betaQuantile(alpha: number, beta: number, q: number): number {
   if (!(alpha > 0) || !(beta > 0) || !Number.isFinite(alpha) || !Number.isFinite(beta)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'betaQuantile: alpha and beta must be finite and positive', {
-      detail: { alpha, beta, q },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "betaQuantile: alpha and beta must be finite and positive",
+      {
+        detail: { alpha, beta, q },
+      },
+    );
   }
   if (q <= 0) return 0;
   if (q >= 1) return 1;
-  let lo = 0, hi = 1;
+  let lo = 0,
+    hi = 1;
   for (let i = 0; i < 200; i++) {
     const mid = (lo + hi) / 2;
     if (ibeta(alpha, beta, mid) < q) lo = mid;
@@ -311,14 +350,18 @@ export function betaQuantile(alpha: number, beta: number, q: number): number {
  */
 export function tQuantile(p: number, df: number): number {
   if (!Number.isFinite(p) || p <= 0 || p >= 1) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `tQuantile: p must be in (0,1), got ${p}`, {
+    throw new PeeksafeError("PEEKSAFE_E_STAT_DOMAIN", `tQuantile: p must be in (0,1), got ${p}`, {
       detail: { p, df },
     });
   }
   if (!Number.isFinite(df) || df <= 0) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `tQuantile: df must be finite and positive, got ${df}`, {
-      detail: { p, df },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `tQuantile: df must be finite and positive, got ${df}`,
+      {
+        detail: { p, df },
+      },
+    );
   }
   if (p === 0.5) return 0;
   if (p < 0.5) return -tQuantile(1 - p, df);
@@ -343,12 +386,16 @@ export function betaCredibleInterval(post: BetaPosterior, level = 0.95): Interva
 
 /** P(a < θ < b) under a Beta posterior. */
 export function betaMassBetween(post: BetaPosterior, a: number, b: number): number {
-  requireProbability(a, 'a', 'betaMassBetween');
-  requireProbability(b, 'b', 'betaMassBetween');
+  requireProbability(a, "a", "betaMassBetween");
+  requireProbability(b, "b", "betaMassBetween");
   if (a > b) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `betaMassBetween: need a ≤ b, got [${a}, ${b}]`, {
-      detail: { a, b },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `betaMassBetween: need a ≤ b, got [${a}, ${b}]`,
+      {
+        detail: { a, b },
+      },
+    );
   }
   return ibeta(post.alpha, post.beta, b) - ibeta(post.alpha, post.beta, a);
 }
@@ -361,10 +408,14 @@ export function betaMassBetween(post: BetaPosterior, a: number, b: number): numb
  * the boundaries. This is the "effect size with a CI" that replaces "-4.5%".
  */
 export function diffInterval(
-  s1: number, n1: number, s2: number, n2: number, z = 1.959963984540054
+  s1: number,
+  n1: number,
+  s2: number,
+  n2: number,
+  z = 1.959963984540054,
 ): Interval {
-  requireCounts(s1, n1, 'diffInterval(arm 1)');
-  requireCounts(s2, n2, 'diffInterval(arm 2)');
+  requireCounts(s1, n1, "diffInterval(arm 1)");
+  requireCounts(s2, n2, "diffInterval(arm 2)");
   // With an empty arm there is no difference to estimate. Saying so beats
   // reporting `p2 − 0` as if the missing arm had scored zero.
   if (n1 === 0 || n2 === 0) return { low: -1, high: 1, point: 0, observations: 0 };
@@ -374,26 +425,35 @@ export function diffInterval(
   const p2 = n2 > 0 ? s2 / n2 : 0;
   const lower = p2 - p1 - Math.sqrt((p2 - w2.low) ** 2 + (w1.high - p1) ** 2);
   const upper = p2 - p1 + Math.sqrt((w2.high - p2) ** 2 + (p1 - w1.low) ** 2);
-  return { low: Math.max(-1, lower), high: Math.min(1, upper), point: p2 - p1, observations: n1 + n2 };
+  return {
+    low: Math.max(-1, lower),
+    high: Math.min(1, upper),
+    point: p2 - p1,
+    observations: n1 + n2,
+  };
 }
 
 /** Cohen's h, the scale-free effect size for proportions (arcsine transform). */
 export function cohensH(p1: number, p2: number): number {
-  requireProbability(p1, 'p1', 'cohensH');
-  requireProbability(p2, 'p2', 'cohensH');
+  requireProbability(p1, "p1", "cohensH");
+  requireProbability(p2, "p2", "cohensH");
   return 2 * Math.asin(Math.sqrt(p2)) - 2 * Math.asin(Math.sqrt(p1));
 }
 
 /* ──────────────────────────────── testing ───────────────────────────── */
 
-export interface TestResult { statistic: number; p: number }
+export interface TestResult {
+  statistic: number;
+  p: number;
+}
 
 /** Pooled two-proportion z-test, two-sided. */
 export function twoProportionZTest(s1: number, n1: number, s2: number, n2: number): TestResult {
-  requireCounts(s1, n1, 'twoProportionZTest(arm 1)');
-  requireCounts(s2, n2, 'twoProportionZTest(arm 2)');
+  requireCounts(s1, n1, "twoProportionZTest(arm 1)");
+  requireCounts(s2, n2, "twoProportionZTest(arm 2)");
   if (n1 === 0 || n2 === 0) return { statistic: 0, p: 1 };
-  const p1 = s1 / n1, p2 = s2 / n2;
+  const p1 = s1 / n1,
+    p2 = s2 / n2;
   const pool = (s1 + s2) / (n1 + n2);
   const se = Math.sqrt(pool * (1 - pool) * (1 / n1 + 1 / n2));
   if (se === 0) return { statistic: 0, p: 1 };
@@ -410,18 +470,31 @@ const logChoose = (n: number, k: number): number =>
  * cases are run 8 to 30 times, not 8000.
  */
 export function fisherExact2x2(a: number, b: number, cc: number, d: number): TestResult {
-  for (const [name, v] of [['a', a], ['b', b], ['c', cc], ['d', d]] as const) {
+  for (const [name, v] of [
+    ["a", a],
+    ["b", b],
+    ["c", cc],
+    ["d", d],
+  ] as const) {
     if (!Number.isInteger(v) || v < 0) {
-      throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `fisherExact2x2: cell ${name} must be a non-negative integer, got ${v}`, {
-        detail: { a, b, c: cc, d },
-      });
+      throw new PeeksafeError(
+        "PEEKSAFE_E_STAT_DOMAIN",
+        `fisherExact2x2: cell ${name} must be a non-negative integer, got ${v}`,
+        {
+          detail: { a, b, c: cc, d },
+        },
+      );
     }
   }
-  const r1 = a + b, r2 = cc + d, c1 = a + cc, n = r1 + r2;
+  const r1 = a + b,
+    r2 = cc + d,
+    c1 = a + cc,
+    n = r1 + r2;
   if (n === 0) return { statistic: 1, p: 1 };
   const logP = (x: number) => logChoose(r1, x) + logChoose(r2, c1 - x) - logChoose(n, c1);
   const pObs = Math.exp(logP(a));
-  const lo = Math.max(0, c1 - r2), hi = Math.min(r1, c1);
+  const lo = Math.max(0, c1 - r2),
+    hi = Math.min(r1, c1);
   let p = 0;
   for (let x = lo; x <= hi; x++) {
     const px = Math.exp(logP(x));
@@ -433,7 +506,7 @@ export function fisherExact2x2(a: number, b: number, cc: number, d: number): Tes
 
 /* ──────────────────────────────── SPRT ──────────────────────────────── */
 
-export type SprtDecision = 'ACCEPT_H0' | 'ACCEPT_H1' | 'CONTINUE';
+export type SprtDecision = "ACCEPT_H0" | "ACCEPT_H1" | "CONTINUE";
 
 export interface SprtResult {
   decision: SprtDecision;
@@ -466,19 +539,20 @@ export interface SprtOpts {
  */
 export function sprtDecision(opts: SprtOpts): SprtResult {
   const { successes: s, trials: n, p0, p1 } = opts;
-  requireCounts(s, n, 'sprtDecision');
-  requireProbability(p0, 'p0', 'sprtDecision');
-  requireProbability(p1, 'p1', 'sprtDecision');
+  requireCounts(s, n, "sprtDecision");
+  requireProbability(p0, "p0", "sprtDecision");
+  requireProbability(p1, "p1", "sprtDecision");
   const alpha = opts.alpha ?? 0.05;
   const beta = opts.beta ?? 0.1;
   const e = 1e-12;
   const cl = (x: number) => Math.min(1 - e, Math.max(e, x));
-  const q0 = cl(p0), q1 = cl(p1);
+  const q0 = cl(p0),
+    q1 = cl(p1);
   const logLR = s * Math.log(q1 / q0) + (n - s) * Math.log((1 - q1) / (1 - q0));
   const upper = Math.log((1 - beta) / alpha);
   const lower = Math.log(beta / (1 - alpha));
   const decision: SprtDecision =
-    logLR >= upper ? 'ACCEPT_H1' : logLR <= lower ? 'ACCEPT_H0' : 'CONTINUE';
+    logLR >= upper ? "ACCEPT_H1" : logLR <= lower ? "ACCEPT_H0" : "CONTINUE";
   const progress = logLR >= 0 ? logLR / upper : -(logLR / lower);
   return { decision, logLR, upper, lower, progress: Math.max(-1, Math.min(1, progress)) };
 }
@@ -537,9 +611,9 @@ function sprtTilt(p: number, logR1: number, logR0: number, drift: number): numbe
  * `test/exports.test.ts` pins both the positivity and that case.
  */
 export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, beta = 0.1): number {
-  requireProbability(p, 'p', 'sprtExpectedN');
-  requireProbability(p0, 'p0', 'sprtExpectedN');
-  requireProbability(p1, 'p1', 'sprtExpectedN');
+  requireProbability(p, "p", "sprtExpectedN");
+  requireProbability(p0, "p0", "sprtExpectedN");
+  requireProbability(p1, "p1", "sprtExpectedN");
   const A = Math.log((1 - beta) / alpha);
   const B = Math.log(beta / (1 - alpha));
   const logR1 = Math.log(p1 / p0);
@@ -617,9 +691,9 @@ export function bhCorrect(pvalues: number[], q = 0.05): BhResult {
   // A NaN here does not throw, it silently corrupts the sort and therefore the
   // whole step-up, so it is caught rather than propagated.
   for (let i = 0; i < pvalues.length; i++) {
-    requireProbability(pvalues[i]!, `p[${i}]`, 'bhCorrect');
+    requireProbability(pvalues[i]!, `p[${i}]`, "bhCorrect");
   }
-  requireProbability(q, 'q', 'bhCorrect');
+  requireProbability(q, "q", "bhCorrect");
   const m = pvalues.length;
   const rejected = new Array<boolean>(m).fill(false);
   const adjusted = new Array<number>(m).fill(1);
@@ -635,7 +709,8 @@ export function bhCorrect(pvalues: number[], q = 0.05): BhResult {
     adjusted[order[k]!.i] = Math.min(1, running);
   }
   return {
-    rejected, adjusted,
+    rejected,
+    adjusted,
     cutoff: kMax >= 0 ? order[kMax]!.p : 0,
     discoveries: kMax + 1,
   };
@@ -650,14 +725,22 @@ export function logMarginalBetaBinomial(s: number, n: number, a: number, b: numb
   // `s` may be fractional here, the planner evaluates the mean trajectory, so
   // this checks the range rather than integrality.
   if (!Number.isFinite(s) || !Number.isFinite(n) || s < 0 || n < 0 || s > n) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `logMarginalBetaBinomial: need 0 ≤ s ≤ n, got ${s}/${n}`, {
-      detail: { s, n },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `logMarginalBetaBinomial: need 0 ≤ s ≤ n, got ${s}/${n}`,
+      {
+        detail: { s, n },
+      },
+    );
   }
   if (!(a > 0) || !(b > 0) || !Number.isFinite(a) || !Number.isFinite(b)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'logMarginalBetaBinomial: prior parameters must be finite and positive', {
-      detail: { a, b },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "logMarginalBetaBinomial: prior parameters must be finite and positive",
+      {
+        detail: { a, b },
+      },
+    );
   }
   return logBeta(a + s, b + n - s) - logBeta(a, b);
 }
@@ -670,9 +753,13 @@ export function logMarginalBetaBinomial(s: number, n: number, a: number, b: numb
  */
 function requireConcentration(k: number, name: string, where: string): void {
   if (!(k > 0) || !Number.isFinite(k)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: ${name} must be finite and positive`, {
-      detail: { [name]: k },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: ${name} must be finite and positive`,
+      {
+        detail: { [name]: k },
+      },
+    );
   }
 }
 
@@ -706,20 +793,20 @@ export function twoSampleLogE(
    * over "anything materially worse", which is what actually happens when a
    * change breaks a case, it rarely lands exactly `mde` below.
    */
-  altConcentration = 8
+  altConcentration = 8,
 ): number {
   // The central evidence primitive, and the one every verdict rests on, so it
   // gets the same domain discipline as everything else in this file rather
   // than turning `5 successes in 3 trials` into a plausible-looking Bayes
   // factor. (Found in adversarial review; it was the one function that skipped
   // the contract its own module header states.)
-  requireCounts(candidateSuccesses, candidateTrials, 'twoSampleLogE(candidate)');
-  requireCounts(baselineSuccesses, baselineTrials, 'twoSampleLogE(baseline)');
+  requireCounts(candidateSuccesses, candidateTrials, "twoSampleLogE(candidate)");
+  requireCounts(baselineSuccesses, baselineTrials, "twoSampleLogE(baseline)");
   // Open, not closed: `requireProbability` here accepted an mde of 0 and 1,
   // which `gate`, `shouldStop`, `makePlan` and `twoSamplePriors` all refuse, so
   // the primitive was looser than every entry point that calls it.
-  requireOpenProbability(mde, 'mde', 'twoSampleLogE');
-  requireConcentration(altConcentration, 'altConcentration', 'twoSampleLogE');
+  requireOpenProbability(mde, "mde", "twoSampleLogE");
+  requireConcentration(altConcentration, "altConcentration", "twoSampleLogE");
   const a0 = 1 + baselineSuccesses;
   const b0 = 1 + baselineTrials - baselineSuccesses;
   const kappa = a0 + b0;
@@ -742,8 +829,11 @@ export function twoSampleLogE(
  * above the baseline's rate is therefore held to e ≤ 1. Lowering an e-value
  * never breaks one, so every guarantee above still holds.
  */
-const atOrAboveBaseline = (candidateRate: number, baselineSuccesses: number, baselineTrials: number): boolean =>
-  baselineTrials > 0 && candidateRate >= baselineSuccesses / baselineTrials;
+const atOrAboveBaseline = (
+  candidateRate: number,
+  baselineSuccesses: number,
+  baselineTrials: number,
+): boolean => baselineTrials > 0 && candidateRate >= baselineSuccesses / baselineTrials;
 
 /**
  * e-BH, Benjamini-Hochberg for **e-values** (Wang & Ramdas).
@@ -768,13 +858,17 @@ export function ebhCorrect(evalues: number[], q = 0.05): EbhResult {
   for (let i = 0; i < evalues.length; i++) {
     const e = evalues[i]!;
     if (!Number.isFinite(e) || e < 0) {
-      throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `ebhCorrect: e[${i}] must be finite and ≥ 0, got ${e}`, {
-        detail: { index: i, value: e },
-        hint: 'an e-value is a non-negative random variable with mean ≤ 1 under the null; Infinity and NaN corrupt the ranking',
-      });
+      throw new PeeksafeError(
+        "PEEKSAFE_E_STAT_DOMAIN",
+        `ebhCorrect: e[${i}] must be finite and ≥ 0, got ${e}`,
+        {
+          detail: { index: i, value: e },
+          hint: "an e-value is a non-negative random variable with mean ≤ 1 under the null; Infinity and NaN corrupt the ranking",
+        },
+      );
     }
   }
-  requireProbability(q, 'q', 'ebhCorrect');
+  requireProbability(q, "q", "ebhCorrect");
   const m = evalues.length;
   const rejected = new Array<boolean>(m).fill(false);
   if (m === 0) return { rejected, discoveries: 0, threshold: Infinity };
@@ -800,8 +894,13 @@ export const ebhSoloThreshold = (m: number, q = 0.05): number => m / q;
  * `p1` to 1e-6 and answered "44 runs", which is a plausible-looking lie
  * and exactly the sort of thing a budget planner must not do.
  */
-export function sampleSizeTwoProportion(p0: number, delta: number, alpha = 0.05, beta = 0.1): number {
-  requireProbability(p0, 'p0', 'sampleSizeTwoProportion');
+export function sampleSizeTwoProportion(
+  p0: number,
+  delta: number,
+  alpha = 0.05,
+  beta = 0.1,
+): number {
+  requireProbability(p0, "p0", "sampleSizeTwoProportion");
   if (delta <= 0 || delta >= p0) return Infinity;
   const p1 = p0 - delta;
   const pbar = (p0 + p1) / 2;
@@ -815,7 +914,7 @@ export function sampleSizeTwoProportion(p0: number, delta: number, alpha = 0.05,
 
 /** Shannon entropy in bits of a Bernoulli(p), used as a raw instability signal. */
 export function bernoulliEntropy(p: number): number {
-  requireProbability(p, 'p', 'bernoulliEntropy');
+  requireProbability(p, "p", "bernoulliEntropy");
   return p <= 0 || p >= 1 ? 0 : -(p * Math.log2(p) + (1 - p) * Math.log2(1 - p));
 }
 
@@ -828,7 +927,7 @@ export function bernoulliEntropy(p: number): number {
 
 /** log of the Beta(a,b) density at p. */
 export function logBetaPdf(p: number, a: number, b: number): number {
-  requireProbability(p, 'p', 'logBetaPdf');
+  requireProbability(p, "p", "logBetaPdf");
   if (p <= 0 || p >= 1) {
     // density is 0 or ∞ at the boundary depending on the shape; the planner
     // only ever evaluates strictly inside, so clamp rather than return ±∞.
@@ -843,22 +942,22 @@ export function twoSamplePriors(
   baselineSuccesses: number,
   baselineTrials: number,
   mde: number,
-  altConcentration = 8
+  altConcentration = 8,
 ): { nullPrior: { a: number; b: number }; altPrior: { a: number; b: number } } {
-  requireCounts(baselineSuccesses, baselineTrials, 'twoSamplePriors');
+  requireCounts(baselineSuccesses, baselineTrials, "twoSamplePriors");
   // The floor below is what makes an unguarded concentration dangerous rather
   // than merely wrong: at `altConcentration <= 0` both shapes collapse onto it
   // and the caller gets a decision from Beta(1, 1) instead of an error.
   // `twoSampleLogE` guarded itself and this did not, so the same option threw
   // on `evidence: 'bayes'` and silently moved the verdict on `'universal'`.
-  requireConcentration(altConcentration, 'altConcentration', 'twoSamplePriors');
+  requireConcentration(altConcentration, "altConcentration", "twoSamplePriors");
   // `mde` was the same gap one argument over, and the clamp below hides it the
   // same way: `Math.min(0.995, Math.max(0.005, ...))` turns a negative mde into
   // an alternative centred *above* the baseline, so asking to detect a drop of
   // -15 points returned evidence rather than a refusal. The endpoints are out
   // too, because mde is an effect and not a rate: a drop of 0 is one every
   // design answers "no" to for reasons that look like a ceiling problem.
-  requireOpenProbability(mde, 'mde', 'twoSamplePriors');
+  requireOpenProbability(mde, "mde", "twoSamplePriors");
   const a0 = 1 + baselineSuccesses;
   const b0 = 1 + baselineTrials - baselineSuccesses;
   const kappa = a0 + b0;
@@ -901,14 +1000,20 @@ export function evidenceCeilingLogE(
   baselineSuccesses: number,
   baselineTrials: number,
   mde: number,
-  altConcentration = 8
+  altConcentration = 8,
 ): number {
-  requireProbability(pTrue, 'pTrue', 'evidenceCeilingLogE');
+  requireProbability(pTrue, "pTrue", "evidenceCeilingLogE");
   const { nullPrior, altPrior } = twoSamplePriors(
-    baselineSuccesses, baselineTrials, mde, altConcentration
+    baselineSuccesses,
+    baselineTrials,
+    mde,
+    altConcentration,
   );
-  const ceiling = logBetaPdf(pTrue, altPrior.a, altPrior.b) - logBetaPdf(pTrue, nullPrior.a, nullPrior.b);
-  return atOrAboveBaseline(pTrue, baselineSuccesses, baselineTrials) ? Math.min(0, ceiling) : ceiling;
+  const ceiling =
+    logBetaPdf(pTrue, altPrior.a, altPrior.b) - logBetaPdf(pTrue, nullPrior.a, nullPrior.b);
+  return atOrAboveBaseline(pTrue, baselineSuccesses, baselineTrials)
+    ? Math.min(0, ceiling)
+    : ceiling;
 }
 
 /**
@@ -922,8 +1027,8 @@ export function evidenceCeilingLogE(
  * prior's own density, see `evidenceCeilingAsymptotic`.
  */
 export function evidenceCeilingSlope(pBaseline: number, pCandidate: number): number {
-  requireProbability(pBaseline, 'pBaseline', 'evidenceCeilingSlope');
-  requireProbability(pCandidate, 'pCandidate', 'evidenceCeilingSlope');
+  requireProbability(pBaseline, "pBaseline", "evidenceCeilingSlope");
+  requireProbability(pCandidate, "pCandidate", "evidenceCeilingSlope");
   const a = Math.min(1 - 1e-12, Math.max(1e-12, pBaseline));
   const b = Math.min(1 - 1e-12, Math.max(1e-12, pCandidate));
   return a * Math.log(a / b) + (1 - a) * Math.log((1 - a) / (1 - b));
@@ -961,26 +1066,33 @@ export function evidenceCeilingAsymptotic(
   baselineTrials: number,
   pTrue: number,
   mde: number,
-  altConcentration = 8
+  altConcentration = 8,
 ): number {
-  requireCounts(baselineSuccesses, baselineTrials, 'evidenceCeilingAsymptotic');
-  requireProbability(pTrue, 'pTrue', 'evidenceCeilingAsymptotic');
+  requireCounts(baselineSuccesses, baselineTrials, "evidenceCeilingAsymptotic");
+  requireProbability(pTrue, "pTrue", "evidenceCeilingAsymptotic");
   if (baselineTrials === 0) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'evidenceCeilingAsymptotic: needs at least one baseline trial', {
-      detail: { baselineTrials },
-      hint: 'with no baseline there is no null to be uncertain about; use evidenceCeilingLogE, which handles the prior directly',
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "evidenceCeilingAsymptotic: needs at least one baseline trial",
+      {
+        detail: { baselineTrials },
+        hint: "with no baseline there is no null to be uncertain about; use evidenceCeilingLogE, which handles the prior directly",
+      },
+    );
   }
   // The expansion is a Laplace approximation around an *interior* rate. A
   // baseline of all passes or all failures has none, and the ½·log(2π p̄(1−p̄)/n)
   // term goes to −∞, which came back as a finite-looking -Infinity rather than
   // an error. `evidenceCeilingLogE` handles those cases exactly; this does not.
   if (baselineSuccesses === 0 || baselineSuccesses === baselineTrials) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN',
-      `evidenceCeilingAsymptotic: the expansion needs an interior baseline rate, got ${baselineSuccesses}/${baselineTrials}`, {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `evidenceCeilingAsymptotic: the expansion needs an interior baseline rate, got ${baselineSuccesses}/${baselineTrials}`,
+      {
         detail: { baselineSuccesses, baselineTrials },
-        hint: 'use evidenceCeilingLogE, which evaluates the prior density ratio exactly and is defined at the boundary',
-      });
+        hint: "use evidenceCeilingLogE, which evaluates the prior density ratio exactly and is defined at the boundary",
+      },
+    );
   }
   // Around the observed baseline rate s/n, with n the baseline trial count. The
   // null prior is Beta(1+s, 1+n−s), so its shape parameters minus one are
@@ -1011,20 +1123,28 @@ export function expectedLogE(
   baselineSuccesses: number,
   baselineTrials: number,
   mde: number,
-  altConcentration = 8
+  altConcentration = 8,
 ): number {
-  requireProbability(pTrue, 'pTrue', 'expectedLogE');
+  requireProbability(pTrue, "pTrue", "expectedLogE");
   if (!(n >= 0) || !Number.isFinite(n)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'expectedLogE: n must be finite and ≥ 0', { detail: { n } });
+    throw new PeeksafeError("PEEKSAFE_E_STAT_DOMAIN", "expectedLogE: n must be finite and ≥ 0", {
+      detail: { n },
+    });
   }
   const { nullPrior: n0, altPrior: a1 } = twoSamplePriors(
-    baselineSuccesses, baselineTrials, mde, altConcentration
+    baselineSuccesses,
+    baselineTrials,
+    mde,
+    altConcentration,
   );
   const s = pTrue * n;
   const logE =
-    (logBeta(a1.a + s, a1.b + n - s) - logBeta(a1.a, a1.b)) -
+    logBeta(a1.a + s, a1.b + n - s) -
+    logBeta(a1.a, a1.b) -
     (logBeta(n0.a + s, n0.b + n - s) - logBeta(n0.a, n0.b));
-  return n > 0 && atOrAboveBaseline(pTrue, baselineSuccesses, baselineTrials) ? Math.min(0, logE) : logE;
+  return n > 0 && atOrAboveBaseline(pTrue, baselineSuccesses, baselineTrials)
+    ? Math.min(0, logE)
+    : logE;
 }
 
 /** E[log E] computed exactly, by summing over every binomial outcome. O(n). */
@@ -1034,18 +1154,27 @@ export function expectedLogEExact(
   baselineSuccesses: number,
   baselineTrials: number,
   mde: number,
-  altConcentration = 8
+  altConcentration = 8,
 ): number {
-  requireProbability(pTrue, 'pTrue', 'expectedLogEExact');
+  requireProbability(pTrue, "pTrue", "expectedLogEExact");
   if (!Number.isInteger(n) || n < 0) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'expectedLogEExact: n must be a non-negative integer', { detail: { n } });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "expectedLogEExact: n must be a non-negative integer",
+      { detail: { n } },
+    );
   }
   let acc = 0;
   for (let s = 0; s <= n; s++) {
     const logW =
-      logGamma(n + 1) - logGamma(s + 1) - logGamma(n - s + 1) +
-      s * Math.log(Math.max(1e-300, pTrue)) + (n - s) * Math.log(Math.max(1e-300, 1 - pTrue));
-    acc += Math.exp(logW) * twoSampleLogE(s, n, baselineSuccesses, baselineTrials, mde, altConcentration);
+      logGamma(n + 1) -
+      logGamma(s + 1) -
+      logGamma(n - s + 1) +
+      s * Math.log(Math.max(1e-300, pTrue)) +
+      (n - s) * Math.log(Math.max(1e-300, 1 - pTrue));
+    acc +=
+      Math.exp(logW) *
+      twoSampleLogE(s, n, baselineSuccesses, baselineTrials, mde, altConcentration);
   }
   return acc;
 }
@@ -1063,11 +1192,18 @@ export function samplesForEvidence(
   mde: number,
   logThreshold: number,
   maxN = 100_000,
-  altConcentration = 8
+  altConcentration = 8,
 ): number {
-  const ceiling = evidenceCeilingLogE(pTrue, baselineSuccesses, baselineTrials, mde, altConcentration);
+  const ceiling = evidenceCeilingLogE(
+    pTrue,
+    baselineSuccesses,
+    baselineTrials,
+    mde,
+    altConcentration,
+  );
   if (!(ceiling > logThreshold)) return Infinity;
-  const f = (n: number) => expectedLogE(pTrue, n, baselineSuccesses, baselineTrials, mde, altConcentration);
+  const f = (n: number) =>
+    expectedLogE(pTrue, n, baselineSuccesses, baselineTrials, mde, altConcentration);
   // exponential search then bisection; f is monotone in n below the ceiling
   let hi = 1;
   while (hi < maxN && f(hi) < logThreshold) hi *= 2;
@@ -1122,14 +1258,18 @@ export function universalTwoSampleLogE(
   baselineSuccesses: number,
   baselineTrials: number,
   mde: number,
-  altConcentration = 8
+  altConcentration = 8,
 ): number {
-  requireCounts(candidateSuccesses, candidateTrials, 'universalTwoSampleLogE(candidate)');
-  requireCounts(baselineSuccesses, baselineTrials, 'universalTwoSampleLogE(baseline)');
+  requireCounts(candidateSuccesses, candidateTrials, "universalTwoSampleLogE(candidate)");
+  requireCounts(baselineSuccesses, baselineTrials, "universalTwoSampleLogE(baseline)");
   if (baselineTrials === 0) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'universalTwoSampleLogE: needs at least one baseline trial', {
-      detail: { baselineTrials },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "universalTwoSampleLogE: needs at least one baseline trial",
+      {
+        detail: { baselineTrials },
+      },
+    );
   }
   const { altPrior } = twoSamplePriors(baselineSuccesses, baselineTrials, mde, altConcentration);
   const logQ =
@@ -1147,13 +1287,21 @@ export function universalTwoSampleLogE(
  * the pooled likelihood ratio is at most `n_b · KL(p̂_b ‖ pTrue)`, so the bound
  * is the baseline's mixture over its maximum likelihood plus that term.
  */
-export function universalCeilingLogE(pTrue: number, baselineSuccesses: number, baselineTrials: number): number {
-  requireProbability(pTrue, 'pTrue', 'universalCeilingLogE');
-  requireCounts(baselineSuccesses, baselineTrials, 'universalCeilingLogE');
+export function universalCeilingLogE(
+  pTrue: number,
+  baselineSuccesses: number,
+  baselineTrials: number,
+): number {
+  requireProbability(pTrue, "pTrue", "universalCeilingLogE");
+  requireCounts(baselineSuccesses, baselineTrials, "universalCeilingLogE");
   if (baselineTrials === 0) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'universalCeilingLogE: needs at least one baseline trial', {
-      detail: { baselineTrials },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "universalCeilingLogE: needs at least one baseline trial",
+      {
+        detail: { baselineTrials },
+      },
+    );
   }
   const pb = baselineSuccesses / baselineTrials;
   const occam =
@@ -1200,11 +1348,20 @@ export const discordant = (p: PairedCounts): number => p.worse + p.better;
  */
 export function pairPhi(p: PairedCounts): number {
   const { bothPass: a, worse: b, better: cc, bothFail: d } = p;
-  for (const [name, v] of [['bothPass', a], ['worse', b], ['better', cc], ['bothFail', d]] as const) {
+  for (const [name, v] of [
+    ["bothPass", a],
+    ["worse", b],
+    ["better", cc],
+    ["bothFail", d],
+  ] as const) {
     if (!Number.isInteger(v) || v < 0) {
-      throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `pairPhi: ${name} must be a non-negative integer, got ${v}`, {
-        detail: { counts: p },
-      });
+      throw new PeeksafeError(
+        "PEEKSAFE_E_STAT_DOMAIN",
+        `pairPhi: ${name} must be a non-negative integer, got ${v}`,
+        {
+          detail: { counts: p },
+        },
+      );
     }
   }
   const n = a + b + cc + d;
@@ -1227,11 +1384,11 @@ export function pairedLogE(
   worse: number,
   discordantPairs: number,
   thetaAlt = 0.75,
-  concentration = 6
+  concentration = 6,
 ): number {
-  requireCounts(worse, discordantPairs, 'pairedLogE');
-  requireProbability(thetaAlt, 'thetaAlt', 'pairedLogE');
-  requireConcentration(concentration, 'concentration', 'pairedLogE');
+  requireCounts(worse, discordantPairs, "pairedLogE");
+  requireProbability(thetaAlt, "thetaAlt", "pairedLogE");
+  requireConcentration(concentration, "concentration", "pairedLogE");
   if (discordantPairs === 0) return 0;
   const a1 = Math.max(0.35, concentration * thetaAlt);
   const b1 = Math.max(0.35, concentration * (1 - thetaAlt));
@@ -1240,7 +1397,12 @@ export function pairedLogE(
 
 // The marginal of `w` in `d` under Beta(a, b) restricted to (½, 1]: P(θ > ½ | a, b) is I_½(b, a).
 function logUpperHalfMarginal(w: number, d: number, a: number, b: number): number {
-  return logBeta(a + w, b + d - w) + Math.log(ibeta(b + d - w, a + w, 0.5)) - logBeta(a, b) - Math.log(ibeta(b, a, 0.5));
+  return (
+    logBeta(a + w, b + d - w) +
+    Math.log(ibeta(b + d - w, a + w, 0.5)) -
+    logBeta(a, b) -
+    Math.log(ibeta(b, a, 0.5))
+  );
 }
 
 /**
@@ -1254,16 +1416,16 @@ function logUpperHalfMarginal(w: number, d: number, a: number, b: number): numbe
 export function pairedDiscordance(
   pBaseline: number,
   mde: number,
-  rho: number
+  rho: number,
 ): { rate: number; theta: number } {
-  requireProbability(pBaseline, 'pBaseline', 'pairedDiscordance');
-  requireProbability(rho, 'rho', 'pairedDiscordance');
+  requireProbability(pBaseline, "pBaseline", "pairedDiscordance");
+  requireProbability(rho, "rho", "pairedDiscordance");
   // Checked last and checked here because it was the one argument that was not:
   // an mde of -0.5 put the candidate above 1, which came back as a discordance
   // rate of -0.36 and a theta of 1.194, both impossible, neither an error. An
   // mde is an effect rather than a rate, so the endpoints are out too, which is
   // where gate, makePlan and evaluatePoint already draw the line.
-  requireOpenProbability(mde, 'mde', 'pairedDiscordance');
+  requireOpenProbability(mde, "mde", "pairedDiscordance");
   const pc = Math.max(0, pBaseline - mde);
   const coupledWorse = pBaseline - pc;
   const indepWorse = pBaseline * (1 - pc);
@@ -1287,26 +1449,30 @@ export function mcnemarSamplesForEvidence(
   rho: number,
   logThreshold: number,
   maxPairs = 100_000,
-  concentration = 6
+  concentration = 6,
 ): number {
-  requireConcentration(concentration, 'concentration', 'mcnemarSamplesForEvidence');
+  requireConcentration(concentration, "concentration", "mcnemarSamplesForEvidence");
   // Every comparison below is a `<` against `logThreshold`, and a NaN loses all
   // of them: the doubling loop exited on its first test, the Infinity guard did
   // not fire, and the bisection returned its own starting point. The answer
   // came back as one pair, where the same design at a real 15pt effect needs
   // 172. `samplesForEvidence` writes its guard negated and so refuses instead.
   if (!Number.isFinite(logThreshold)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN',
-      `mcnemarSamplesForEvidence: logThreshold must be finite, got ${logThreshold}`, {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `mcnemarSamplesForEvidence: logThreshold must be finite, got ${logThreshold}`,
+      {
         detail: { logThreshold },
-        hint: 'this is a log e-value bar, such as Math.log(ebhSoloThreshold(m, fdr))',
-      });
+        hint: "this is a log e-value bar, such as Math.log(ebhSoloThreshold(m, fdr))",
+      },
+    );
   }
   const { rate, theta } = pairedDiscordance(pBaseline, mde, rho);
   if (rate <= 0 || theta <= 0.5) return Infinity;
   const a1 = Math.max(0.35, concentration * theta);
   const b1 = Math.max(0.35, concentration * (1 - theta));
-  const f = (n: number) => logUpperHalfMarginal(n * rate * theta, n * rate, a1, b1) - n * rate * Math.log(0.5);
+  const f = (n: number) =>
+    logUpperHalfMarginal(n * rate * theta, n * rate, a1, b1) - n * rate * Math.log(0.5);
   let hi = 1;
   while (hi < maxPairs && f(hi) < logThreshold) hi *= 2;
   if (f(hi) < logThreshold) return Infinity;
@@ -1340,13 +1506,15 @@ export function probabilityMoved(
   candidateSuccesses: number,
   candidateTrials: number,
   mde: number,
-  nodes = 256
+  nodes = 256,
 ): number {
-  requireCounts(baselineSuccesses, baselineTrials, 'probabilityMoved(baseline)');
-  requireCounts(candidateSuccesses, candidateTrials, 'probabilityMoved(candidate)');
+  requireCounts(baselineSuccesses, baselineTrials, "probabilityMoved(baseline)");
+  requireCounts(candidateSuccesses, candidateTrials, "probabilityMoved(candidate)");
   if (candidateTrials === 0) return 0;
-  const a0 = 1 + baselineSuccesses, b0 = 1 + baselineTrials - baselineSuccesses;
-  const a1 = 1 + candidateSuccesses, b1 = 1 + candidateTrials - candidateSuccesses;
+  const a0 = 1 + baselineSuccesses,
+    b0 = 1 + baselineTrials - baselineSuccesses;
+  const a1 = 1 + candidateSuccesses,
+    b1 = 1 + candidateTrials - candidateSuccesses;
   // Simpson's rule on ∫ f_b(x) · F_c(x − mde) dx over (0,1)
   const m = nodes % 2 === 0 ? nodes : nodes + 1;
   const h = 1 / m;
