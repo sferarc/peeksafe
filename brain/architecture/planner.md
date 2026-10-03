@@ -21,6 +21,7 @@ From the module header in `src/plan.ts`:
 - `baselineRunsNeeded` bisected a quantity that is not monotone: the ceiling is a sawtooth in the baseline size because the success count is an integer. It now scans for the first crossing (#17). `test/budget.test.ts` checks it against a scan.
 - The worst-case cost could come in under the expected cost (#16).
 - `sprtExpectedN` returned negative run counts for a true rate between the two hypotheses, so affected cases were priced at the per-case cap (#26). The expected sample number is still Wald's approximation and under-states the true value (`CHANGELOG.md`).
+- `affordabilityGrid` validated `baselineRate` and not `baselineTrials`, so a grid at zero baseline runs was priced against a Beta(1, 1) null and came back `affordable: true`, cheaper than the same grid on a real baseline. It now refuses a `baselineTrials` that is not a positive integer, as `planCase` and `evaluatePoint` already did. `test/budget.test.ts` pins the refusal and the figures.
 
 Everything here evaluates the mean trajectory. Realised counts vary around it.
 
