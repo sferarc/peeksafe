@@ -1,6 +1,6 @@
 # Testing
 
-`npm test` runs vitest over `test/**/*.test.ts` (`vitest.config.ts`). The per-test timeout is 120 seconds because the Monte Carlo checks simulate tens of thousands of pull requests and run in CI rather than behind a flag. On 2026-10-02 the suite was 10 files and 200 tests, about 11 seconds on a laptop with Node 24.
+`pnpm test` runs vitest over `test/**/*.test.ts` (`vitest.config.ts`). The per-test timeout is 120 seconds because the Monte Carlo checks simulate tens of thousands of pull requests and run in CI rather than behind a flag. On 2026-10-02 the suite was 10 files and 200 tests, about 11 seconds on a laptop with Node 24.
 
 ## The rule behind the suite
 

@@ -1,14 +1,15 @@
 # CI
 
-`.github/workflows/ci.yml` runs on pushes to `main` and on every pull request. One job, `test`, with a Node matrix of `22` and `24` and `fail-fast: false`, so the two checks are named `Node 22` and `Node 24`. Both are required to merge.
+`.github/workflows/ci.yml` runs on pushes to `main` and on every pull request. One job, `test`, with a Node matrix of `22`, `24` and `26` and `fail-fast: false`, so the checks are named `Node 22`, `Node 24` and `Node 26`. `Node 22` and `Node 24` are required to merge (the `main-default` ruleset, read 2026-10-03); `Node 26` is not yet.
 
 ## Steps
 
-1. `npm ci`
-2. `npm run typecheck`
-3. `npm test`
-4. `npm run build`
-5. **No runtime dependencies.** `npm pack`, install the tarball into a scratch project, and count `npm ls --omit=dev --all --parseable`. Anything other than two lines (the scratch project and peeksafe) fails the job. Checking `package.json` alone would miss a dependency arriving through a bundled file or a postinstall.
+1. `jdx/mise-action` installs Node and pnpm from `mise.toml`, verified against `mise.lock`. On the 22 and 24 legs the matrix Node is then put ahead of it on `PATH`, so `tsc` and `vitest` run on that version; pnpm is a native binary and is unaffected.
+2. `pnpm install --frozen-lockfile`
+3. `pnpm typecheck`
+4. `pnpm test`
+5. `pnpm build`
+6. **No runtime dependencies.** `pnpm pack`, install the tarball into a scratch project, and count `pnpm ls --prod --depth Infinity --parseable`. Anything other than two lines (the scratch project and peeksafe) fails the job. Checking `package.json` alone would miss a dependency arriving through a bundled file or a postinstall. The same step fails if a `catalog:` specifier survives into the packed `package.json`, which npm could not resolve.
 
 Actions are pinned to full commit SHAs with the version in a trailing comment. Update both together.
 

@@ -5,14 +5,16 @@ Issues and pull requests are welcome here.
 ## Getting set up
 
 ```bash
-npm install
-npm test          # a few seconds
-npm run typecheck
-npm run build
+pnpm install
+pnpm test         # a few seconds
+pnpm typecheck
+pnpm build
 ```
 
-Node 22 or newer. There are no runtime dependencies and the intention is to keep
-it that way, so a pull request that adds one needs to say what it buys.
+The library needs Node 22 or newer. `mise install` provides the Node and pnpm
+versions the repository is developed with. There are no runtime dependencies and
+the intention is to keep it that way, so a pull request that adds one needs to
+say what it buys.
 
 ## What the tests are for
 

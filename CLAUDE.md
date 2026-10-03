@@ -34,7 +34,7 @@ The `brain/` directory is an Obsidian vault: persistent notes on how the library
 
 ## Ground rules
 
-- Run `npm run typecheck`, `npm test` and `npm run build` before opening a pull request. CI requires `Node 22` and `Node 24`.
+- Run `pnpm typecheck`, `pnpm test` and `pnpm build` before opening a pull request. CI requires `Node 22` and `Node 24` and also runs `Node 26`.
 - No runtime dependencies.
 - No em or en dashes in prose. Commit subjects name the problem, in the imperative, with a conventional prefix.
 - Never publish, tag or bump the version: releases are the owner's manual step (`brain/development/release.md`).

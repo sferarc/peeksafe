@@ -1,0 +1,8 @@
+catalog:
+  # Held at the oldest Node in `engines` so the types cannot offer an API that a
+  # supported runtime lacks. Move it when `engines.node` moves.
+  '@types/node': 22.20.5
+  typescript: 7.0.2
+  vitest: 5.0.3
+
+catalogMode: strict
