@@ -69,3 +69,9 @@ jobs:
             echo "::error title=Runtime dependency added::the packed tarball resolves $TREE packages, expected 2"
             exit 1
           fi
+          # npm cannot resolve a `catalog:` specifier, so pnpm must have
+          # replaced every one in the packed manifest.
+          if tar -xzOf "$TARBALL" package/package.json | grep -q '"catalog:'; then
+            echo "::error title=Unresolved catalog::the packed package.json still names a catalog: version"
+            exit 1
+          fi

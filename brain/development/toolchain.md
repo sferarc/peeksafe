@@ -17,7 +17,7 @@ pnpm typecheck   # tsc -p tsconfig.json --noEmit, covers src and test
 pnpm build       # tsc -p tsconfig.build.json, emits dist/
 ```
 
-`pnpm test:watch` runs vitest in watch mode. `prepack` cleans and rebuilds, so `pnpm pack` and `pnpm publish` always ship a fresh `dist/`. pnpm strips `prepack` from the packed `package.json` and writes the dev dependencies as the exact catalog versions; neither changes what a consumer installs.
+`pnpm test:watch` runs vitest in watch mode. `prepack` cleans and rebuilds, so `pnpm pack` and `pnpm publish` always ship a fresh `dist/`. pnpm strips `prepack` from the packed `package.json` and writes the dev dependencies as the exact catalog versions; neither changes what a consumer installs. CI fails if a `catalog:` specifier survives into the packed manifest. Publish the tarball `pnpm pack` produces: `npm publish` on the directory packs its own and keeps `catalog:`.
 
 ## TypeScript
 
@@ -25,7 +25,7 @@ pnpm build       # tsc -p tsconfig.build.json, emits dist/
 
 ## Dependencies
 
-Versions live in the `catalog` of `pnpm-workspace.yaml` and `package.json` refers to them as `catalog:`. `catalogMode: strict` makes `pnpm add` refuse a version outside the catalog, so a new dev dependency goes into the catalog first.
+Versions live in the `catalog` of `pnpm-workspace.yaml` and `package.json` refers to them as `catalog:`. `catalogMode: strict` makes `pnpm add` refuse a version outside the catalog, so a new dev dependency goes into the catalog first. Catalog entries are exact versions, so a dev dependency bump is a catalog edit followed by `pnpm install`.
 
 Dev dependencies only: `typescript` 7 (the native compiler; its output matched TypeScript 5.9 file for file when it was adopted), `vitest` 5 (needs Node `^22.12.0` or `>=24`) and `@types/node` 22, held at the oldest supported Node so the types cannot offer an API that `engines` does not guarantee. A runtime dependency needs a stated reason in the pull request (`CONTRIBUTING.md`), and CI fails if one appears in the packed tarball.
 
