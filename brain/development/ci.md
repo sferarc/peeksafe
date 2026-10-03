@@ -9,7 +9,7 @@
 3. `pnpm typecheck`
 4. `pnpm test`
 5. `pnpm build`
-6. **No runtime dependencies.** `pnpm pack`, install the tarball into a scratch project, and count `pnpm ls --prod --depth Infinity --parseable`. Anything other than two lines (the scratch project and peeksafe) fails the job. Checking `package.json` alone would miss a dependency arriving through a bundled file or a postinstall.
+6. **No runtime dependencies.** `pnpm pack`, install the tarball into a scratch project, and count `pnpm ls --prod --depth Infinity --parseable`. Anything other than two lines (the scratch project and peeksafe) fails the job. Checking `package.json` alone would miss a dependency arriving through a bundled file or a postinstall. The same step fails if a `catalog:` specifier survives into the packed `package.json`, which npm could not resolve.
 
 Actions are pinned to full commit SHAs with the version in a trailing comment. Update both together.
 
