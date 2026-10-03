@@ -31,13 +31,15 @@ npm cannot configure a trusted publisher for a package that does not exist, so t
 
 ### Commands for 0.1.0
 
-After the release pull request is merged, from a clean clone of `main` with npm logged in as an owner of the name:
+After the release pull request is merged, from a clean clone of `main` with mise installed and npm logged in as an owner of the name:
 
 ```bash
 git pull --ff-only
-npm ci
-npm test
-npm publish --access public          # prepack builds dist/; no provenance from a laptop
+mise install
+pnpm install --frozen-lockfile
+pnpm test
+pnpm pack                            # prepack builds dist/
+npm publish ./peeksafe-0.1.0.tgz --access public   # no provenance from a laptop
 git tag -a v0.1.0 -m v0.1.0
 git push origin v0.1.0               # Release then fails at "already published", which is expected
 ```
