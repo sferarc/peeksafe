@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// The `version` lifecycle script: npm has bumped package.json and commits whatever this stages.
+// The `version` lifecycle script: the package manager has bumped package.json and commits whatever this stages.
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const version = process.env.npm_package_version ?? process.argv[2];
-if (!version) fail('no version: run through `npm version`, or pass one as the first argument');
+if (!version) fail('no version: run through `pnpm version`, or pass one as the first argument');
 
 const path = 'CHANGELOG.md';
 const text = readFileSync(path, 'utf8');

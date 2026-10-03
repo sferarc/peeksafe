@@ -48,12 +48,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepack": "npm run clean && npm run build",
+    "prepack": "pnpm run clean && pnpm run build",
     "version": "node scripts/release-changelog.mjs && git add CHANGELOG.md"
   },
   "devDependencies": {
-    "@types/node": "^22.20.5",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -5,10 +5,10 @@ name: Release
 #
 # main only takes pull requests, so the version bump goes through one:
 #
-#   npm version patch|minor|major --no-git-tag-version
-#       bumps package.json and package-lock.json, and the `version` script
-#       moves CHANGELOG.md's Unreleased section under the new version
-#   commit those three files, open a pull request, merge it
+#   pnpm version patch|minor|major --no-git-tag-version
+#       bumps package.json, and the `version` script moves CHANGELOG.md's
+#       Unreleased section under the new version
+#   commit those two files, open a pull request, merge it
 #   git tag -a vX.Y.Z -m vX.Y.Z <merge commit> && git push origin vX.Y.Z
 #
 on:
@@ -35,17 +35,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '24'
-          cache: npm
-          registry-url: https://registry.npmjs.org
+      # Node and pnpm come from mise.toml, checked against mise.lock.
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       # The tag is the thing a human typed and package.json is the thing npm
       # publishes under. They disagree exactly often enough to be worth a gate:
-      # a tag pushed before `npm version` ran publishes the previous version
+      # a tag pushed before `pnpm version` ran publishes the previous version
       # under a new tag, and nothing downstream ever notices.
       - name: Tag matches package.json version
         run: |
@@ -61,62 +58,64 @@ jobs:
       # The full CI gate again rather than trusting the run on main. A tag can
       # point at any commit, including one CI never saw.
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm typecheck
 
       - name: Test
-        run: npm test
+        run: pnpm test
 
       - name: Build
-        run: npm run build
+        run: pnpm build
 
       # Same assertion CI makes on every pull request. A release is the worst
       # place to discover a runtime dependency arrived.
       - name: No runtime dependencies
         run: |
           set -euo pipefail
-          npm pack
+          pnpm pack
           TARBALL="$(ls peeksafe-*.tgz)"
           WORK="$(mktemp -d)"
-          cd "$WORK"
-          npm init -y > /dev/null
-          npm install "$GITHUB_WORKSPACE/$TARBALL" --silent
-          TREE="$(npm ls --omit=dev --all --parseable | wc -l)"
-          npm ls --omit=dev --all
+          pnpm --dir "$WORK" init > /dev/null
+          pnpm --dir "$WORK" add "$GITHUB_WORKSPACE/$TARBALL" --silent
+          TREE="$(pnpm --dir "$WORK" ls --prod --depth Infinity --parseable | wc -l)"
+          pnpm --dir "$WORK" ls --prod --depth Infinity
           if [ "$TREE" -ne 2 ]; then
             echo "::error title=Runtime dependency added::the packed tarball resolves $TREE packages, expected 2"
             exit 1
           fi
 
       # Refuse to republish a version that already exists, rather than letting
-      # npm answer with a 403 that reads like an auth problem.
+      # the registry answer with a 403 that reads like an auth problem.
       - name: Version is not already published
         run: |
           set -euo pipefail
           PKG="$(node -p 'require("./package.json").version')"
-          if npm view "peeksafe@$PKG" version > /dev/null 2>&1; then
+          if pnpm view "peeksafe@$PKG" version > /dev/null 2>&1; then
             echo "::error title=Already published::peeksafe@$PKG is already on the registry"
             exit 1
           fi
 
-      # Trusted publishing needs a newer npm than Node 24 ships. Pinned rather
-      # than `@latest` so a release is not at the mercy of whatever npm shipped
-      # this morning.
-      - name: npm new enough for trusted publishing
-        run: npm install -g npm@11.21.0
-
       # Two ways in, on purpose, because they become available in that order.
       #
       # npm cannot configure a trusted publisher for a package that does not
-      # exist yet, so the first release is a manual `npm publish` from a laptop.
+      # exist yet, so the first release is a manual `pnpm publish` from a laptop.
       # After that, npmjs.com → peeksafe → Settings → Trusted Publisher, naming
       # this repository and this workflow file, and CI can publish with no token
       # at all: `id-token: write` above is what it uses.
       #
-      # `NODE_AUTH_TOKEN` stays as the fallback so this workflow works before
-      # that switch is flipped as well as after. npm prefers OIDC when a trusted
-      # publisher is configured and the token is then unused. Remove it once
-      # you have seen a green release without it, not before.
+      # The `NPM_TOKEN` fallback keeps this workflow working before that switch
+      # is flipped. Remove the secret and the auth line once you have seen a
+      # green release without it, not before.
+      #
+      # --no-git-checks because a tag checkout is a detached HEAD, which pnpm
+      # otherwise refuses to publish from.
       - name: Publish
-        run: npm publish --provenance --access public
+        run: |
+          set -euo pipefail
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            # Literal on purpose: pnpm expands the variable when it reads .npmrc.
+            # shellcheck disable=SC2016
+            echo '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' >> "$HOME/.npmrc"
+          fi
+          pnpm publish --provenance --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
