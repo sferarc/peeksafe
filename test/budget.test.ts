@@ -60,6 +60,24 @@ describe('the planner answers before anything is spent', () => {
     expect(() => makePlan([], new Map(), DEFAULT_PLAN)).toThrow();
   });
 
+  it('refuses an out-of-range alpha or beta rather than quoting every case at the cap', () => {
+    // `sprtExpectedN` answers NaN or Infinity for an error rate outside (0,1),
+    // and both of its callers here gate on `Number.isFinite(raw) && raw > 0`
+    // and quote `maxTrials` when that fails. Both answers fail it, so the plan
+    // came back with no error at all and every case priced at the per-case cap:
+    // a budget a reader has no way to tell apart from a case that genuinely
+    // needs the cap.
+    const { cases, baseline } = suite(4, 0.85, 240);
+    for (const bad of [0, 1, -1, 2, NaN, Infinity]) {
+      expect(() => makePlan(cases, baseline, { ...DEFAULT_PLAN, alpha: bad }), `alpha=${bad}`).toThrow(/alpha/);
+      expect(() => makePlan(cases, baseline, { ...DEFAULT_PLAN, beta: bad }), `beta=${bad}`).toThrow(/beta/);
+    }
+    // The fallback is a materially different answer and not a rounding one:
+    // at the defaults these cases price well under the cap.
+    const plan = makePlan(cases, baseline, DEFAULT_PLAN);
+    expect(plan.totals.typicalRuns).toBeLessThan(cases.length * DEFAULT_PLAN.maxTrials);
+  });
+
   it('prices a paired screening run at two runs, the same as any other paired observation', () => {
     // `screenRuns` is a count of observations, and under the paired design an
     // observation is two runs. The expected total already reads it that way, so
@@ -149,6 +167,17 @@ describe('the frontier', () => {
 
   it('reports observations per case as a positive number', () => {
     expect(typicalObservationsPerCase(0.85, 0.15, DEFAULT_FRONTIER, 240)).toBeGreaterThan(0);
+  });
+
+  it('refuses an out-of-range alpha or beta, the same as makePlan', () => {
+    // `evaluatePoint` checks mde, baselineRate, pairCoupling, cases,
+    // baselineRuns and maxTrials, and skipped the two error rates it hands to
+    // `sprtExpectedN`. The same options object was therefore a refusal through
+    // one planner door and a priced frontier through the other.
+    for (const bad of [0, 1, -1, 2, NaN, Infinity]) {
+      expect(() => computeFrontier({ ...DEFAULT_FRONTIER, alpha: bad }), `alpha=${bad}`).toThrow(/alpha/);
+      expect(() => computeFrontier({ ...DEFAULT_FRONTIER, beta: bad }), `beta=${bad}`).toThrow(/beta/);
+    }
   });
 });
 

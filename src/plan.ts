@@ -400,6 +400,13 @@ export function makePlan(
   // baseline.
   requireOpenProbability(cfg.mde, 'mde', 'makePlan');
   requireOpenProbability(cfg.fdr, 'fdr', 'makePlan');
+  // The two error rates the SPRT costing runs on. Left unchecked they reached
+  // `sprtExpectedN`, which answers NaN or Infinity outside (0,1), and both
+  // callers of it here gate on `Number.isFinite(raw) && raw > 0` and quote
+  // `maxTrials` when that fails. So an alpha of 2 produced a complete plan with
+  // every case at the per-case cap and no error anywhere.
+  requireOpenProbability(cfg.alpha, 'alpha', 'makePlan');
+  requireOpenProbability(cfg.beta, 'beta', 'makePlan');
   requireProbability(cfg.pairCoupling, 'pairCoupling', 'makePlan');
   if (cases.length === 0) {
     throw new PeeksafeError('PEEKSAFE_E_SUITE_EMPTY', 'makePlan: no cases to plan for', {
