@@ -7,11 +7,12 @@
 1. `jdx/mise-action` installs Node and pnpm from `mise.toml`, verified against `mise.lock`. On the 22 and 24 legs the matrix Node is then put ahead of it on `PATH`, so `tsc` and `vitest` run on that version; pnpm is a native binary and is unaffected.
 2. `pnpm install --frozen-lockfile`
 3. `pnpm lint` (Biome, read-only)
-4. `pnpm knip`
-5. `pnpm typecheck`
-6. `pnpm test`
-7. `pnpm build`
-8. **No runtime dependencies.** `pnpm pack`, install the tarball into a scratch project, and count `pnpm ls --prod --depth Infinity --parseable`. Anything other than two lines (the scratch project and peeksafe) fails the job. Checking `package.json` alone would miss a dependency arriving through a bundled file or a postinstall.
+4. `pnpm exec lefthook validate`. CI never commits, so this checks only that `lefthook.yml` loads, not that a contributor's hook is installed.
+5. `pnpm knip`, with entry and project files named in `knip.json` so the check does not rest on knip's zero-config inference, and configuration hints treated as errors. It reads `src/`, not `dist/`, so it runs before the build.
+6. `pnpm typecheck`
+7. `pnpm test`
+8. `pnpm build`
+9. **No runtime dependencies.** `pnpm pack`, install the tarball into a scratch project, and count `pnpm ls --prod --depth Infinity --parseable`. Anything other than two lines (the scratch project and peeksafe) fails the job. Checking `package.json` alone would miss a dependency arriving through a bundled file or a postinstall.
 
 Actions are pinned to full commit SHAs with the version in a trailing comment. Update both together.
 
