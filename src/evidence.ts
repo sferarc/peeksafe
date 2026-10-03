@@ -6,23 +6,39 @@
  * `universalTwoSampleLogE`: valid at every rate by construction, with less
  * evidence per run. README, "What that guarantee rests on", has the numbers.
  */
-import { twoSampleLogE, evidenceCeilingLogE, universalTwoSampleLogE, universalCeilingLogE } from './stats.js';
-import { PeeksafeError } from './errors.js';
 
-export type Evidence = 'bayes' | 'universal';
+import { PeeksafeError } from "./errors.js";
+import {
+  evidenceCeilingLogE,
+  twoSampleLogE,
+  universalCeilingLogE,
+  universalTwoSampleLogE,
+} from "./stats.js";
+
+export type Evidence = "bayes" | "universal";
 
 export function requireEvidence(evidence: unknown, where: string): asserts evidence is Evidence {
-  if (evidence !== 'bayes' && evidence !== 'universal') {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `${where}: evidence must be 'bayes' or 'universal', got ${String(evidence)}`, {
-      detail: { evidence },
-    });
+  if (evidence !== "bayes" && evidence !== "universal") {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: evidence must be 'bayes' or 'universal', got ${String(evidence)}`,
+      {
+        detail: { evidence },
+      },
+    );
   }
 }
 
 export const logEvidence = (
-  evidence: Evidence, cs: number, cn: number, bs: number, bn: number, mde: number, altConcentration: number
+  evidence: Evidence,
+  cs: number,
+  cn: number,
+  bs: number,
+  bn: number,
+  mde: number,
+  altConcentration: number,
 ): number =>
-  evidence === 'universal'
+  evidence === "universal"
     ? universalTwoSampleLogE(cs, cn, bs, bn, mde, altConcentration)
     : twoSampleLogE(cs, cn, bs, bn, mde, altConcentration);
 
@@ -34,8 +50,13 @@ export const toEvalue = (logE: number): number => {
 
 /** The most evidence a candidate at rate `p` could ever reach against this baseline. */
 export const ceilingLogEvidence = (
-  evidence: Evidence, p: number, bs: number, bn: number, mde: number, altConcentration: number
+  evidence: Evidence,
+  p: number,
+  bs: number,
+  bn: number,
+  mde: number,
+  altConcentration: number,
 ): number =>
-  evidence === 'universal'
+  evidence === "universal"
     ? universalCeilingLogE(p, bs, bn)
     : evidenceCeilingLogE(p, bs, bn, mde, altConcentration);

@@ -56,14 +56,19 @@
  * against planted ground truth, and until someone has, the honest price of a
  * screened plan is unknown rather than low.
  */
-import {
-  evidenceCeilingLogE, samplesForEvidence, mcnemarSamplesForEvidence,
-  ebhSoloThreshold, sprtExpectedN, betaQuantile,
-} from './stats.js';
-import { PeeksafeError, requireProbability, requireOpenProbability } from './errors.js';
-import { DEFAULT_PLAN } from './plan.js';
 
-export type FrontierDesign = 'unpaired' | 'paired';
+import { PeeksafeError, requireOpenProbability, requireProbability } from "./errors.js";
+import { DEFAULT_PLAN } from "./plan.js";
+import {
+  betaQuantile,
+  ebhSoloThreshold,
+  evidenceCeilingLogE,
+  mcnemarSamplesForEvidence,
+  samplesForEvidence,
+  sprtExpectedN,
+} from "./stats.js";
+
+export type FrontierDesign = "unpaired" | "paired";
 
 /**
  * What the screening pass grades with.
@@ -75,7 +80,7 @@ export type FrontierDesign = 'unpaired' | 'paired';
  *                effect attenuated by Youden's J, so it costs
  *                power, and the power is what has to be measured.
  */
-export type FrontierScreen = 'none' | 'expensive' | 'proxy';
+export type FrontierScreen = "none" | "expensive" | "proxy";
 
 /**
  * Which bill the budget is checked against. Three, because they are three
@@ -101,7 +106,7 @@ export type FrontierScreen = 'none' | 'expensive' | 'proxy';
  *  basis by construction, while on the ceiling basis, and whenever the
  *  baseline cannot be amortised, it wins outright.
  */
-export type FrontierBasis = 'typical' | 'certify-all' | 'ceiling';
+export type FrontierBasis = "typical" | "certify-all" | "ceiling";
 
 export interface FrontierAxes {
   cases: number[];
@@ -116,10 +121,10 @@ export interface FrontierAxes {
 
 export const DEFAULT_AXES: FrontierAxes = {
   cases: [10, 20, 50, 100, 200],
-  mdes: [0.10, 0.15, 0.25, 0.35],
+  mdes: [0.1, 0.15, 0.25, 0.35],
   baselineRuns: [30, 60, 120, 240, 480],
-  designs: ['unpaired', 'paired'],
-  screens: ['none', 'expensive', 'proxy'],
+  designs: ["unpaired", "paired"],
+  screens: ["none", "expensive", "proxy"],
   screenRuns: [4, 8],
 };
 
@@ -179,7 +184,7 @@ export interface FrontierConfig {
 
 export const DEFAULT_FRONTIER: FrontierConfig = {
   budgetUsd: 100,
-  basis: 'typical',
+  basis: "typical",
   costPerRunUsd: 1,
   costPerGradeUsd: 0,
   baselineRate: 0.85,
@@ -190,7 +195,7 @@ export const DEFAULT_FRONTIER: FrontierConfig = {
   screenKeepFraction: 0.15,
   runsPerCaseCeiling: DEFAULT_PLAN.runsPerCaseCeiling,
   screenRecall: { expensive: null, proxy: null },
-  screenRecallSource: 'not measured',
+  screenRecallSource: "not measured",
   alpha: DEFAULT_PLAN.alpha,
   beta: DEFAULT_PLAN.beta,
   minTrials: DEFAULT_PLAN.minTrials,
@@ -261,8 +266,13 @@ const RUNS_PER_OBS: Record<FrontierDesign, number> = { unpaired: 1, paired: 2 };
 
 /** $1.00, but $0.0021 rather than $0.00, a per-run price rounds to nothing. */
 export const fmtRate = (x: number): string =>
-  !Number.isFinite(x) ? (Number.isNaN(x) ? '$?' : '$∞')
-    : x >= 0.01 || x === 0 ? `$${x.toFixed(2)}` : `$${x.toPrecision(2)}`;
+  !Number.isFinite(x)
+    ? Number.isNaN(x)
+      ? "$?"
+      : "$∞"
+    : x >= 0.01 || x === 0
+      ? `$${x.toFixed(2)}`
+      : `$${x.toPrecision(2)}`;
 
 /** Cost of `runs` runs, all of them graded by the real grader. */
 const graded = (runs: number, cfg: FrontierConfig): number =>
@@ -272,15 +282,22 @@ const graded = (runs: number, cfg: FrontierConfig): number =>
  * Observations per case on a pull request where nothing moved, clamped onto the
  * gate's own batch grid.
  */
-export function typicalObservationsPerCase(rate: number, mde: number, cfg: FrontierConfig, baselineRuns: number): number {
+export function typicalObservationsPerCase(
+  rate: number,
+  mde: number,
+  cfg: FrontierConfig,
+  baselineRuns: number,
+): number {
   const s = Math.round(rate * baselineRuns);
   const p0 = betaQuantile(1 + s, 1 + baselineRuns - s, cfg.nullQuantile);
   const p1 = Math.max(0.005, p0 - mde);
   const raw = sprtExpectedN(rate, p0, p1, cfg.alpha, cfg.beta);
-  const n = Number.isFinite(raw) && raw > 0
-    ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(raw)))
-    : cfg.maxTrials;
-  const batched = cfg.minTrials + Math.ceil(Math.max(0, n - cfg.minTrials) / cfg.batchSize) * cfg.batchSize;
+  const n =
+    Number.isFinite(raw) && raw > 0
+      ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(raw)))
+      : cfg.maxTrials;
+  const batched =
+    cfg.minTrials + Math.ceil(Math.max(0, n - cfg.minTrials) / cfg.batchSize) * cfg.batchSize;
   return Math.min(cfg.maxTrials, batched);
 }
 
@@ -291,36 +308,51 @@ export function evaluatePoint(
   design: FrontierDesign,
   screen: FrontierScreen,
   screenRunsPerCase: number,
-  cfg: FrontierConfig
+  cfg: FrontierConfig,
 ): FrontierPoint {
   // Strictly open: an MDE of 0 means "detect a zero-point drop", which every
   // design correctly refuses, but it refuses with a message about the evidence
   // ceiling, which sends the reader looking for a baseline problem that is not
   // there. Same for a baseline rate of 0 or 1.
-  requireOpenProbability(mde, 'mde', 'evaluatePoint');
-  requireOpenProbability(cfg.baselineRate, 'baselineRate', 'evaluatePoint');
-  requireProbability(cfg.pairCoupling, 'pairCoupling', 'evaluatePoint');
+  requireOpenProbability(mde, "mde", "evaluatePoint");
+  requireOpenProbability(cfg.baselineRate, "baselineRate", "evaluatePoint");
+  requireProbability(cfg.pairCoupling, "pairCoupling", "evaluatePoint");
   if (!Number.isInteger(cases) || cases < 1) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `frontier: cases must be a positive integer, got ${cases}`, {
-      detail: { cases },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `frontier: cases must be a positive integer, got ${cases}`,
+      {
+        detail: { cases },
+      },
+    );
   }
   if (!Number.isInteger(baselineRuns) || baselineRuns < 1) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `frontier: baselineRuns must be a positive integer, got ${baselineRuns}`, {
-      detail: { baselineRuns },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `frontier: baselineRuns must be a positive integer, got ${baselineRuns}`,
+      {
+        detail: { baselineRuns },
+      },
+    );
   }
   if (!Number.isInteger(cfg.maxTrials) || cfg.maxTrials < 1 || cfg.maxTrials < cfg.minTrials) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG',
-      `frontier: maxTrials must be a positive integer ≥ minTrials, got ${cfg.maxTrials} vs ${cfg.minTrials}`, {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `frontier: maxTrials must be a positive integer ≥ minTrials, got ${cfg.maxTrials} vs ${cfg.minTrials}`,
+      {
         detail: { maxTrials: cfg.maxTrials, minTrials: cfg.minTrials },
-        hint: 'the ceiling bill is priced at this cap; a cap of zero prices a gate that never runs',
-      });
+        hint: "the ceiling bill is priced at this cap; a cap of zero prices a gate that never runs",
+      },
+    );
   }
-  if (screen !== 'none' && (!Number.isInteger(screenRunsPerCase) || screenRunsPerCase < 1)) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `frontier: a ${screen} screen needs at least one run per case, got ${screenRunsPerCase}`, {
-      detail: { screen, screenRunsPerCase },
-    });
+  if (screen !== "none" && (!Number.isInteger(screenRunsPerCase) || screenRunsPerCase < 1)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `frontier: a ${screen} screen needs at least one run per case, got ${screenRunsPerCase}`,
+      {
+        detail: { screen, screenRunsPerCase },
+      },
+    );
   }
 
   const rate = cfg.baselineRate;
@@ -329,7 +361,7 @@ export function evaluatePoint(
   // so its stored baseline only tunes the stopping rule: a short one suffices,
   // and pretending it needs the same n_b as the unpaired design would price a
   // ceiling it never buys.
-  const effectiveBaselineRuns = design === 'paired' ? cfg.pairedBaselineRuns : baselineRuns;
+  const effectiveBaselineRuns = design === "paired" ? cfg.pairedBaselineRuns : baselineRuns;
   const s = Math.round(rate * effectiveBaselineRuns);
 
   let ceilingLogE: number | null = null;
@@ -339,13 +371,18 @@ export function evaluatePoint(
   if (rate <= mde) {
     infeasibleBecause =
       `a case at ${(rate * 100).toFixed(0)}% cannot lose ${(mde * 100).toFixed(0)} points, ` +
-      'the effect is arithmetically impossible, not merely expensive';
+      "the effect is arithmetically impossible, not merely expensive";
     certifyObservations = Infinity;
-  } else if (design === 'unpaired') {
+  } else if (design === "unpaired") {
     const pTrue = Math.max(1e-6, Math.min(1 - 1e-6, rate - mde));
     ceilingLogE = evidenceCeilingLogE(pTrue, s, effectiveBaselineRuns, mde);
     certifyObservations = samplesForEvidence(
-      pTrue, s, effectiveBaselineRuns, mde, barLogE, cfg.runsPerCaseCeiling * 8
+      pTrue,
+      s,
+      effectiveBaselineRuns,
+      mde,
+      barLogE,
+      cfg.runsPerCaseCeiling * 8,
     );
     if (!Number.isFinite(certifyObservations)) {
       infeasibleBecause =
@@ -354,7 +391,11 @@ export function evaluatePoint(
     }
   } else {
     const pairs = mcnemarSamplesForEvidence(
-      rate, mde, cfg.pairCoupling, barLogE, cfg.runsPerCaseCeiling * 8
+      rate,
+      mde,
+      cfg.pairCoupling,
+      barLogE,
+      cfg.runsPerCaseCeiling * 8,
     );
     certifyObservations = pairs;
     if (!Number.isFinite(pairs)) {
@@ -371,7 +412,7 @@ export function evaluatePoint(
   const feasible = infeasibleBecause === null;
 
   const typicalObservations = typicalObservationsPerCase(rate, mde, cfg, effectiveBaselineRuns);
-  const keep = screen === 'none' ? cases : Math.max(1, Math.ceil(cases * cfg.screenKeepFraction));
+  const keep = screen === "none" ? cases : Math.max(1, Math.ceil(cases * cfg.screenKeepFraction));
 
   // Screening runs are graded by whichever grader the screen uses. A proxy
   // screen still *executes* the agent, it only skips the grade, so it saves
@@ -381,10 +422,12 @@ export function evaluatePoint(
   // observation does, since a paired screen runs both arms too. Charging it one
   // run an observation would understate it by 2×, in the direction that makes
   // pairing look cheaper.
-  const screenRuns = screen === 'none' ? 0 : cases * screenRunsPerCase * runsPerObs;
+  const screenRuns = screen === "none" ? 0 : cases * screenRunsPerCase * runsPerObs;
   const screenUsd =
-    screen === 'none' ? 0
-      : screen === 'proxy' ? screenRuns * cfg.costPerRunUsd
+    screen === "none"
+      ? 0
+      : screen === "proxy"
+        ? screenRuns * cfg.costPerRunUsd
         : graded(screenRuns, cfg);
 
   // The baseline. Unpaired buys its ceiling here; paired does not.
@@ -396,9 +439,12 @@ export function evaluatePoint(
     const testRuns = Number.isFinite(obsPerCase) ? keep * obsPerCase * runsPerObs : Infinity;
     const testUsd = Number.isFinite(testRuns) ? graded(testRuns, cfg) : Infinity;
     return {
-      screenRuns, screenUsd,
-      testRuns, testUsd,
-      baselineRunsAmortised, baselineUsd,
+      screenRuns,
+      screenUsd,
+      testRuns,
+      testUsd,
+      baselineRunsAmortised,
+      baselineUsd,
       totalUsd: screenUsd + testUsd + baselineUsd,
     };
   };
@@ -417,20 +463,31 @@ export function evaluatePoint(
   const ceiling = costFor(capObservations);
 
   const screenRecall =
-    screen === 'none' ? 1 : screen === 'proxy' ? cfg.screenRecall.proxy : cfg.screenRecall.expensive;
+    screen === "none"
+      ? 1
+      : screen === "proxy"
+        ? cfg.screenRecall.proxy
+        : cfg.screenRecall.expensive;
 
   // A lookup, not a `?:` chain with `typical` on the else branch. A typo'd
   // basis silently selecting the cheapest bill is precisely the
   // malformed-input-becomes-the-most-permissive-result failure this codebase
   // keeps finding in itself.
-  const BILLS: Record<FrontierBasis, FrontierCost> = { typical, 'certify-all': certifyAll, ceiling };
+  const BILLS: Record<FrontierBasis, FrontierCost> = {
+    typical,
+    "certify-all": certifyAll,
+    ceiling,
+  };
   const basisCost = BILLS[cfg.basis];
   if (basisCost === undefined) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG',
-      `frontier: basis must be one of ${Object.keys(BILLS).join(', ')}, got "${String(cfg.basis)}"`, {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `frontier: basis must be one of ${Object.keys(BILLS).join(", ")}, got "${String(cfg.basis)}"`,
+      {
         detail: { basis: cfg.basis },
-        hint: 'an unrecognised basis silently defaulting to the cheaper bill is how a budget becomes fiction',
-      });
+        hint: "an unrecognised basis silently defaulting to the cheaper bill is how a budget becomes fiction",
+      },
+    );
   }
   const withinBudget = feasible && basisCost.totalUsd <= cfg.budgetUsd;
 
@@ -438,21 +495,34 @@ export function evaluatePoint(
   // measured is cheap in a way we cannot price, and a proxy screen at zero
   // grading cost is cheaper than nothing at all, which is to say, it is not.
   let caveat: string | null = null;
-  if (screen !== 'none' && screenRecall === null) {
+  if (screen !== "none" && screenRecall === null) {
     caveat = `the ${screen} screen's recall cost is unmeasured, it drops regressions at an unknown rate`;
-  } else if (screen === 'proxy' && cfg.costPerGradeUsd <= 0) {
-    caveat = 'a proxy screen saves only grading cost, and grading here is free, it buys nothing and costs recall';
+  } else if (screen === "proxy" && cfg.costPerGradeUsd <= 0) {
+    caveat =
+      "a proxy screen saves only grading cost, and grading here is free, it buys nothing and costs recall";
   }
 
   return {
-    cases, mde, baselineRuns, design, screen,
-    screenRunsPerCase: screen === 'none' ? 0 : screenRunsPerCase,
-    keep, barLogE, ceilingLogE,
-    feasible, infeasibleBecause,
-    certifyObservations, typicalObservations,
+    cases,
+    mde,
+    baselineRuns,
+    design,
+    screen,
+    screenRunsPerCase: screen === "none" ? 0 : screenRunsPerCase,
+    keep,
+    barLogE,
+    ceilingLogE,
+    feasible,
+    infeasibleBecause,
+    certifyObservations,
+    typicalObservations,
     requiresMaxRuns: capObservations,
     exceedsGateCap: capObservations > cfg.maxTrials,
-    typical, certifyAll, ceiling, basisCostUsd: basisCost.totalUsd, withinBudget,
+    typical,
+    certifyAll,
+    ceiling,
+    basisCostUsd: basisCost.totalUsd,
+    withinBudget,
     screenRecall,
     recommendable: withinBudget && caveat === null,
     caveat,
@@ -460,30 +530,51 @@ export function evaluatePoint(
 }
 
 /** Every point in the swept space, feasible or not. */
-export function enumerateFrontier(cfg: FrontierConfig, axes: FrontierAxes = DEFAULT_AXES): FrontierPoint[] {
+export function enumerateFrontier(
+  cfg: FrontierConfig,
+  axes: FrontierAxes = DEFAULT_AXES,
+): FrontierPoint[] {
   if (!(cfg.budgetUsd >= 0) || !(cfg.costPerRunUsd >= 0) || !(cfg.costPerGradeUsd >= 0)) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', 'frontier: budget and costs must be ≥ 0 and not NaN', {
-      detail: {
-        budgetUsd: cfg.budgetUsd, costPerRunUsd: cfg.costPerRunUsd, costPerGradeUsd: cfg.costPerGradeUsd,
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      "frontier: budget and costs must be ≥ 0 and not NaN",
+      {
+        detail: {
+          budgetUsd: cfg.budgetUsd,
+          costPerRunUsd: cfg.costPerRunUsd,
+          costPerGradeUsd: cfg.costPerGradeUsd,
+        },
       },
-    });
+    );
   }
   if (!(cfg.screenKeepFraction > 0) || !(cfg.screenKeepFraction <= 1)) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `frontier: screenKeepFraction must be in (0,1], got ${cfg.screenKeepFraction}`, {
-      detail: { screenKeepFraction: cfg.screenKeepFraction },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `frontier: screenKeepFraction must be in (0,1], got ${cfg.screenKeepFraction}`,
+      {
+        detail: { screenKeepFraction: cfg.screenKeepFraction },
+      },
+    );
   }
   if (!Number.isInteger(cfg.amortisePrs) || cfg.amortisePrs < 1) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `frontier: amortisePrs must be a positive integer, got ${cfg.amortisePrs}`, {
-      detail: { amortisePrs: cfg.amortisePrs },
-      hint: 'a baseline spread over "infinity" pull requests is how the baseline cost disappears from a plan',
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `frontier: amortisePrs must be a positive integer, got ${cfg.amortisePrs}`,
+      {
+        detail: { amortisePrs: cfg.amortisePrs },
+        hint: 'a baseline spread over "infinity" pull requests is how the baseline cost disappears from a plan',
+      },
+    );
   }
   for (const [name, xs] of Object.entries(axes) as Array<[string, unknown[]]>) {
     if (!Array.isArray(xs) || xs.length === 0) {
-      throw new PeeksafeError('PEEKSAFE_E_CONFIG', `frontier: axis "${name}" is empty, nothing to sweep`, {
-        detail: { axis: name },
-      });
+      throw new PeeksafeError(
+        "PEEKSAFE_E_CONFIG",
+        `frontier: axis "${name}" is empty, nothing to sweep`,
+        {
+          detail: { axis: name },
+        },
+      );
     }
   }
   const out: FrontierPoint[] = [];
@@ -494,10 +585,10 @@ export function enumerateFrontier(cfg: FrontierConfig, axes: FrontierAxes = DEFA
         // the paired one, which uses `pairedBaselineRuns` whatever this says.
         // Sweeping it anyway would emit five identical paired rows and make the
         // frontier look like it had five times the evidence it has.
-        const baselines = design === 'paired' ? [cfg.pairedBaselineRuns] : axes.baselineRuns;
+        const baselines = design === "paired" ? [cfg.pairedBaselineRuns] : axes.baselineRuns;
         for (const nb of baselines) {
           for (const screen of axes.screens) {
-            const ks = screen === 'none' ? [0] : axes.screenRuns;
+            const ks = screen === "none" ? [0] : axes.screenRuns;
             for (const k of ks) out.push(evaluatePoint(m, mde, nb, design, screen, k, cfg));
           }
         }
@@ -542,19 +633,25 @@ export interface FrontierResult {
  * frontier is what survives.
  */
 function paretoCells(cells: FrontierCell[]): FrontierCell[] {
-  return cells.filter((a) =>
-    !cells.some((b) =>
-      b !== a && b.cases >= a.cases && b.mde <= a.mde && (b.cases > a.cases || b.mde < a.mde)
-    )
+  return cells.filter(
+    (a) =>
+      !cells.some(
+        (b) =>
+          b !== a && b.cases >= a.cases && b.mde <= a.mde && (b.cases > a.cases || b.mde < a.mde),
+      ),
   );
 }
 
-export function computeFrontier(cfg: FrontierConfig, axes: FrontierAxes = DEFAULT_AXES): FrontierResult {
+export function computeFrontier(
+  cfg: FrontierConfig,
+  axes: FrontierAxes = DEFAULT_AXES,
+): FrontierResult {
   const points = enumerateFrontier(cfg, axes);
   const feasible = points.filter((p) => p.feasible);
   const affordable = points.filter((p) => p.recommendable);
 
-  const cheaper = (a: FrontierPoint, b: FrontierPoint) => (a.basisCostUsd <= b.basisCostUsd ? a : b);
+  const cheaper = (a: FrontierPoint, b: FrontierPoint) =>
+    a.basisCostUsd <= b.basisCostUsd ? a : b;
   const byCell = new Map<string, FrontierCell>();
   for (const p of affordable) {
     const key = `${p.cases}|${p.mde}`;
@@ -572,43 +669,55 @@ export function computeFrontier(cfg: FrontierConfig, axes: FrontierAxes = DEFAUL
       reported && reported.basisCostUsd < cell.best.basisCostUsd ? reported : null;
   }
 
-  const frontier = paretoCells([...byCell.values()]).sort((a, b) => b.cases - a.cases || a.mde - b.mde);
+  const frontier = paretoCells([...byCell.values()]).sort(
+    (a, b) => b.cases - a.cases || a.mde - b.mde,
+  );
 
   const cheapestFeasible = feasible.reduce<FrontierPoint | null>(
-    (best, p) => (best === null || p.basisCostUsd < best.basisCostUsd ? p : best), null
+    (best, p) => (best === null || p.basisCostUsd < best.basisCostUsd ? p : best),
+    null,
   );
   // The smallest budget at which *something* becomes recommendable. `caveat`
   // is exactly the recommendable rule minus the budget test, so reusing it here
   // means the headline and the recommendation cannot disagree about what counts.
   const cleanFeasible = feasible.filter((p) => p.caveat === null);
-  const minimumViableBudgetUsd = cleanFeasible.length === 0
-    ? null
-    : Math.min(...cleanFeasible.map((p) => p.basisCostUsd));
+  const minimumViableBudgetUsd =
+    cleanFeasible.length === 0 ? null : Math.min(...cleanFeasible.map((p) => p.basisCostUsd));
 
-  const headline = frontier.length === 0
-    ? minimumViableBudgetUsd === null
-      ? `nothing in the swept space is certifiable at ${(cfg.baselineRate * 100).toFixed(0)}% baseline rate, ` +
-        'every configuration is either arithmetically impossible or past the per-case run ceiling'
-      : `nothing fits $${cfg.budgetUsd.toFixed(2)} at ${fmtRate(cfg.costPerRunUsd)}/run on the ${cfg.basis} bill. ` +
-        `The cheapest certifiable configuration is $${minimumViableBudgetUsd.toFixed(2)} per pull request` +
-        (cheapestFeasible
-          ? `, ${cheapestFeasible.cases} cases at ${(cheapestFeasible.mde * 100).toFixed(0)} points, ${cheapestFeasible.design}.`
-          : '.')
-    : (() => {
-        const widest = frontier[0]!;
-        const tightest = [...frontier].sort((a, b) => a.mde - b.mde)[0]!;
-        return `at ${fmtRate(cfg.costPerRunUsd)}/run and $${cfg.budgetUsd.toFixed(2)} a pull request (${cfg.basis} bill) you can certify ` +
-          `${widest.cases} cases at ${(widest.mde * 100).toFixed(0)} points ` +
-          `($${widest.best.basisCostUsd.toFixed(2)}, ${widest.best.design})` +
-          (tightest !== widest
-            ? `, or ${tightest.cases} cases at ${(tightest.mde * 100).toFixed(0)} points ` +
-              `($${tightest.best.basisCostUsd.toFixed(2)}, ${tightest.best.design})`
-            : '') + '.';
-      })();
+  const headline =
+    frontier.length === 0
+      ? minimumViableBudgetUsd === null
+        ? `nothing in the swept space is certifiable at ${(cfg.baselineRate * 100).toFixed(0)}% baseline rate, ` +
+          "every configuration is either arithmetically impossible or past the per-case run ceiling"
+        : `nothing fits $${cfg.budgetUsd.toFixed(2)} at ${fmtRate(cfg.costPerRunUsd)}/run on the ${cfg.basis} bill. ` +
+          `The cheapest certifiable configuration is $${minimumViableBudgetUsd.toFixed(2)} per pull request` +
+          (cheapestFeasible
+            ? `, ${cheapestFeasible.cases} cases at ${(cheapestFeasible.mde * 100).toFixed(0)} points, ${cheapestFeasible.design}.`
+            : ".")
+      : (() => {
+          const widest = frontier[0]!;
+          const tightest = [...frontier].sort((a, b) => a.mde - b.mde)[0]!;
+          return (
+            `at ${fmtRate(cfg.costPerRunUsd)}/run and $${cfg.budgetUsd.toFixed(2)} a pull request (${cfg.basis} bill) you can certify ` +
+            `${widest.cases} cases at ${(widest.mde * 100).toFixed(0)} points ` +
+            `($${widest.best.basisCostUsd.toFixed(2)}, ${widest.best.design})` +
+            (tightest !== widest
+              ? `, or ${tightest.cases} cases at ${(tightest.mde * 100).toFixed(0)} points ` +
+                `($${tightest.best.basisCostUsd.toFixed(2)}, ${tightest.best.design})`
+              : "") +
+            "."
+          );
+        })();
 
   return {
-    config: cfg, axes, points, affordable, frontier,
-    cheapestFeasible, minimumViableBudgetUsd, headline,
+    config: cfg,
+    axes,
+    points,
+    affordable,
+    frontier,
+    cheapestFeasible,
+    minimumViableBudgetUsd,
+    headline,
   };
 }
 
@@ -620,7 +729,7 @@ export function computeFrontier(cfg: FrontierConfig, axes: FrontierAxes = DEFAUL
  */
 export function costShares(
   p: FrontierPoint,
-  basis: FrontierBasis = 'typical'
+  basis: FrontierBasis = "typical",
 ): { screen: number; test: number; baseline: number } {
   // A lookup and a refusal, for the same reason `evaluatePoint` uses one: this
   // was a `?:` chain with `p.typical` on the else branch, so any basis it did
@@ -629,16 +738,21 @@ export function costShares(
   // name is the obvious slip, and it put the baseline at 6.6% of the money
   // where the certify-all bill puts it at 1.1%.
   const BILLS: Record<FrontierBasis, FrontierCost> = {
-    typical: p.typical, 'certify-all': p.certifyAll, ceiling: p.ceiling,
+    typical: p.typical,
+    "certify-all": p.certifyAll,
+    ceiling: p.ceiling,
   };
   // `hasOwn` rather than an `undefined` check: `BILLS['toString']` is inherited
   // from Object.prototype, so it is not undefined and would slip through one.
   if (!Object.hasOwn(BILLS, basis)) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG',
-      `costShares: basis must be one of ${Object.keys(BILLS).join(', ')}, got "${String(basis)}"`, {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `costShares: basis must be one of ${Object.keys(BILLS).join(", ")}, got "${String(basis)}"`,
+      {
         detail: { basis },
-        hint: 'an unrecognised basis silently reporting the typical bill is how a cost breakdown describes a different plan than the one you asked about',
-      });
+        hint: "an unrecognised basis silently reporting the typical bill is how a cost breakdown describes a different plan than the one you asked about",
+      },
+    );
   }
   const cost = BILLS[basis];
   const t = cost.totalUsd;

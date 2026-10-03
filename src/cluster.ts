@@ -73,10 +73,9 @@
  * size k it tracks the textbook 1 + (k − 1)ρ, which is the sanity check the
  * tests assert.
  */
-import {
-  normalQuantile, tQuantile, type Interval,
-} from './stats.js';
-import { PeeksafeError } from './errors.js';
+
+import { PeeksafeError } from "./errors.js";
+import { type Interval, normalQuantile, tQuantile } from "./stats.js";
 
 /* ────────────────────────── the clustering key ───────────────────────── */
 
@@ -89,7 +88,7 @@ import { PeeksafeError } from './errors.js';
  * degenerate case: an unexpanded case file shares its template with nobody.
  */
 export function caseFamily(caseId: string): string {
-  const i = caseId.indexOf('#');
+  const i = caseId.indexOf("#");
   return i < 0 ? caseId : caseId.slice(0, i);
 }
 
@@ -123,10 +122,14 @@ export interface ClusterObservation {
 // Called before the early returns, which never reach a quantile, so every suite refuses the same level.
 function requireLevel(level: number, where: string): void {
   if (!(level > 0 && level < 1)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: level must be in (0,1), got ${level}`, {
-      detail: { level },
-      hint: 'a two-sided confidence level such as 0.95, not a percentage and not an error budget',
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: level must be in (0,1), got ${level}`,
+      {
+        detail: { level },
+        hint: "a two-sided confidence level such as 0.95, not a percentage and not an error budget",
+      },
+    );
   }
 }
 
@@ -135,9 +138,13 @@ export function groupByCluster(obs: ClusterObservation[]): Map<string, number[]>
   const m = new Map<string, number[]>();
   for (const o of obs) {
     if (!Number.isFinite(o.value)) {
-      throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `clustered mean: value for cluster "${o.cluster}" is not finite`, {
-        detail: { cluster: o.cluster, value: o.value },
-      });
+      throw new PeeksafeError(
+        "PEEKSAFE_E_STAT_DOMAIN",
+        `clustered mean: value for cluster "${o.cluster}" is not finite`,
+        {
+          detail: { cluster: o.cluster, value: o.value },
+        },
+      );
     }
     const xs = m.get(o.cluster);
     if (xs) xs.push(o.value);
@@ -173,14 +180,14 @@ export interface ClusteredMean extends Interval {
   tCritical: number;
   /** how many independent cases this suite is *worth*, n / designEffect */
   effectiveSampleSize: number;
-  method: 'CR2';
+  method: "CR2";
   /** set when the estimate could not be formed; `low`/`high` are then vacuous */
   degenerate: string | null;
 }
 
 /** The naive iid interval, kept so the two can be printed side by side. */
 export function iidMean(values: number[], level = 0.95): Interval {
-  requireLevel(level, 'iidMean');
+  requireLevel(level, "iidMean");
   const n = values.length;
   if (n === 0) return { low: -1, high: 1, point: 0, observations: 0 };
   const mean = values.reduce((a, b) => a + b, 0) / n;
@@ -200,17 +207,17 @@ export function iidMean(values: number[], level = 0.95): Interval {
  * and the Satterthwaite df to a closed form in the cluster sizes alone.
  */
 export function clusterRobustMean(obs: ClusterObservation[], level = 0.95): ClusteredMean {
-  requireLevel(level, 'clusterRobustMean');
+  requireLevel(level, "clusterRobustMean");
   const groups = groupByCluster(obs);
   const n = obs.length;
   const G = groups.size;
   const sizes = [...groups.values()].map((xs) => xs.length);
-  const naive = iidMean(obs.map((o) => o.value), level);
-  const naiveSe = n > 1
-    ? Math.sqrt(
-        obs.reduce((a, o) => a + (o.value - naive.point) ** 2, 0) / (n - 1) / n
-      )
-    : 0;
+  const naive = iidMean(
+    obs.map((o) => o.value),
+    level,
+  );
+  const naiveSe =
+    n > 1 ? Math.sqrt(obs.reduce((a, o) => a + (o.value - naive.point) ** 2, 0) / (n - 1) / n) : 0;
   const base = {
     point: naive.point,
     observations: n,
@@ -218,7 +225,7 @@ export function clusterRobustMean(obs: ClusterObservation[], level = 0.95): Clus
     largestCluster: sizes.length ? Math.max(...sizes) : 0,
     meanClusterSize: G > 0 ? n / G : 0,
     naiveSe,
-    method: 'CR2' as const,
+    method: "CR2" as const,
   };
 
   // One cluster is one observation. There is nothing to average over, so there
@@ -227,13 +234,19 @@ export function clusterRobustMean(obs: ClusterObservation[], level = 0.95): Clus
   if (n === 0 || G < 2) {
     return {
       ...base,
-      low: -1, high: 1,
-      se: Infinity, designEffect: Infinity, widthRatio: Infinity,
-      df: 0, tCritical: Infinity, effectiveSampleSize: G,
-      degenerate: n === 0
-        ? 'no cases contributed an estimate'
-        : `all ${n} cases belong to one family ("${[...groups.keys()][0]}"), a single cluster carries no ` +
-          'information about between-family variation, so no interval is estimable',
+      low: -1,
+      high: 1,
+      se: Infinity,
+      designEffect: Infinity,
+      widthRatio: Infinity,
+      df: 0,
+      tCritical: Infinity,
+      effectiveSampleSize: G,
+      degenerate:
+        n === 0
+          ? "no cases contributed an estimate"
+          : `all ${n} cases belong to one family ("${[...groups.keys()][0]}"), a single cluster carries no ` +
+            "information about between-family variation, so no interval is estimable",
     };
   }
 
@@ -260,7 +273,7 @@ export function clusterRobustMean(obs: ClusterObservation[], level = 0.95): Clus
       if (i === j) continue;
       const nj = sizes[j]!;
       const denom = (1 - ni / n) * (1 - nj / n);
-      trG2 += ((ni * nj) ** 2) / (n2 * n2 * n2 * denom);
+      trG2 += (ni * nj) ** 2 / (n2 * n2 * n2 * denom);
     }
   }
   const trG = 1 / n;
@@ -306,7 +319,7 @@ export interface RandomEffectsMean extends Interval {
   icc: number;
   se: number;
   df: number;
-  method: 'random-effects';
+  method: "random-effects";
   degenerate: string | null;
 }
 
@@ -329,19 +342,29 @@ export interface RandomEffectsMean extends Interval {
  *    differ in size. That difference is a feature and it is reported.
  */
 export function randomEffectsMean(obs: ClusterObservation[], level = 0.95): RandomEffectsMean {
-  requireLevel(level, 'randomEffectsMean');
+  requireLevel(level, "randomEffectsMean");
   const groups = groupByCluster(obs);
   const n = obs.length;
   const G = groups.size;
   const grand = n > 0 ? obs.reduce((a, o) => a + o.value, 0) / n : 0;
   const shell = {
-    observations: n, clusters: G, method: 'random-effects' as const,
+    observations: n,
+    clusters: G,
+    method: "random-effects" as const,
   };
   if (n === 0 || G < 2) {
     return {
-      ...shell, point: grand, low: -1, high: 1,
-      tauSquared: 0, sigmaSquared: 0, icc: 0, se: Infinity, df: 0,
-      degenerate: n === 0 ? 'no cases contributed an estimate' : 'a single family cannot separate τ² from σ²',
+      ...shell,
+      point: grand,
+      low: -1,
+      high: 1,
+      tauSquared: 0,
+      sigmaSquared: 0,
+      icc: 0,
+      se: Infinity,
+      df: 0,
+      degenerate:
+        n === 0 ? "no cases contributed an estimate" : "a single family cannot separate τ² from σ²",
     };
   }
 
@@ -365,13 +388,23 @@ export function randomEffectsMean(obs: ClusterObservation[], level = 0.95): Rand
   // so σ² is not identified, and there is also no clustering left to correct
   // for. The iid interval is then the right answer, not an approximation.
   if (dfW === 0) {
-    const iid = iidMean(obs.map((o) => o.value), level);
+    const iid = iidMean(
+      obs.map((o) => o.value),
+      level,
+    );
     return {
-      ...shell, point: iid.point, low: iid.low, high: iid.high,
-      tauSquared: dfB > 0 ? ssb / dfB : 0, sigmaSquared: 0, icc: 1,
-      se: dfB > 0 ? Math.sqrt(ssb / dfB / n) : 0, df: dfB,
-      degenerate: 'every family has exactly one case, no within-family replication, so σ² is not identified ' +
-        'and the observations are already independent',
+      ...shell,
+      point: iid.point,
+      low: iid.low,
+      high: iid.high,
+      tauSquared: dfB > 0 ? ssb / dfB : 0,
+      sigmaSquared: 0,
+      icc: 1,
+      se: dfB > 0 ? Math.sqrt(ssb / dfB / n) : 0,
+      df: dfB,
+      degenerate:
+        "every family has exactly one case, no within-family replication, so σ² is not identified " +
+        "and the observations are already independent",
     };
   }
 
@@ -393,8 +426,15 @@ export function randomEffectsMean(obs: ClusterObservation[], level = 0.95): Rand
   // with a zero-width interval here, and so does this.
   if (!(tauSquared + sigmaSquared > 0)) {
     return {
-      ...shell, point: grand, low: grand, high: grand,
-      tauSquared: 0, sigmaSquared: 0, icc: 0, se: 0, df: dfB,
+      ...shell,
+      point: grand,
+      low: grand,
+      high: grand,
+      tauSquared: 0,
+      sigmaSquared: 0,
+      icc: 0,
+      se: 0,
+      df: dfB,
       degenerate: null,
     };
   }
@@ -469,7 +509,7 @@ export interface ClusteredEffect {
   headline: string;
 }
 
-const fmtPts = (x: number) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}`;
+const fmtPts = (x: number) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}`;
 
 /**
  * The whole suite-level story in one object: the honest interval, the naive one
@@ -479,15 +519,17 @@ const fmtPts = (x: number) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}`;
 export function clusteredEffect(obs: ClusterObservation[], level = 0.95): ClusteredEffect {
   const cr2 = clusterRobustMean(obs, level);
   const re = randomEffectsMean(obs, level);
-  const naive = iidMean(obs.map((o) => o.value), level);
+  const naive = iidMean(
+    obs.map((o) => o.value),
+    level,
+  );
 
   const groups = groupByCluster(obs);
   const families: FamilyEffect[] = [...groups.entries()]
     .map(([family, xs]) => {
       const m = xs.reduce((a, x) => a + x, 0) / xs.length;
-      const sd = xs.length > 1
-        ? Math.sqrt(xs.reduce((a, x) => a + (x - m) ** 2, 0) / (xs.length - 1))
-        : 0;
+      const sd =
+        xs.length > 1 ? Math.sqrt(xs.reduce((a, x) => a + (x - m) ** 2, 0) / (xs.length - 1)) : 0;
       return { family, cases: xs.length, point: m, sd, min: Math.min(...xs), max: Math.max(...xs) };
     })
     .sort((a, b) => a.point - b.point || (a.family < b.family ? -1 : 1));
@@ -502,11 +544,13 @@ export function clusteredEffect(obs: ClusterObservation[], level = 0.95): Cluste
       `clustering widens the interval ${cr2.widthRatio.toFixed(2)}× (design effect ${cr2.designEffect.toFixed(2)}, ` +
       `ICC ${re.icc.toFixed(2)}), so the suite is worth ~${Math.round(cr2.effectiveSampleSize)} independent cases, not ${cr2.observations}` +
       (signFlippedByClustering
-        ? '. The naive interval excluded zero and this one does not, the apparent suite-level move does not survive the correction.'
-        : '');
+        ? ". The naive interval excluded zero and this one does not, the apparent suite-level move does not survive the correction."
+        : "");
 
   return {
-    cr2, randomEffects: re, naive,
+    cr2,
+    randomEffects: re,
+    naive,
     designEffect: cr2.designEffect,
     widthRatio: cr2.widthRatio,
     icc: re.icc,
@@ -530,7 +574,7 @@ export function compareEstimators(e: ClusteredEffect): {
   note: string;
 } {
   if (e.cr2.degenerate || e.randomEffects.degenerate) {
-    return { agree: true, seRatio: 1, note: e.cr2.degenerate ?? e.randomEffects.degenerate ?? '' };
+    return { agree: true, seRatio: 1, note: e.cr2.degenerate ?? e.randomEffects.degenerate ?? "" };
   }
   // Two estimators that both report a standard error of zero agree; it is only
   // a zero model-based SE under a positive robust one that is an infinite
@@ -546,12 +590,12 @@ export function compareEstimators(e: ClusteredEffect): {
     agree,
     seRatio,
     note: agree
-      ? `CR2 and the random-effects model agree to within ${((Math.abs(seRatio - 1)) * 100).toFixed(0)}% on the standard error`
+      ? `CR2 and the random-effects model agree to within ${(Math.abs(seRatio - 1) * 100).toFixed(0)}% on the standard error`
       : seRatio > 1
         ? `the robust SE is ${seRatio.toFixed(2)}× the model-based one, the family effects are not behaving like ` +
-          'independent draws from one distribution, so trust CR2 and not the hierarchical fit'
+          "independent draws from one distribution, so trust CR2 and not the hierarchical fit"
         : `the robust SE is only ${seRatio.toFixed(2)}× the model-based one, with this few families CR2 can be ` +
-          'optimistic; report the wider of the two',
+          "optimistic; report the wider of the two",
   };
 }
 
@@ -673,17 +717,20 @@ const summarise = (key: string, obs: ClusterObservation[]): GroupingSummary => {
  */
 export function clusterKeyDiagnostic(
   declared: ClusterObservation[],
-  fallback: ClusterObservation[]
+  fallback: ClusterObservation[],
 ): ClusterKeyDiagnostic {
   if (declared.length !== fallback.length) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN',
-      `clusterKeyDiagnostic: the two groupings must cover the same observations (${declared.length} vs ${fallback.length})`, {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `clusterKeyDiagnostic: the two groupings must cover the same observations (${declared.length} vs ${fallback.length})`,
+      {
         detail: { declared: declared.length, fallback: fallback.length },
-        hint: 'group the same value array twice; do not filter one of them',
-      });
+        hint: "group the same value array twice; do not filter one of them",
+      },
+    );
   }
-  const d = summarise('declared', declared);
-  const f = summarise('case-id', fallback);
+  const d = summarise("declared", declared);
+  const f = summarise("case-id", fallback);
 
   // A grouping with fewer than two clusters has no estimable between-family
   // variance, so its design effect is Infinity and its ICC is meaningless.
@@ -691,15 +738,16 @@ export function clusterKeyDiagnostic(
   // that reads like a very large finding and is really an absence of one.
   if (d.degenerate !== null) {
     return {
-      declared: d, fallback: f,
+      declared: d,
+      fallback: f,
       mergesUncorrelatedCases: true,
       narrowsOnTooFewClusters: false,
       narrowsBySplitting: false,
       findsHiddenCorrelation: false,
       verdict:
         `the declared key collapses ${f.clusters} case-file groups into ${d.clusters}, ${d.degenerate}. ` +
-        'No suite-level interval is estimable under this grouping, so it is not a tighter claim ' +
-        'than the default; it is no claim at all',
+        "No suite-level interval is estimable under this grouping, so it is not a tighter claim " +
+        "than the default; it is no claim at all",
     };
   }
 
@@ -710,9 +758,7 @@ export function clusterKeyDiagnostic(
   const coarser = d.clusters < f.clusters;
   const mergesUncorrelatedCases = coarser && d.iccEstimable && d.icc < ICC_FLOOR;
   const narrowsOnTooFewClusters =
-    mergesUncorrelatedCases &&
-    d.widthRatio < f.widthRatio &&
-    d.clusters < MIN_TRUSTWORTHY_CLUSTERS;
+    mergesUncorrelatedCases && d.widthRatio < f.widthRatio && d.clusters < MIN_TRUSTWORTHY_CLUSTERS;
   // The other direction. Both flags above require `coarser`, so a key that
   // *splits* the case files apart fell through every branch to "it is not
   // changing the answer either way", on a grouping that had just taken the
@@ -727,9 +773,7 @@ export function clusterKeyDiagnostic(
   // operator to look again at an interval that got narrower, which is the
   // question this module exists to make people ask.
   const narrowsBySplitting =
-    d.clusters > f.clusters &&
-    f.iccEstimable && f.icc >= ICC_FLOOR &&
-    d.widthRatio < f.widthRatio;
+    d.clusters > f.clusters && f.iccEstimable && f.icc >= ICC_FLOOR && d.widthRatio < f.widthRatio;
   // `iccEstimable` first: a grouping of singletons reports ICC exactly 1 as an
   // artifact of σ̂² = 0, which sailed past this floor and could announce that a
   // one-case-per-cluster key had "found correlation the case ids could not
@@ -746,7 +790,7 @@ export function clusterKeyDiagnostic(
   // "ICC 1.00" is what a singleton grouping prints, and it says the cases are
   // perfectly correlated when the grouping is the statement that they are not
   // correlated at all. Say the number is missing rather than inventing one.
-  const icc = (g: GroupingSummary) => (g.iccEstimable ? g.icc.toFixed(2) : 'not identified');
+  const icc = (g: GroupingSummary) => (g.iccEstimable ? g.icc.toFixed(2) : "not identified");
   const verdict = narrowsOnTooFewClusters
     ? `the declared key merges ${f.clusters} case-file groups into ${d.clusters}, and those ${d.clusters} show ` +
       `ICC ${icc(d)}, they do not move together, so ${widths}. That is the wrong direction: ` +
@@ -757,26 +801,30 @@ export function clusterKeyDiagnostic(
         `ICC ${icc(d)}, they do not move together, so ${widths}, and the extra width is ` +
         `buying no information`
       : narrowsBySplitting
-      ? `the declared key splits ${f.clusters} case-file groups into ${d.clusters}, but those ${f.clusters} files ` +
-        `show ICC ${icc(f)}, they do move together, so ${widths}. The split is a claim that the suite is worth ` +
-        `~${Math.round(d.effectiveSampleSize)} independent cases rather than ~${Math.round(f.effectiveSampleSize)}, ` +
-        'and it buys a narrower suite-level interval than the default with nothing behind it'
-      : findsHiddenCorrelation
-      ? `the declared key finds correlation the case ids could not see: design effect ` +
-        `${d.designEffect.toFixed(2)} against ${f.designEffect.toFixed(2)} over ${d.clusters} groups rather than ` +
-        `${f.clusters} (ICC ${icc(d)} within the declared groups, ${icc(f)} within case files). ` +
-        `The suite is worth ~${Math.round(d.effectiveSampleSize)} independent cases, not ${Math.round(f.effectiveSampleSize)}` +
-        (d.clusters < MIN_TRUSTWORTHY_CLUSTERS
-          ? `. Treat the interval as a lower bound on the width: ${d.clusters} clusters is below the ${MIN_TRUSTWORTHY_CLUSTERS} ` +
-            'a cluster-robust estimator needs to be trusted'
-          : '')
-        : `the declared key and the case-file default agree to within ` +
-        `${(Math.abs(d.designEffect - f.designEffect) / Math.max(1e-9, f.designEffect) * 100).toFixed(0)}% on the design effect ` +
-        `(ICC ${icc(d)} vs ${icc(f)}), it is not changing the answer either way`;
+        ? `the declared key splits ${f.clusters} case-file groups into ${d.clusters}, but those ${f.clusters} files ` +
+          `show ICC ${icc(f)}, they do move together, so ${widths}. The split is a claim that the suite is worth ` +
+          `~${Math.round(d.effectiveSampleSize)} independent cases rather than ~${Math.round(f.effectiveSampleSize)}, ` +
+          "and it buys a narrower suite-level interval than the default with nothing behind it"
+        : findsHiddenCorrelation
+          ? `the declared key finds correlation the case ids could not see: design effect ` +
+            `${d.designEffect.toFixed(2)} against ${f.designEffect.toFixed(2)} over ${d.clusters} groups rather than ` +
+            `${f.clusters} (ICC ${icc(d)} within the declared groups, ${icc(f)} within case files). ` +
+            `The suite is worth ~${Math.round(d.effectiveSampleSize)} independent cases, not ${Math.round(f.effectiveSampleSize)}` +
+            (d.clusters < MIN_TRUSTWORTHY_CLUSTERS
+              ? `. Treat the interval as a lower bound on the width: ${d.clusters} clusters is below the ${MIN_TRUSTWORTHY_CLUSTERS} ` +
+                "a cluster-robust estimator needs to be trusted"
+              : "")
+          : `the declared key and the case-file default agree to within ` +
+            `${((Math.abs(d.designEffect - f.designEffect) / Math.max(1e-9, f.designEffect)) * 100).toFixed(0)}% on the design effect ` +
+            `(ICC ${icc(d)} vs ${icc(f)}), it is not changing the answer either way`;
 
   return {
-    declared: d, fallback: f,
-    mergesUncorrelatedCases, narrowsOnTooFewClusters, narrowsBySplitting,
-    findsHiddenCorrelation, verdict,
+    declared: d,
+    fallback: f,
+    mergesUncorrelatedCases,
+    narrowsOnTooFewClusters,
+    narrowsBySplitting,
+    findsHiddenCorrelation,
+    verdict,
   };
 }

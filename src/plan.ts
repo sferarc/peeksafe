@@ -31,12 +31,18 @@
  * scores exactly its expected successes). Realised sample counts vary around
  * it.
  */
+
+import { type BaselineStat, baselineNullRate, type CaseRef } from "./baseline.js";
+import { PeeksafeError, requireOpenProbability, requireProbability } from "./errors.js";
 import {
-  evidenceCeilingLogE, samplesForEvidence, mcnemarSamplesForEvidence,
-  pairedDiscordance, ebhSoloThreshold, sampleSizeTwoProportion, sprtExpectedN, betaQuantile,
-} from './stats.js';
-import { PeeksafeError, requireProbability, requireOpenProbability } from './errors.js';
-import { baselineNullRate, type BaselineStat, type CaseRef } from './baseline.js';
+  betaQuantile,
+  ebhSoloThreshold,
+  evidenceCeilingLogE,
+  mcnemarSamplesForEvidence,
+  sampleSizeTwoProportion,
+  samplesForEvidence,
+  sprtExpectedN,
+} from "./stats.js";
 
 export interface PlanConfig {
   /** the drop we want to be able to detect, in probability units (0.15 = 15 points) */
@@ -70,7 +76,7 @@ export interface PlanConfig {
    * and quoting the *unpaired* bill underneath that recommendation would price
    * a design nobody runs.
    */
-  design?: 'unpaired' | 'paired';
+  design?: "unpaired" | "paired";
 
   /* ── the sequential design being priced ────────────────────────────────
    * Only the *expected* cost depends on these; the certify-all ceiling does
@@ -106,13 +112,13 @@ export const DEFAULT_PLAN: PlanConfig = {
 
 export type Detectability =
   /** the unpaired sequential test can certify this case within the run ceiling */
-  | 'UNPAIRED'
+  | "UNPAIRED"
   /** only the paired design can certify it, the unpaired evidence ceiling is under the bar */
-  | 'PAIRED_ONLY'
+  | "PAIRED_ONLY"
   /** the run count is finite but past the ceiling: technically possible, practically not */
-  | 'TOO_EXPENSIVE'
+  | "TOO_EXPENSIVE"
   /** the case cannot lose `mde` points at all, its baseline rate is not that high */
-  | 'IMPOSSIBLE';
+  | "IMPOSSIBLE";
 
 export interface PlanCase {
   caseId: string;
@@ -195,7 +201,7 @@ export interface Plan {
   /** cases whose baseline rate is too low to lose `mde` points at all */
   impossible: PlanCase[];
   /** the design the recommendation names, and the one `expectedCostUsd` prices */
-  recommendedDesign: 'unpaired' | 'paired';
+  recommendedDesign: "unpaired" | "paired";
   /** the cheapest design that decides every decidable case */
   recommendation: string;
   /** honest one-liner about affordability at the configured cost per run */
@@ -235,7 +241,12 @@ const medianTrials = (ps: PlanCase[]): number => {
  * few runs longer than this can fall back under the bar. Treat it as the floor
  * it is rather than a promise about a bigger baseline.
  */
-function baselineRunsToClear(rate: number, mde: number, barLogE: number, cap = 100_000): number | null {
+function baselineRunsToClear(
+  rate: number,
+  mde: number,
+  barLogE: number,
+  cap = 100_000,
+): number | null {
   const at = (n: number) => {
     const s = Math.round(rate * n);
     return evidenceCeilingLogE(Math.max(1e-6, Math.min(1 - 1e-6, rate - mde)), s, n, mde);
@@ -261,7 +272,7 @@ export function planCase(
   c: CaseRef,
   b: BaselineStat | undefined,
   cfg: PlanConfig,
-  m: number
+  m: number,
 ): PlanCase {
   const barLogE = Math.log(ebhSoloThreshold(m, cfg.fdr));
   const trials = b?.trials ?? 0;
@@ -286,9 +297,9 @@ export function planCase(
       ceilingLogE: 0,
       unpaired: { runs: Infinity, costUsd: Infinity, wallMs: Infinity },
       paired: { pairs: Infinity, runs: Infinity, costUsd: Infinity, wallMs: Infinity },
-      detectability: 'IMPOSSIBLE',
+      detectability: "IMPOSSIBLE",
       baselineRunsNeeded: null,
-      reason: 'no baseline: nothing to compare against, record one first',
+      reason: "no baseline: nothing to compare against, record one first",
     };
   }
   if (rate <= cfg.mde) {
@@ -297,7 +308,7 @@ export function planCase(
       ceilingLogE: 0,
       unpaired: { runs: Infinity, costUsd: Infinity, wallMs: Infinity },
       paired: { pairs: Infinity, runs: Infinity, costUsd: Infinity, wallMs: Infinity },
-      detectability: 'IMPOSSIBLE',
+      detectability: "IMPOSSIBLE",
       baselineRunsNeeded: null,
       reason:
         `baseline rate ${(rate * 100).toFixed(0)}% cannot lose ${(cfg.mde * 100).toFixed(0)} points, ` +
@@ -307,8 +318,21 @@ export function planCase(
 
   const pTrue = Math.max(1e-6, Math.min(1 - 1e-6, alt));
   const ceilingLogE = evidenceCeilingLogE(pTrue, successes, trials, cfg.mde);
-  const unpairedRuns = samplesForEvidence(pTrue, successes, trials, cfg.mde, barLogE, cfg.runsPerCaseCeiling * 8);
-  const pairs = mcnemarSamplesForEvidence(rate, cfg.mde, cfg.pairCoupling, barLogE, cfg.runsPerCaseCeiling * 8);
+  const unpairedRuns = samplesForEvidence(
+    pTrue,
+    successes,
+    trials,
+    cfg.mde,
+    barLogE,
+    cfg.runsPerCaseCeiling * 8,
+  );
+  const pairs = mcnemarSamplesForEvidence(
+    rate,
+    cfg.mde,
+    cfg.pairCoupling,
+    barLogE,
+    cfg.runsPerCaseCeiling * 8,
+  );
 
   const unpaired = {
     runs: unpairedRuns,
@@ -325,24 +349,24 @@ export function planCase(
   let detectability: Detectability;
   let reason: string;
   if (Number.isFinite(unpairedRuns) && unpairedRuns <= cfg.runsPerCaseCeiling) {
-    detectability = 'UNPAIRED';
+    detectability = "UNPAIRED";
     reason = `${unpairedRuns} candidate runs against the stored baseline`;
   } else if (Number.isFinite(pairs) && pairs * 2 <= cfg.runsPerCaseCeiling) {
-    detectability = 'PAIRED_ONLY';
+    detectability = "PAIRED_ONLY";
     reason = Number.isFinite(unpairedRuns)
       ? `unpaired needs ${unpairedRuns} runs (past the ${cfg.runsPerCaseCeiling} ceiling); paired needs ${pairs * 2}`
       : `unpaired evidence ceiling is e^${ceilingLogE.toFixed(1)}, under the bar e^${barLogE.toFixed(1)}, ` +
         `no number of candidate runs certifies it. Paired: ${pairs * 2} runs.`;
   } else if (Number.isFinite(unpairedRuns) || Number.isFinite(pairs)) {
-    detectability = 'TOO_EXPENSIVE';
+    detectability = "TOO_EXPENSIVE";
     reason = `cheapest design needs ${Math.min(unpairedRuns, pairs * 2)} runs, past the ${cfg.runsPerCaseCeiling} ceiling`;
   } else {
-    detectability = 'IMPOSSIBLE';
+    detectability = "IMPOSSIBLE";
     reason = `neither design reaches the bar within ${cfg.runsPerCaseCeiling * 8} runs`;
   }
 
   const baselineRunsNeeded =
-    detectability === 'UNPAIRED' ? null : baselineRunsToClear(rate, cfg.mde, barLogE);
+    detectability === "UNPAIRED" ? null : baselineRunsToClear(rate, cfg.mde, barLogE);
 
   return { ...base, ceilingLogE, unpaired, paired, detectability, baselineRunsNeeded, reason };
 }
@@ -365,7 +389,8 @@ export function expectedSequentialSamples(
   cases: Array<CaseRef>,
   baseline: Map<string, BaselineStat>,
   cfg: PlanConfig,
-  trueRate: (caseId: string, b: BaselineStat) => number = (_id, b) => (b.trials > 0 ? b.successes / b.trials : 0)
+  trueRate: (caseId: string, b: BaselineStat) => number = (_id, b) =>
+    b.trials > 0 ? b.successes / b.trials : 0,
 ): { samples: number; perCase: Map<string, number> } {
   const perCase = new Map<string, number>();
   let total = 0;
@@ -376,12 +401,14 @@ export function expectedSequentialSamples(
     const p1 = Math.max(0.005, p0 - cfg.mde);
     const p = Math.max(0, Math.min(1, trueRate(c.id, b)));
     const raw = sprtExpectedN(p, p0, p1, cfg.alpha, cfg.beta);
-    const n = Number.isFinite(raw) && raw > 0
-      ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(raw)))
-      : cfg.maxTrials;
+    const n =
+      Number.isFinite(raw) && raw > 0
+        ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(raw)))
+        : cfg.maxTrials;
     // The gate only ever adds whole batches past the minimum, so round the
     // prediction onto the same grid the gate samples on.
-    const batched = cfg.minTrials + Math.ceil(Math.max(0, n - cfg.minTrials) / cfg.batchSize) * cfg.batchSize;
+    const batched =
+      cfg.minTrials + Math.ceil(Math.max(0, n - cfg.minTrials) / cfg.batchSize) * cfg.batchSize;
     const capped = Math.min(cfg.maxTrials, batched);
     perCase.set(c.id, capped);
     total += capped;
@@ -392,33 +419,37 @@ export function expectedSequentialSamples(
 export function makePlan(
   cases: Array<CaseRef>,
   baseline: Map<string, BaselineStat>,
-  cfg: PlanConfig = DEFAULT_PLAN
+  cfg: PlanConfig = DEFAULT_PLAN,
 ): Plan {
   // Open interval: mde = 0 asks for a zero-point drop and fdr = 0 asks for a
   // bar of Infinity. Both used to be accepted and produce a plan in which
   // nothing is decidable, for a reason the printed message blamed on the
   // baseline.
-  requireOpenProbability(cfg.mde, 'mde', 'makePlan');
-  requireOpenProbability(cfg.fdr, 'fdr', 'makePlan');
-  requireProbability(cfg.pairCoupling, 'pairCoupling', 'makePlan');
+  requireOpenProbability(cfg.mde, "mde", "makePlan");
+  requireOpenProbability(cfg.fdr, "fdr", "makePlan");
+  requireProbability(cfg.pairCoupling, "pairCoupling", "makePlan");
   if (cases.length === 0) {
-    throw new PeeksafeError('PEEKSAFE_E_SUITE_EMPTY', 'makePlan: no cases to plan for', {
-      hint: 'pass at least one case; makePlan prices a suite, not an empty list',
+    throw new PeeksafeError("PEEKSAFE_E_SUITE_EMPTY", "makePlan: no cases to plan for", {
+      hint: "pass at least one case; makePlan prices a suite, not an empty list",
     });
   }
   if (!(cfg.costPerRunUsd >= 0) || !(cfg.msPerRun >= 0)) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', 'makePlan: costPerRunUsd and msPerRun must be ≥ 0', {
-      detail: { costPerRunUsd: cfg.costPerRunUsd, msPerRun: cfg.msPerRun },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      "makePlan: costPerRunUsd and msPerRun must be ≥ 0",
+      {
+        detail: { costPerRunUsd: cfg.costPerRunUsd, msPerRun: cfg.msPerRun },
+      },
+    );
   }
 
   const m = cases.length;
   const planned = cases.map((c) => planCase(c, baseline.get(c.id), cfg, m));
 
   const finite = (x: number) => (Number.isFinite(x) ? x : 0);
-  const decidableUnpaired = planned.filter((p) => p.detectability === 'UNPAIRED');
+  const decidableUnpaired = planned.filter((p) => p.detectability === "UNPAIRED");
   const decidableAny = planned.filter(
-    (p) => p.detectability === 'UNPAIRED' || p.detectability === 'PAIRED_ONLY'
+    (p) => p.detectability === "UNPAIRED" || p.detectability === "PAIRED_ONLY",
   );
 
   const unpairedRuns = decidableUnpaired.reduce((a, p) => a + finite(p.unpaired.runs), 0);
@@ -428,16 +459,17 @@ export function makePlan(
   // design that is cheap because it decides nothing is not cheap.
   const bestRuns = decidableAny.reduce(
     (a, p) => a + Math.min(finite(p.unpaired.runs) || Infinity, finite(p.paired.runs) || Infinity),
-    0
+    0,
   );
 
-  const pairedOnlyCount = planned.filter((p) => p.detectability === 'PAIRED_ONLY').length;
+  const pairedOnlyCount = planned.filter((p) => p.detectability === "PAIRED_ONLY").length;
   // The design the recommendation will name, computed here because the
   // *expected* bill has to be priced for it. `pairedOnly > 25%` is the same
   // condition the recommendation string uses; they cannot drift apart.
-  const recommendedDesign: 'unpaired' | 'paired' =
-    cfg.design ?? (decidableAny.length > 0 && pairedOnlyCount > cases.length * 0.25 ? 'paired' : 'unpaired');
-  const runsPerObservation = recommendedDesign === 'paired' ? 2 : 1;
+  const recommendedDesign: "unpaired" | "paired" =
+    cfg.design ??
+    (decidableAny.length > 0 && pairedOnlyCount > cases.length * 0.25 ? "paired" : "unpaired");
+  const runsPerObservation = recommendedDesign === "paired" ? 2 : 1;
 
   // Screening: everything gets `screenRuns`; only the cases the screen ranks as
   // plausibly moved go on to the sequential test. A clean PR moves nothing, so
@@ -466,7 +498,7 @@ export function makePlan(
   const typicalRuns = typical.samples * runsPerObservation;
   const meanTypical = typical.perCase.size > 0 ? typical.samples / typical.perCase.size : 0;
   const typicalScreenedRuns = Math.ceil(
-    (m * cfg.screenRuns + Math.ceil(m * screenContinueFraction) * meanTypical) * runsPerObservation
+    (m * cfg.screenRuns + Math.ceil(m * screenContinueFraction) * meanTypical) * runsPerObservation,
   );
 
   const totals: PlanTotals = {
@@ -497,15 +529,15 @@ export function makePlan(
   };
 
   const undecidable = planned.filter(
-    (p) => p.detectability === 'TOO_EXPENSIVE' || p.detectability === 'IMPOSSIBLE'
+    (p) => p.detectability === "TOO_EXPENSIVE" || p.detectability === "IMPOSSIBLE",
   );
-  const pairedOnly = planned.filter((p) => p.detectability === 'PAIRED_ONLY');
-  const impossible = planned.filter((p) => p.detectability === 'IMPOSSIBLE');
+  const pairedOnly = planned.filter((p) => p.detectability === "PAIRED_ONLY");
+  const impossible = planned.filter((p) => p.detectability === "IMPOSSIBLE");
 
   const recommendation =
     decidableAny.length === 0
       ? `nothing is decidable at ${(cfg.mde * 100).toFixed(0)} points against this baseline, record more baseline runs or raise the MDE`
-      : recommendedDesign === 'paired'
+      : recommendedDesign === "paired"
         ? `pair the runs: ${pairedOnly.length}/${m} cases have an unpaired evidence ceiling under the bar, so no candidate budget can decide them` +
           ` (the costs below are priced at two runs an observation, which is what pairing costs)`
         : totals.screenedCostUsd < totals.bestCostUsd
@@ -516,9 +548,7 @@ export function makePlan(
   // The honest cost is the cheapest plan that still decides something. A design
   // that is free because it certifies nothing is not a cheap design.
   const ceilingCost =
-    decidableAny.length === 0
-      ? Infinity
-      : Math.min(totals.screenedCostUsd, totals.bestCostUsd);
+    decidableAny.length === 0 ? Infinity : Math.min(totals.screenedCostUsd, totals.bestCostUsd);
   // The headline is the expected cost; leading with the ceiling over-states the bill.
   // Mirrors the ceiling's structure, the cheapest plan of its kind, so the two
   // numbers are roughly comparable. Comparing an unscreened expected cost
@@ -543,25 +573,32 @@ export function makePlan(
   // pricing a plan the dearer one is not. Until both sides are made to select
   // together, the honest claim is only that neither bounds the other.
   const ceilingNote = !Number.isFinite(ceilingCost)
-    ? ''
+    ? ""
     : ceilingCost >= expectedCost
       ? ` Worst case, every case regressing at once, is $${ceilingCost.toFixed(2)}.`
       : ` A pull request in which every case regressed costs less, $${ceilingCost.toFixed(2)}: ` +
         `the two do not price the same schedule, so neither bounds the other.`;
-  const verdict =
-    !Number.isFinite(expectedCost)
-      ? `undecidable: no design reaches the bar for any case at ${(cfg.mde * 100).toFixed(0)} points with a ${medianTrials(planned)}-run baseline`
-      : expectedCost <= 5
-        ? `affordable: about $${expectedCost.toFixed(2)} per pull request, covering ${coverage}.${ceilingNote}`
-        : expectedCost <= 100
-          ? `viable but not free: about $${expectedCost.toFixed(2)} per pull request covering ${coverage}, worth gating a release on, not every commit.${ceilingNote}`
-          : `not affordable per-PR at $${cfg.costPerRunUsd.toFixed(4)}/run: about $${expectedCost.toFixed(0)} a time for ${coverage}. ` +
-            `Cut the suite, raise the MDE, or gate nightly instead of per-PR.${ceilingNote}`;
+  const verdict = !Number.isFinite(expectedCost)
+    ? `undecidable: no design reaches the bar for any case at ${(cfg.mde * 100).toFixed(0)} points with a ${medianTrials(planned)}-run baseline`
+    : expectedCost <= 5
+      ? `affordable: about $${expectedCost.toFixed(2)} per pull request, covering ${coverage}.${ceilingNote}`
+      : expectedCost <= 100
+        ? `viable but not free: about $${expectedCost.toFixed(2)} per pull request covering ${coverage}, worth gating a release on, not every commit.${ceilingNote}`
+        : `not affordable per-PR at $${cfg.costPerRunUsd.toFixed(4)}/run: about $${expectedCost.toFixed(0)} a time for ${coverage}. ` +
+          `Cut the suite, raise the MDE, or gate nightly instead of per-PR.${ceilingNote}`;
 
   return {
-    config: cfg, cases: planned, totals, undecidable, pairedOnly, impossible,
-    recommendedDesign, recommendation, verdict,
-    expectedCostUsd: expectedCost, ceilingCostUsd: ceilingCost,
+    config: cfg,
+    cases: planned,
+    totals,
+    undecidable,
+    pairedOnly,
+    impossible,
+    recommendedDesign,
+    recommendation,
+    verdict,
+    expectedCostUsd: expectedCost,
+    ceilingCostUsd: ceilingCost,
   };
 }
 
@@ -592,9 +629,9 @@ export function affordabilityGrid(
   cfg: PlanConfig,
   budgetUsd: number,
   caseCounts: number[] = [20, 50, 100, 200],
-  mdes: number[] = [0.1, 0.15, 0.25, 0.35]
+  mdes: number[] = [0.1, 0.15, 0.25, 0.35],
 ): AffordabilityCell[] {
-  requireProbability(baselineRate, 'baselineRate', 'affordabilityGrid');
+  requireProbability(baselineRate, "baselineRate", "affordabilityGrid");
   const out: AffordabilityCell[] = [];
   for (const m of caseCounts) {
     for (const mde of mdes) {
@@ -624,17 +661,23 @@ export function affordabilityGrid(
       const p0 = betaQuantile(1 + s, 1 + baselineTrials - s, cfg.nullQuantile);
       const p1 = Math.max(0.005, p0 - mde);
       const rawN = sprtExpectedN(baselineRate, p0, p1, cfg.alpha, cfg.beta);
-      const perCaseTypical = Number.isFinite(rawN) && rawN > 0
-        ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(rawN)))
-        : cfg.maxTrials;
+      const perCaseTypical =
+        Number.isFinite(rawN) && rawN > 0
+          ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(rawN)))
+          : cfg.maxTrials;
       // Priced for the same design as the ceiling above (`runsPerObs`), or the
       // cell quotes an unpaired price for a plan only pairing can execute.
       const typicalRuns = Math.ceil(
-        (m * cfg.screenRuns + Math.ceil(m * 0.1) * perCaseTypical) * runsPerObs
+        (m * cfg.screenRuns + Math.ceil(m * 0.1) * perCaseTypical) * runsPerObs,
       );
       const typicalCostUsd = typicalRuns * cfg.costPerRunUsd;
       out.push({
-        cases: m, mde, runs, costUsd, typicalRuns, typicalCostUsd,
+        cases: m,
+        mde,
+        runs,
+        costUsd,
+        typicalRuns,
+        typicalCostUsd,
         affordable: costUsd <= budgetUsd,
         typicallyAffordable: typicalCostUsd <= budgetUsd,
       });

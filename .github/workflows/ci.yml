@@ -40,6 +40,19 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
+      # CI never commits, so the pre-commit hook never runs here. This at
+      # least fails on a lefthook.yml that lefthook would not load.
+      - name: Pre-commit hook config
+        run: pnpm exec lefthook validate
+
+      # knip reads src/ through knip.json and never looks at dist/, so it
+      # does not need the build.
+      - name: Unused files, exports and dependencies
+        run: pnpm knip
+
       - name: Typecheck
         run: pnpm typecheck
 
