@@ -82,40 +82,72 @@ jobs:
             echo "::error title=Runtime dependency added::the packed tarball resolves $TREE packages, expected 2"
             exit 1
           fi
+          # npm cannot resolve a `catalog:` specifier, so pnpm must have
+          # replaced every one in the packed manifest.
+          if tar -xzOf "$TARBALL" package/package.json | grep -q '"catalog:'; then
+            echo "::error title=Unresolved catalog::the packed package.json still names a catalog: version"
+            exit 1
+          fi
 
+      # npm, not pnpm, for the registry calls from here on: these are the
+      # steps that only run on a tag, so nothing exercises them before a
+      # release, and npm is the client npm documents trusted publishing for.
+      #
       # Refuse to republish a version that already exists, rather than letting
-      # the registry answer with a 403 that reads like an auth problem.
+      # npm answer with a 403 that reads like an auth problem.
       - name: Version is not already published
         run: |
           set -euo pipefail
           PKG="$(node -p 'require("./package.json").version')"
-          if pnpm view "peeksafe@$PKG" version > /dev/null 2>&1; then
+          if npm view "peeksafe@$PKG" version > /dev/null 2>&1; then
             echo "::error title=Already published::peeksafe@$PKG is already on the registry"
             exit 1
           fi
 
+      # Trusted publishing needs npm 11.5.1 or newer. The npm bundled with the
+      # Node in mise.toml is the one used, so this fails loudly if a Node bump
+      # ever brings an older one.
+      - name: npm new enough for trusted publishing
+        run: |
+          set -euo pipefail
+          npm --version
+          node -e '
+            const [a, b, c] = process.argv[1].split(".").map(Number);
+            if (a < 11 || (a === 11 && (b < 5 || (b === 5 && c < 1)))) process.exit(1);
+          ' "$(npm --version)" || {
+            echo "::error title=npm too old::trusted publishing needs npm 11.5.1 or newer"
+            exit 1
+          }
+
       # Two ways in, on purpose, because they become available in that order.
       #
       # npm cannot configure a trusted publisher for a package that does not
-      # exist yet, so the first release is a manual `pnpm publish` from a laptop.
+      # exist yet, so the first release is a manual `npm publish` from a laptop.
       # After that, npmjs.com → peeksafe → Settings → Trusted Publisher, naming
       # this repository and this workflow file, and CI can publish with no token
       # at all: `id-token: write` above is what it uses.
       #
-      # The `NPM_TOKEN` fallback keeps this workflow working before that switch
-      # is flipped. Remove the secret and the auth line once you have seen a
-      # green release without it, not before.
+      # `NPM_TOKEN` stays as the fallback so this workflow works before that
+      # switch is flipped as well as after. npm prefers OIDC when a trusted
+      # publisher is configured and the token is then unused. Remove it once
+      # you have seen a green release without it, not before.
       #
-      # --no-git-checks because a tag checkout is a detached HEAD, which pnpm
-      # otherwise refuses to publish from.
+      # actions/setup-node used to write the auth line below through its
+      # `registry-url` input. mise-action does not, so the step writes the same
+      # line itself, only when the secret is set.
+      #
+      # It publishes the tarball pnpm packed and the step above checked. Run on
+      # the directory, npm would pack its own and ship `catalog:` specifiers.
       - name: Publish
         run: |
           set -euo pipefail
+          TARBALL="$(ls peeksafe-*.tgz)"
           if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
-            # Literal on purpose: pnpm expands the variable when it reads .npmrc.
+            # Literal on purpose: npm expands the variable when it reads .npmrc,
+            # so the token never reaches the file or the log.
             # shellcheck disable=SC2016
             echo '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' >> "$HOME/.npmrc"
           fi
-          pnpm publish --provenance --access public --no-git-checks
+          npm publish "./$TARBALL" --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
