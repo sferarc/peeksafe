@@ -8,7 +8,7 @@ Each `GateCase` carries `id`, candidate `successes` and `trials`, and an optiona
 
 ## What it does, in order
 
-1. Validates options (`mde` and `fdr` open in `(0, 1)`, a known `evidence`, positive `altConcentration`), refuses duplicate ids with `PEEKSAFE_E_CASE_DUPLICATE`, and checks every count.
+1. Validates options (`mde` and `fdr` open in `(0, 1)`, a known `evidence`, positive `altConcentration`, at most `MAX_ALT_CONCENTRATION` (16) with `bayes`; [[decisions/2026-10-05-alt-concentration-cap]]), refuses duplicate ids with `PEEKSAFE_E_CASE_DUPLICATE`, and checks every count.
 2. Splits cases into gated ones and `newCases`, those with no baseline or a zero-trial baseline. New cases take no part in the verdict or the e-BH family. If nothing is gated it throws `PEEKSAFE_E_BASELINE_MISSING`, because the prototype read a missing baseline as `0/0` and gated against a rate of one half.
 3. Marks a case `impossible` when its baseline rate is at or below `mde` (`cannotDropBy`). Its log e-value is fixed at 0, so it stays in the family without ever being certified. Testing it anyway pushed the false positive rate above `fdr` (#2).
 4. Computes each other case's e-value with the selected statistic ([[evidence-statistics]]). Overflowing values are clamped to `Number.MAX_VALUE` so e-BH keeps the ranking.

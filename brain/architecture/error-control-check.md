@@ -14,7 +14,7 @@ It is exact because the e-value depends on the candidate only through its counts
 
 ## What the tests establish with it
 
-`test/error-control.test.ts` runs it over baselines of 10 to 240 runs, rates 0.05 to 0.99, `mde` 0.05 to 0.3, `alpha` of 0.05 and 1/4000, and horizons up to 600, at the default `altConcentration`. The worst cell is 0.749 of alpha and the test asserts it stays under 0.75. The same file checks improved candidates, pins the one cell outside the defaults where the default statistic exceeds alpha (1.14 times, `altConcentration` 100) and checks it is under alpha at 32, and checks that the two thin-baseline corners the old 0.35 shape floor failed stay under alpha ([[decisions/2026-10-02-alt-shape-floor]]). `test/universal.test.ts` checks the universal statistic stays under alpha in all three.
+`test/error-control.test.ts` runs it over baselines of 10 to 240 runs, rates 0.05 to 0.99, `mde` 0.05 to 0.3, `alpha` of 0.05 and 1/4000, and horizons up to 600, at the default `altConcentration`. The worst cell is 0.749 of alpha and the test asserts it stays under 0.75. The same file checks improved candidates, pins the one cell outside the defaults where the default statistic exceeds alpha (1.14 times, `altConcentration` 100) and checks it is under alpha at 32, pins a cell where 32 is over alpha (1.036 times), checks the cap `MAX_ALT_CONCENTRATION` (16) stays under 0.92 of alpha around `mde` ([[decisions/2026-10-05-alt-concentration-cap]]), and checks that the two thin-baseline corners the old 0.35 shape floor failed stay under alpha ([[decisions/2026-10-02-alt-shape-floor]]). `test/universal.test.ts` checks the universal statistic stays under alpha in all three.
 
 ## `pairedCertifyProbability(options)`
 

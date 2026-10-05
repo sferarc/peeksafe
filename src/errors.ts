@@ -123,6 +123,35 @@ export function requirePositiveConfig(v: number, name: string, where: string): v
   }
 }
 
+/**
+ * The largest `altConcentration` the default statistic accepts at a verdict.
+ *
+ * Its error control is computed rather than proven, and a concentrated
+ * alternative is the one known way it exceeds alpha at a rate inside the
+ * checked range: 1.04 times alpha at 32 (`test/error-control.test.ts`). At 16
+ * the worst checked cell is 0.91 of alpha.
+ */
+export const MAX_ALT_CONCENTRATION = 16;
+
+/**
+ * `altConcentration` for a verdict: finite and positive, and at most
+ * `MAX_ALT_CONCENTRATION` under the default `bayes` statistic. `universal` is
+ * valid at every rate by construction, so it takes any positive value.
+ */
+export function requireAltConcentration(v: number, evidence: string, where: string): void {
+  requirePositiveConfig(v, "altConcentration", where);
+  if (evidence === "bayes" && v > MAX_ALT_CONCENTRATION) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: altConcentration must be at most ${MAX_ALT_CONCENTRATION} with the default statistic, got ${v}`,
+      {
+        detail: { altConcentration: v, max: MAX_ALT_CONCENTRATION, evidence, where },
+        hint: "Use evidence: 'universal' for a more concentrated alternative, or check the rates with typeOneError.",
+      },
+    );
+  }
+}
+
 /** The four cells of a pair table, each a non-negative integer. */
 export function requirePairedCounts(
   p: { bothPass: number; worse: number; better: number; bothFail: number },

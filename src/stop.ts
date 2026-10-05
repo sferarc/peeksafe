@@ -48,10 +48,10 @@
 import type { BaselineStat } from "./baseline.js";
 import {
   PeeksafeError,
+  requireAltConcentration,
   requireCounts,
   requireOpenProbability,
   requirePairedCounts,
-  requirePositiveConfig,
 } from "./errors.js";
 import {
   ceilingLogEvidence,
@@ -186,7 +186,7 @@ export function shouldStop(
   requireOpenProbability(opts.mde, "mde", "shouldStop");
   requireOpenProbability(opts.fdr, "fdr", "shouldStop");
   requireEvidence(opts.evidence, "shouldStop");
-  requirePositiveConfig(opts.altConcentration, "altConcentration", "shouldStop");
+  requireAltConcentration(opts.altConcentration, opts.evidence, "shouldStop");
   if (!Number.isInteger(opts.suiteSize) || opts.suiteSize < 1) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",
