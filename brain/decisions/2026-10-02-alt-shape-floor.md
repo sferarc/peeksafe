@@ -16,7 +16,7 @@ A floor of 0.75 also fixed both corners at a smaller cost at low rates, but 1 is
 
 ## What it does not fix
 
-The third corner, an `altConcentration` of 100 at a rate equal to `mde` (1.14 times alpha), comes from concentration, not from the floor or the clamp. It is under alpha at 32 and over it at 50. The README says to keep `altConcentration` at 32 or below unless checked; capping the option is `ROADMAP.md` territory.
+The third corner, an `altConcentration` of 100 at a rate equal to `mde` (1.14 times alpha), comes from concentration, not from the floor or the clamp. It is under alpha at 32 and over it at 50. The README said to keep `altConcentration` at 32 or below unless checked; 32 turned out to exceed alpha in another cell, and the option is now capped at 16: [[2026-10-05-alt-concentration-cap]].
 
 ## Related
 

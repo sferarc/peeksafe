@@ -13,7 +13,15 @@
  * suite improvement of +87.5 points, measured against nothing at all.
  */
 import { describe, expect, it } from "vitest";
-import { type GateCase, gate, logGamma, makeRand, twoSampleLogE } from "../src/index.js";
+import {
+  type GateCase,
+  gate,
+  logGamma,
+  MAX_ALT_CONCENTRATION,
+  makeRand,
+  shouldStop,
+  twoSampleLogE,
+} from "../src/index.js";
 
 const baselineOf = (id: string, successes: number, trials: number) => ({
   caseId: id,
@@ -103,6 +111,33 @@ describe("the gate refuses rather than inventing", () => {
     expect(() => gate(one, { mde: 1 })).toThrow(/mde/);
     expect(() => gate(one, { fdr: 0 })).toThrow(/fdr/);
     expect(() => gate(one, { altConcentration: 0 })).toThrow(/altConcentration/);
+  });
+
+  it("refuses an altConcentration above the cap under the default statistic, through gate and shouldStop", () => {
+    const one: GateCase[] = [
+      { id: "a", successes: 50, trials: 60, baseline: baselineOf("a", 51, 60) },
+    ];
+    const over = MAX_ALT_CONCENTRATION + 1;
+    const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
+    expect(() => gate(one, { altConcentration: over })).toThrow(config);
+    expect(() =>
+      shouldStop({ successes: 50, trials: 60 }, baselineOf("a", 51, 60), {
+        suiteSize: 1,
+        altConcentration: over,
+      }),
+    ).toThrow(config);
+    expect(gate(one, { altConcentration: MAX_ALT_CONCENTRATION }).options.altConcentration).toBe(
+      MAX_ALT_CONCENTRATION,
+    );
+    // universal is valid at every rate by construction, so the cap does not apply to it.
+    expect(gate(one, { altConcentration: 100, evidence: "universal" }).cases).toHaveLength(1);
+    expect(
+      shouldStop({ successes: 50, trials: 60 }, baselineOf("a", 51, 60), {
+        suiteSize: 1,
+        altConcentration: 100,
+        evidence: "universal",
+      }).reason,
+    ).toBeDefined();
   });
 });
 
