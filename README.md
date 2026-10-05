@@ -47,7 +47,7 @@ Same 20 no-op pull requests, same underlying draws, three ways of analysing them
 
 Every discovery in that table is false, because nothing moved in any of those pull requests.
 
-Two honest notes on those numbers. The fixed-N rate of 9.0% is high because the baseline is only 60 runs and the suite spans rates from 0.55 to 0.99, so baseline noise alone produces false positives even without peeking; that is the second defect above, visible. And these are measurements on one simulated suite, reproducible with `npm test`, not a general result. Run it against your own rates and see what you get.
+Two honest notes on those numbers. The fixed-N rate of 9.0% is high because the baseline is only 60 runs and the suite spans rates from 0.55 to 0.99, so baseline noise alone produces false positives even without peeking; that is the second defect above, visible. And these are measurements on one simulated suite, reproducible with `pnpm test`, not a general result. Run it against your own rates and see what you get.
 
 ## Quick start
 
@@ -433,8 +433,8 @@ Every export is exercised by a test, and `test/exports.test.ts` fails when one i
 ## Reproducing the numbers
 
 ```bash
-npm install
-npm test
+pnpm install
+pnpm test
 ```
 
 `test/paper.test.ts` produces the measured figures in this README and prints them. It is self-contained: seeded Bernoulli draws, no runner, no fixtures.

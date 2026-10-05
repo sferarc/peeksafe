@@ -19,44 +19,59 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['22', '24']
+        # 26 is the toolchain in mise.toml. 22 and 24 are the older lines that
+        # `engines` still promises, so the library is tested on them too.
+        node: ['22', '24', '26']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
 
-      - run: npm ci
+      # Earlier on PATH than the locked Node, so tsc and vitest run on the
+      # matrix version. pnpm is a native binary and does not care.
+      - name: Use Node ${{ matrix.node }}
+        if: matrix.node != '26'
+        run: |
+          set -euo pipefail
+          mise install "node@${{ matrix.node }}"
+          echo "$(mise where "node@${{ matrix.node }}")/bin" >> "$GITHUB_PATH"
+
+      - run: node --version
+
+      - run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm typecheck
 
       - name: Test
-        run: npm test
+        run: pnpm test
 
       - name: Build
-        run: npm run build
+        run: pnpm build
 
       # The published package must have no runtime dependencies. Checking
       # package.json is not enough: a transitive dependency can arrive through a
       # bundled file or a postinstall. Pack it, install it somewhere clean, and
-      # ask npm what it resolved.
+      # ask pnpm what it resolved.
       - name: No runtime dependencies
         run: |
           set -euo pipefail
-          npm pack
+          pnpm pack
           TARBALL="$(ls peeksafe-*.tgz)"
           WORK="$(mktemp -d)"
-          cd "$WORK"
-          npm init -y > /dev/null
-          npm install "$GITHUB_WORKSPACE/$TARBALL" --silent
-          TREE="$(npm ls --omit=dev --all --parseable | wc -l)"
-          npm ls --omit=dev --all
+          pnpm --dir "$WORK" init > /dev/null
+          pnpm --dir "$WORK" add "$GITHUB_WORKSPACE/$TARBALL" --silent
+          TREE="$(pnpm --dir "$WORK" ls --prod --depth Infinity --parseable | wc -l)"
+          pnpm --dir "$WORK" ls --prod --depth Infinity
           # Two lines: the scratch project itself, and peeksafe. Anything more is
           # a runtime dependency that should not be there.
           if [ "$TREE" -ne 2 ]; then
             echo "::error title=Runtime dependency added::the packed tarball resolves $TREE packages, expected 2"
+            exit 1
+          fi
+          # npm cannot resolve a `catalog:` specifier, so pnpm must have
+          # replaced every one in the packed manifest.
+          if tar -xzOf "$TARBALL" package/package.json | grep -q '"catalog:'; then
+            echo "::error title=Unresolved catalog::the packed package.json still names a catalog: version"
             exit 1
           fi

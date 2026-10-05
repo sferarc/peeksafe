@@ -264,7 +264,7 @@ Three sentences, all narrowing:
 What did **not** change: every number. The 4.6× per-case inflation, the 13-against-0 false
 discoveries, the ceiling ladder, the `log(m/q) / KL` planning rule against its exact answer, and the
 frontier cells. Prior art does not touch a measurement, and `test/paper.test.ts` still reproduces all
-of them from seeded draws with `npm test`.
+of them from seeded draws with `pnpm test`.
 
 ## Standing invitation
 
