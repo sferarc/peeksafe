@@ -152,6 +152,30 @@ export function requireAltConcentration(v: number, evidence: string, where: stri
   }
 }
 
+/**
+ * The error rates of the sequential test a planner prices: each strictly
+ * between 0 and 1, and summing to less than 1.
+ *
+ * At `alpha + beta >= 1` Wald's walls meet or cross, so the test decides
+ * before it has seen a run. `sprtExpectedN` answers a small positive number
+ * there, and a plan at `alpha: 0.6, beta: 0.5` priced every case at
+ * `minTrials` with nothing to say the design had no error control left.
+ */
+export function requireErrorRates(alpha: number, beta: number, where: string): void {
+  requireOpenProbability(alpha, "alpha", where);
+  requireOpenProbability(beta, "beta", where);
+  if (alpha + beta >= 1) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: alpha + beta must be under 1, got ${alpha} + ${beta}`,
+      {
+        detail: { alpha, beta, where },
+        hint: "a test with alpha + beta >= 1 does no better than ignoring the data",
+      },
+    );
+  }
+}
+
 /** The four cells of a pair table, each a non-negative integer. */
 export function requirePairedCounts(
   p: { bothPass: number; worse: number; better: number; bothFail: number },

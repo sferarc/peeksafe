@@ -57,7 +57,12 @@
  * screened plan is unknown rather than low.
  */
 
-import { PeeksafeError, requireOpenProbability, requireProbability } from "./errors.js";
+import {
+  PeeksafeError,
+  requireErrorRates,
+  requireOpenProbability,
+  requireProbability,
+} from "./errors.js";
 import { DEFAULT_PLAN } from "./plan.js";
 import {
   betaQuantile,
@@ -321,8 +326,7 @@ export function evaluatePoint(
   // in `sprtExpectedN`, which answers NaN or Infinity outside (0,1), and
   // `typicalObservationsPerCase` reads either as "cannot price this" and falls
   // back to the run ceiling.
-  requireOpenProbability(cfg.alpha, "alpha", "evaluatePoint");
-  requireOpenProbability(cfg.beta, "beta", "evaluatePoint");
+  requireErrorRates(cfg.alpha, cfg.beta, "evaluatePoint");
   requireProbability(cfg.pairCoupling, "pairCoupling", "evaluatePoint");
   if (!Number.isInteger(cases) || cases < 1) {
     throw new PeeksafeError(

@@ -27,6 +27,9 @@ Each `PlanCase` also carries `design`, the design to run it with: of unpaired an
 - `sprtExpectedN` also returned `NaN` for `alpha + beta === 1`, which is inside the domain the guards above enforce. Both walls then sit at a log likelihood ratio of 0, so Wald's operating characteristic is a genuine `0/0`. The answer is 0 runs, which is what the neighbouring configurations converge to, and it is returned directly now. Only the pairs where both logs round to exactly 0 were affected, which `test/stats.test.ts` lists. A 0 still trips the callers' fallback to `maxTrials`, which is the right conservative answer for a test that decides before it has seen anything, and it now does so on a number rather than on a `NaN`.
 - `affordabilityGrid` validated `baselineRate` and not `baselineTrials`, so a grid at zero baseline runs was priced against a Beta(1, 1) null and came back `affordable: true`, cheaper than the same grid on a real baseline. It now refuses a `baselineTrials` that is not a positive integer, as `planCase` and `evaluatePoint` already did. `test/budget.test.ts` pins the refusal and the figures.
 
+- Error rates that sum to 1 or more were accepted. Wald's walls meet or cross there, so `sprtExpectedN` answers a small positive number (0.33 at `alpha` 0.6, `beta` 0.5) and the plan priced every case at `minTrials`. `makePlan`, `affordabilityGrid` and `evaluatePoint` now refuse `alpha + beta >= 1` through `requireErrorRates` in `src/errors.ts`, so the `alpha + beta === 1` fallback to `maxTrials` described above is no longer reachable from the planner. Raised in the review of #45 and recorded in #47.
+- `fixedNPerArm` called `sampleSizeTwoProportion` without the plan's `alpha` and `beta`, so the fixed-N comparator ignored them. Same source.
+
 Everything here evaluates the mean trajectory. Realised counts vary around it.
 
 ## Related

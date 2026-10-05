@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- `makePlan`, `affordabilityGrid` and `computeFrontier` accepted error rates with
+  `alpha + beta >= 1`, where the sequential test decides before it sees a run, and priced every
+  case at `minTrials`. They now refuse them with `PEEKSAFE_E_CONFIG`.
+- `PlanCase.fixedNPerArm` ignored the plan's `alpha` and `beta` and always priced the fixed-N
+  comparator at 0.05 and 0.1. It now uses the plan's own error rates; the defaults are unchanged.
+
 ### Added
 
 - `PlanCase.design`: the design to run each case with, the one of unpaired and paired that

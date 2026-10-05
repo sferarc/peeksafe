@@ -110,6 +110,43 @@ describe("the planner answers before anything is spent", () => {
     expect(plan.totals.typicalRuns).toBeLessThan(cases.length * DEFAULT_PLAN.maxTrials);
   });
 
+  it("refuses error rates that sum to 1 or more, through every planner door", () => {
+    // Wald's walls meet or cross there, so the test decides before it sees a run.
+    // At 0.6 and 0.5 `sprtExpectedN` answered 0.33 and the plan priced every case
+    // at minTrials, with nothing to say the design had no error control left.
+    const { cases, baseline } = suite(4, 0.85, 240);
+    const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
+    for (const [alpha, beta] of [
+      [0.6, 0.5],
+      [0.5, 0.5],
+      [0.9, 0.9],
+    ] as const) {
+      const cfg = { ...DEFAULT_PLAN, alpha, beta };
+      expect(() => makePlan(cases, baseline, cfg), `${alpha}+${beta}`).toThrow(config);
+      expect(() => affordabilityGrid(0.85, 240, cfg, 10), `${alpha}+${beta}`).toThrow(config);
+      expect(
+        () => computeFrontier({ ...DEFAULT_FRONTIER, alpha, beta }),
+        `${alpha}+${beta}`,
+      ).toThrow(config);
+    }
+    expect(
+      makePlan(cases, baseline, { ...DEFAULT_PLAN, alpha: 0.45, beta: 0.5 }).cases,
+    ).toHaveLength(4);
+  });
+
+  it("prices the fixed-N comparator at the plan's own error rates", () => {
+    const at = (alpha: number, beta: number) =>
+      planCase(
+        { id: "a" },
+        { caseId: "a", successes: 204, trials: 240 },
+        { ...DEFAULT_PLAN, alpha, beta },
+        4,
+      ).fixedNPerArm;
+    expect(at(DEFAULT_PLAN.alpha, DEFAULT_PLAN.beta)).toBe(sampleSizeTwoProportion(0.85, 0.15));
+    expect(at(0.01, 0.2)).toBe(sampleSizeTwoProportion(0.85, 0.15, 0.01, 0.2));
+    expect(at(0.01, 0.2)).not.toBe(at(DEFAULT_PLAN.alpha, DEFAULT_PLAN.beta));
+  });
+
   it("prices a paired screening run at two runs, the same as any other paired observation", () => {
     // `screenRuns` is a count of observations, and under the paired design an
     // observation is two runs. The expected total already reads it that way, so
