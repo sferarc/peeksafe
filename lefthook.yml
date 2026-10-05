@@ -1,0 +1,7 @@
+# Formats and lints staged files the way CI checks them. pnpm install sets up
+# the hook; `pnpm exec lefthook install` does it by hand.
+pre-commit:
+  jobs:
+    - name: biome
+      glob: "*.{ts,mjs,json}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched {staged_files} && git add {staged_files}

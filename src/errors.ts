@@ -8,13 +8,13 @@
 
 export type PeeksafeErrorCode =
   /* input the user handed us */
-  | 'PEEKSAFE_E_CONFIG'
-  | 'PEEKSAFE_E_CASE_DUPLICATE'
-  | 'PEEKSAFE_E_SUITE_EMPTY'
+  | "PEEKSAFE_E_CONFIG"
+  | "PEEKSAFE_E_CASE_DUPLICATE"
+  | "PEEKSAFE_E_SUITE_EMPTY"
   /* the baseline */
-  | 'PEEKSAFE_E_BASELINE_MISSING'
+  | "PEEKSAFE_E_BASELINE_MISSING"
   /* statistics that were asked something impossible */
-  | 'PEEKSAFE_E_STAT_DOMAIN';
+  | "PEEKSAFE_E_STAT_DOMAIN";
 
 export interface PeeksafeErrorOptions {
   detail?: Record<string, unknown>;
@@ -30,14 +30,20 @@ export class PeeksafeError extends Error {
 
   constructor(code: PeeksafeErrorCode, message: string, opts: PeeksafeErrorOptions = {}) {
     super(message, opts.cause !== undefined ? { cause: opts.cause } : undefined);
-    this.name = 'PeeksafeError';
+    this.name = "PeeksafeError";
     this.code = code;
     this.detail = opts.detail ?? {};
     this.hint = opts.hint;
   }
 
   /** Stable JSON shape, for logs and CI artifacts. */
-  toJSON(): { name: string; code: string; message: string; hint?: string; detail: Record<string, unknown> } {
+  toJSON(): {
+    name: string;
+    code: string;
+    message: string;
+    hint?: string;
+    detail: Record<string, unknown>;
+  } {
     return {
       name: this.name,
       code: this.code,
@@ -59,20 +65,20 @@ export class PeeksafeError extends Error {
  */
 export function requireCounts(successes: number, trials: number, where: string): void {
   if (!Number.isFinite(successes) || !Number.isFinite(trials)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: counts must be finite`, {
+    throw new PeeksafeError("PEEKSAFE_E_STAT_DOMAIN", `${where}: counts must be finite`, {
       detail: { successes, trials, where },
     });
   }
   if (!Number.isInteger(successes) || !Number.isInteger(trials)) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: counts must be integers`, {
+    throw new PeeksafeError("PEEKSAFE_E_STAT_DOMAIN", `${where}: counts must be integers`, {
       detail: { successes, trials, where },
     });
   }
   if (trials < 0 || successes < 0 || successes > trials) {
     throw new PeeksafeError(
-      'PEEKSAFE_E_STAT_DOMAIN',
+      "PEEKSAFE_E_STAT_DOMAIN",
       `${where}: need 0 ≤ successes ≤ trials, got ${successes}/${trials}`,
-      { detail: { successes, trials, where } }
+      { detail: { successes, trials, where } },
     );
   }
 }
@@ -86,9 +92,13 @@ export function requireCounts(successes: number, trials: number, where: string):
  */
 export function requireOpenProbability(p: number, name: string, where: string): void {
   if (!Number.isFinite(p) || p <= 0 || p >= 1) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: ${name} must be strictly between 0 and 1, got ${p}`, {
-      detail: { [name]: p, where },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: ${name} must be strictly between 0 and 1, got ${p}`,
+      {
+        detail: { [name]: p, where },
+      },
+    );
   }
 }
 
@@ -103,31 +113,43 @@ export function requireOpenProbability(p: number, name: string, where: string): 
  */
 export function requirePositiveConfig(v: number, name: string, where: string): void {
   if (!Number.isFinite(v) || v <= 0) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `${where}: ${name} must be finite and positive, got ${v}`, {
-      detail: { [name]: v, where },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: ${name} must be finite and positive, got ${v}`,
+      {
+        detail: { [name]: v, where },
+      },
+    );
   }
 }
 
 /** The four cells of a pair table, each a non-negative integer. */
 export function requirePairedCounts(
   p: { bothPass: number; worse: number; better: number; bothFail: number },
-  where: string
+  where: string,
 ): void {
-  for (const name of ['bothPass', 'worse', 'better', 'bothFail'] as const) {
+  for (const name of ["bothPass", "worse", "better", "bothFail"] as const) {
     const v = p[name];
     if (!Number.isInteger(v) || v < 0) {
-      throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: ${name} must be a non-negative integer, got ${v}`, {
-        detail: { [name]: v, where },
-      });
+      throw new PeeksafeError(
+        "PEEKSAFE_E_STAT_DOMAIN",
+        `${where}: ${name} must be a non-negative integer, got ${v}`,
+        {
+          detail: { [name]: v, where },
+        },
+      );
     }
   }
 }
 
 export function requireProbability(p: number, name: string, where: string): void {
   if (!Number.isFinite(p) || p < 0 || p > 1) {
-    throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `${where}: ${name} must be in [0,1], got ${p}`, {
-      detail: { [name]: p, where },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: ${name} must be in [0,1], got ${p}`,
+      {
+        detail: { [name]: p, where },
+      },
+    );
   }
 }

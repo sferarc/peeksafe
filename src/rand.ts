@@ -20,7 +20,7 @@
  * It is not a fine thing to do by accident, which is why the constants are
  * spelled out here rather than imported.
  */
-import { PeeksafeError } from './errors.js';
+import { PeeksafeError } from "./errors.js";
 
 export interface Rand {
   (): number;
@@ -75,7 +75,7 @@ export function hash32(s: string): number {
 }
 
 export function makeRand(seed: number | string): Rand {
-  const s = typeof seed === 'string' ? hash32(seed) : seed >>> 0;
+  const s = typeof seed === "string" ? hash32(seed) : seed >>> 0;
   const base = lcg(s === 0 ? 1 : s);
   const next = (() => mix32(Math.floor(base() * 0x100000000)) / 0x100000000) as Rand;
 
@@ -83,9 +83,13 @@ export function makeRand(seed: number | string): Rand {
 
   next.int = (n: number) => {
     if (!Number.isInteger(n) || n < 1) {
-      throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', `rand.int: n must be a positive integer, got ${n}`, {
-        detail: { n },
-      });
+      throw new PeeksafeError(
+        "PEEKSAFE_E_STAT_DOMAIN",
+        `rand.int: n must be a positive integer, got ${n}`,
+        {
+          detail: { n },
+        },
+      );
     }
     return Math.floor(next() * n) % n;
   };
@@ -93,9 +97,12 @@ export function makeRand(seed: number | string): Rand {
   // Typed `T`, so it must never hand back `undefined`. Returning `xs[0]` for an
   // empty array is `undefined` wearing a `T`, which is how a fail-open bug gets
   // past the type checker.
-  next.pick = <T,>(xs: readonly T[]): T => {
+  next.pick = <T>(xs: readonly T[]): T => {
     if (xs.length === 0) {
-      throw new PeeksafeError('PEEKSAFE_E_STAT_DOMAIN', 'rand.pick: cannot pick from an empty array');
+      throw new PeeksafeError(
+        "PEEKSAFE_E_STAT_DOMAIN",
+        "rand.pick: cannot pick from an empty array",
+      );
     }
     return xs[next.int(xs.length)]!;
   };
@@ -110,4 +117,5 @@ export function makeRand(seed: number | string): Rand {
 }
 
 /** A stream keyed by name, reproducible regardless of call order elsewhere. */
-export const streamFor = (...parts: Array<string | number>): Rand => makeRand(hash32(parts.join('|')));
+export const streamFor = (...parts: Array<string | number>): Rand =>
+  makeRand(hash32(parts.join("|")));

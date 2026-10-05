@@ -5,25 +5,40 @@
  * number is worse than one that sometimes says "no budget does this", because
  * the number gets put in a spreadsheet and the impossibility does not.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from "vitest";
 import {
-  makePlan, planCase, DEFAULT_PLAN, affordabilityGrid,
-  computeFrontier, DEFAULT_FRONTIER, typicalObservationsPerCase,
-  toBaselineMap, sampleSizeTwoProportion,
-  evidenceCeilingLogE, ebhSoloThreshold,
-  type CaseRef, type BaselineStat,
-} from '../src/index.js';
+  affordabilityGrid,
+  type BaselineStat,
+  type CaseRef,
+  computeFrontier,
+  DEFAULT_FRONTIER,
+  DEFAULT_PLAN,
+  ebhSoloThreshold,
+  evidenceCeilingLogE,
+  makePlan,
+  planCase,
+  sampleSizeTwoProportion,
+  toBaselineMap,
+  typicalObservationsPerCase,
+} from "../src/index.js";
 
-const suite = (m: number, rate: number, nb: number): { cases: CaseRef[]; baseline: Map<string, BaselineStat> } => {
-  const cases: CaseRef[] = Array.from({ length: m }, (_, i) => ({ id: `c${i}`, suite: `file${i % 8}` }));
+const suite = (
+  m: number,
+  rate: number,
+  nb: number,
+): { cases: CaseRef[]; baseline: Map<string, BaselineStat> } => {
+  const cases: CaseRef[] = Array.from({ length: m }, (_, i) => ({
+    id: `c${i}`,
+    suite: `file${i % 8}`,
+  }));
   const baseline = toBaselineMap(
-    cases.map((c) => ({ caseId: c.id, successes: Math.round(rate * nb), trials: nb }))
+    cases.map((c) => ({ caseId: c.id, successes: Math.round(rate * nb), trials: nb })),
   );
   return { cases, baseline };
 };
 
-describe('the planner answers before anything is spent', () => {
-  it('prices a suite and totals it', () => {
+describe("the planner answers before anything is spent", () => {
+  it("prices a suite and totals it", () => {
     const { cases, baseline } = suite(50, 0.85, 240);
     const plan = makePlan(cases, baseline, DEFAULT_PLAN);
     expect(plan.cases).toHaveLength(50);
@@ -32,35 +47,45 @@ describe('the planner answers before anything is spent', () => {
     expect(plan.totals.cases).toBe(50);
   });
 
-  it('says IMPOSSIBLE for an effect larger than the rate, rather than quoting a budget', () => {
+  it("says IMPOSSIBLE for an effect larger than the rate, rather than quoting a budget", () => {
     // A case that passes 10% of the time cannot lose 15 points. The prototype
     // clamped the alternative rate away from zero and answered "44 runs".
     expect(sampleSizeTwoProportion(0.1, 0.15)).toBe(Infinity);
     const { cases, baseline } = suite(4, 0.1, 240);
     const plan = makePlan(cases, baseline, { ...DEFAULT_PLAN, mde: 0.15 });
-    expect(plan.cases.every((c) => c.detectability === 'IMPOSSIBLE')).toBe(true);
+    expect(plan.cases.every((c) => c.detectability === "IMPOSSIBLE")).toBe(true);
   });
 
   it('distinguishes "expensive" from "no candidate budget will do"', () => {
     // A short baseline caps the unpaired evidence below the bar, so the answer
     // is more baseline runs, not more candidate runs.
-    const short = planCase({ id: 'a', suite: 's' }, { caseId: 'a', successes: 20, trials: 24 }, DEFAULT_PLAN, 200);
-    const long = planCase({ id: 'a', suite: 's' }, { caseId: 'a', successes: 816, trials: 960 }, DEFAULT_PLAN, 200);
+    const short = planCase(
+      { id: "a", suite: "s" },
+      { caseId: "a", successes: 20, trials: 24 },
+      DEFAULT_PLAN,
+      200,
+    );
+    const long = planCase(
+      { id: "a", suite: "s" },
+      { caseId: "a", successes: 816, trials: 960 },
+      DEFAULT_PLAN,
+      200,
+    );
     expect(short.ceilingLogE).toBeLessThan(long.ceilingLogE);
     expect(short.baselineRunsNeeded === null || short.baselineRunsNeeded > 24).toBe(true);
   });
 
-  it('refuses a zero MDE or a zero FDR rather than planning a suite nothing can decide', () => {
+  it("refuses a zero MDE or a zero FDR rather than planning a suite nothing can decide", () => {
     const { cases, baseline } = suite(4, 0.85, 240);
     expect(() => makePlan(cases, baseline, { ...DEFAULT_PLAN, mde: 0 })).toThrow(/mde/);
     expect(() => makePlan(cases, baseline, { ...DEFAULT_PLAN, fdr: 0 })).toThrow(/fdr/);
   });
 
-  it('refuses an empty suite', () => {
+  it("refuses an empty suite", () => {
     expect(() => makePlan([], new Map(), DEFAULT_PLAN)).toThrow();
   });
 
-  it('refuses an out-of-range alpha or beta rather than quoting every case at the cap', () => {
+  it("refuses an out-of-range alpha or beta rather than quoting every case at the cap", () => {
     // `sprtExpectedN` answers NaN or Infinity for an error rate outside (0,1),
     // and both of its callers here gate on `Number.isFinite(raw) && raw > 0`
     // and quote `maxTrials` when that fails. Both answers fail it, so the plan
@@ -69,8 +94,14 @@ describe('the planner answers before anything is spent', () => {
     // needs the cap.
     const { cases, baseline } = suite(4, 0.85, 240);
     for (const bad of [0, 1, -1, 2, NaN, Infinity]) {
-      expect(() => makePlan(cases, baseline, { ...DEFAULT_PLAN, alpha: bad }), `alpha=${bad}`).toThrow(/alpha/);
-      expect(() => makePlan(cases, baseline, { ...DEFAULT_PLAN, beta: bad }), `beta=${bad}`).toThrow(/beta/);
+      expect(
+        () => makePlan(cases, baseline, { ...DEFAULT_PLAN, alpha: bad }),
+        `alpha=${bad}`,
+      ).toThrow(/alpha/);
+      expect(
+        () => makePlan(cases, baseline, { ...DEFAULT_PLAN, beta: bad }),
+        `beta=${bad}`,
+      ).toThrow(/beta/);
     }
     // The fallback is a materially different answer and not a rounding one:
     // at the defaults these cases price well under the cap.
@@ -78,20 +109,21 @@ describe('the planner answers before anything is spent', () => {
     expect(plan.totals.typicalRuns).toBeLessThan(cases.length * DEFAULT_PLAN.maxTrials);
   });
 
-  it('prices a paired screening run at two runs, the same as any other paired observation', () => {
+  it("prices a paired screening run at two runs, the same as any other paired observation", () => {
     // `screenRuns` is a count of observations, and under the paired design an
     // observation is two runs. The expected total already reads it that way, so
     // a screened total that reads it as one run prices a screening pass nobody
     // is going to run, and the two totals in the same object disagree.
     const { cases, baseline } = suite(200, 2 / 12, 12);
     const plan = makePlan(cases, baseline, DEFAULT_PLAN);
-    expect(plan.recommendedDesign).toBe('paired');
-    const followUp = Math.ceil(plan.totals.decidableBest * plan.totals.screenContinueFraction)
-      * (plan.totals.bestRuns / plan.totals.decidableBest);
+    expect(plan.recommendedDesign).toBe("paired");
+    const followUp =
+      Math.ceil(plan.totals.decidableBest * plan.totals.screenContinueFraction) *
+      (plan.totals.bestRuns / plan.totals.decidableBest);
     expect(plan.totals.screenedRuns - followUp).toBeCloseTo(200 * DEFAULT_PLAN.screenRuns * 2, -1);
   });
 
-  it('prices a paired screening run at two runs in the affordability grid too', () => {
+  it("prices a paired screening run at two runs in the affordability grid too", () => {
     // `affordabilityGrid` has its own pair of totals, and `runs` priced the
     // screening pass at one run an observation while `typicalRuns`, seventeen
     // lines below it, priced the same pass at two. So the grid understated a
@@ -103,7 +135,8 @@ describe('the planner answers before anything is spent', () => {
     // Nothing else in a cell depends on `screenRuns`, so running the grid at
     // two adjacent values isolates what each total charges for one screening
     // observation, without this test having to know which design a cell picked.
-    const at = (screenRuns: number) => affordabilityGrid(0.85, 240, { ...DEFAULT_PLAN, screenRuns }, 500);
+    const at = (screenRuns: number) =>
+      affordabilityGrid(0.85, 240, { ...DEFAULT_PLAN, screenRuns }, 500);
     const cheaper = at(4);
     const dearer = new Map(at(5).map((c) => [`${c.cases}:${c.mde}`, c] as const));
     let pairedCells = 0;
@@ -121,7 +154,7 @@ describe('the planner answers before anything is spent', () => {
     expect(pairedCells).toBeGreaterThan(0);
   });
 
-  it('never quotes a worst case below the expected cost it states in the same breath', () => {
+  it("never quotes a worst case below the expected cost it states in the same breath", () => {
     // A plan that says "about $11.42 per pull request. Worst case ... is $9.16"
     // is wrong on its face, and an operator sets a budget from the smaller
     // number. The all-regressed cost is genuinely not an upper bound: the
@@ -140,7 +173,7 @@ describe('the planner answers before anything is spent', () => {
           quoted++;
           expect(
             Number(claim[1]),
-            `m=${m} nb=${nb} rate=${r}: ${plan.verdict}`
+            `m=${m} nb=${nb} rate=${r}: ${plan.verdict}`,
           ).toBeGreaterThanOrEqual(Number(plan.expectedCostUsd.toFixed(2)));
         }
       }
@@ -150,13 +183,13 @@ describe('the planner answers before anything is spent', () => {
     expect(quoted).toBeGreaterThan(0);
   });
 
-  it('grids affordability over suite size and effect', () => {
+  it("grids affordability over suite size and effect", () => {
     const grid = affordabilityGrid(0.85, 240, DEFAULT_PLAN, 500);
     expect(grid.length).toBeGreaterThan(0);
     for (const cell of grid) expect(Number.isFinite(cell.mde)).toBe(true);
   });
 
-  it('refuses to grid a suite with no baseline rather than pricing it against Beta(1, 1)', () => {
+  it("refuses to grid a suite with no baseline rather than pricing it against Beta(1, 1)", () => {
     // `affordabilityGrid` checked `baselineRate` and nothing else, so
     // `baselineTrials: 0` reached `twoSamplePriors` as 0 successes in 0 trials.
     // Its null prior is then Beta(1, 1), and the grid priced the whole suite
@@ -169,43 +202,53 @@ describe('the planner answers before anything is spent', () => {
     // on a *cheaper* typical bill than the same call at a real 60-run baseline
     // (196 runs against 288): the cheapest row on the page was the one with no
     // baseline behind it at all.
-    expect(() => affordabilityGrid(0.85, 0, DEFAULT_PLAN, 5, [20], [0.15])).toThrow(/baselineTrials/);
+    expect(() => affordabilityGrid(0.85, 0, DEFAULT_PLAN, 5, [20], [0.15])).toThrow(
+      /baselineTrials/,
+    );
     // A negative or fractional count did reach a refusal, but three frames down
     // in `requireCounts`, which reported a success count the caller never
     // passed: "need 0 ≤ successes ≤ trials, got -8/-10".
-    expect(() => affordabilityGrid(0.85, -10, DEFAULT_PLAN, 5, [20], [0.15])).toThrow(/baselineTrials/);
-    expect(() => affordabilityGrid(0.85, 60.5, DEFAULT_PLAN, 5, [20], [0.15])).toThrow(/baselineTrials/);
+    expect(() => affordabilityGrid(0.85, -10, DEFAULT_PLAN, 5, [20], [0.15])).toThrow(
+      /baselineTrials/,
+    );
+    expect(() => affordabilityGrid(0.85, 60.5, DEFAULT_PLAN, 5, [20], [0.15])).toThrow(
+      /baselineTrials/,
+    );
     // A recorded baseline still prices, so the guard refuses the missing
     // baseline and not the grid.
     expect(affordabilityGrid(0.85, 60, DEFAULT_PLAN, 5, [20], [0.15])).toHaveLength(1);
   });
 });
 
-describe('the frontier', () => {
-  it('computes a set of points and marks which are affordable', () => {
+describe("the frontier", () => {
+  it("computes a set of points and marks which are affordable", () => {
     const res = computeFrontier(DEFAULT_FRONTIER);
     expect(res.points.length).toBeGreaterThan(0);
     // Every recommendable point must also be feasible; the reverse need not hold.
     for (const p of res.points) if (p.recommendable) expect(p.feasible).toBe(true);
   });
 
-  it('reports observations per case as a positive number', () => {
+  it("reports observations per case as a positive number", () => {
     expect(typicalObservationsPerCase(0.85, 0.15, DEFAULT_FRONTIER, 240)).toBeGreaterThan(0);
   });
 
-  it('refuses an out-of-range alpha or beta, the same as makePlan', () => {
+  it("refuses an out-of-range alpha or beta, the same as makePlan", () => {
     // `evaluatePoint` checks mde, baselineRate, pairCoupling, cases,
     // baselineRuns and maxTrials, and skipped the two error rates it hands to
     // `sprtExpectedN`. The same options object was therefore a refusal through
     // one planner door and a priced frontier through the other.
     for (const bad of [0, 1, -1, 2, NaN, Infinity]) {
-      expect(() => computeFrontier({ ...DEFAULT_FRONTIER, alpha: bad }), `alpha=${bad}`).toThrow(/alpha/);
-      expect(() => computeFrontier({ ...DEFAULT_FRONTIER, beta: bad }), `beta=${bad}`).toThrow(/beta/);
+      expect(() => computeFrontier({ ...DEFAULT_FRONTIER, alpha: bad }), `alpha=${bad}`).toThrow(
+        /alpha/,
+      );
+      expect(() => computeFrontier({ ...DEFAULT_FRONTIER, beta: bad }), `beta=${bad}`).toThrow(
+        /beta/,
+      );
     }
   });
 });
 
-describe('baselineRunsNeeded is the smallest baseline that clears the bar', () => {
+describe("baselineRunsNeeded is the smallest baseline that clears the bar", () => {
   // The evidence ceiling is not monotone in the baseline size, because forcing
   // an integer success count makes the implied rate jitter around the real one.
   // So the answer has to be scanned for. A bisection returns whichever crossing
@@ -220,16 +263,17 @@ describe('baselineRunsNeeded is the smallest baseline that clears the bar', () =
   };
 
   const needed = (successes: number, trials: number, mde: number, m: number): number | null =>
-    planCase({ id: 'a' }, { caseId: 'a', successes, trials }, { ...DEFAULT_PLAN, mde }, m).baselineRunsNeeded;
+    planCase({ id: "a" }, { caseId: "a", successes, trials }, { ...DEFAULT_PLAN, mde }, m)
+      .baselineRunsNeeded;
 
-  it('answers a baseline under 5 runs when that is enough', () => {
+  it("answers a baseline under 5 runs when that is enough", () => {
     // The doubling search started at 8 and then bisected (4, 8], so no case
     // could ever be told it needed fewer than 5 baseline runs. This one needs 3.
     expect(firstClearing(0.5, 0.4, 1)).toBe(3);
     expect(needed(1, 2, 0.4, 1)).toBe(3);
   });
 
-  it('agrees with a scan over a grid of baselines and effects', () => {
+  it("agrees with a scan over a grid of baselines and effects", () => {
     for (const m of [1, 4, 20, 200]) {
       for (const rate of [0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 0.99]) {
         for (const mde of [0.05, 0.1, 0.15, 0.2]) {
@@ -245,7 +289,7 @@ describe('baselineRunsNeeded is the smallest baseline that clears the bar', () =
     }
   });
 
-  it('never answers past the 100k baseline the search is allowed to reach', () => {
+  it("never answers past the 100k baseline the search is allowed to reach", () => {
     // Doubling ran `while (hi <= cap)` and so stepped to 131072 with a cap of
     // 100000, then bisected inside a bracket that started above the cap. This
     // case was answered 126037: a baseline size the search never established.

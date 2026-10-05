@@ -44,35 +44,55 @@
  * is `makePlan`'s job, and `PlanCase.baselineRunsNeeded` tells you what to do
  * about it. This is the safety net, not the plan.
  */
-import { ebhSoloThreshold, wilsonInterval, normalQuantile, pairedLogE, discordant, type PairedCounts } from './stats.js';
-import { logEvidence, ceilingLogEvidence, requireEvidence, toEvalue, type Evidence } from './evidence.js';
-import { type BaselineStat } from './baseline.js';
-import { PeeksafeError, requireCounts, requireOpenProbability, requirePairedCounts, requirePositiveConfig } from './errors.js';
-import { DEFAULT_GATE_OPTIONS, cannotDropBy } from './gate.js';
+
+import type { BaselineStat } from "./baseline.js";
+import {
+  PeeksafeError,
+  requireCounts,
+  requireOpenProbability,
+  requirePairedCounts,
+  requirePositiveConfig,
+} from "./errors.js";
+import {
+  ceilingLogEvidence,
+  type Evidence,
+  logEvidence,
+  requireEvidence,
+  toEvalue,
+} from "./evidence.js";
+import { cannotDropBy, DEFAULT_GATE_OPTIONS } from "./gate.js";
+import {
+  discordant,
+  ebhSoloThreshold,
+  normalQuantile,
+  type PairedCounts,
+  pairedLogE,
+  wilsonInterval,
+} from "./stats.js";
 
 export type StopReason =
   /** certified on its own evidence: the e-value cleared `m / fdr` */
-  | 'regressed'
+  | "regressed"
   /**
    * The case is not regressing hard enough to ever be certified, and the data
    * is now good enough to say so. Good news, and an early exit for a healthy
    * case, which an e-value alone cannot give you.
    */
-  | 'settled'
+  | "settled"
   /**
    * The baseline is too thin to certify an `mde`-sized drop at any candidate
    * budget. Nothing about this run can fix that; more baseline runs can.
    */
-  | 'futile'
+  | "futile"
   /**
    * The baseline passes at or below `mde`, so an `mde`-sized drop cannot
    * happen and the case is not tested. `gate` fixes its e-value at 1.
    */
-  | 'impossible'
+  | "impossible"
   /** `maxTrials` reached without a decision */
-  | 'budget'
+  | "budget"
   /** keep running */
-  | 'continue';
+  | "continue";
 
 export interface StopDecision {
   stop: boolean;
@@ -131,10 +151,14 @@ export const DEFAULT_STOP_OPTIONS = {
 /** z for a two-sided interval at the given confidence. 0.95 → 1.959964. */
 const zFor = (confidence: number): number => {
   if (!(confidence > 0 && confidence < 1)) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStop: futilityConfidence must be strictly between 0 and 1, got ${confidence}`, {
-      detail: { futilityConfidence: confidence },
-      hint: 'a two-sided confidence level such as 0.95; higher makes futility fire later',
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `shouldStop: futilityConfidence must be strictly between 0 and 1, got ${confidence}`,
+      {
+        detail: { futilityConfidence: confidence },
+        hint: "a two-sided confidence level such as 0.95; higher makes futility fire later",
+      },
+    );
   }
   return normalQuantile(1 - (1 - confidence) / 2);
 };
@@ -154,31 +178,43 @@ const zFor = (confidence: number): number => {
 export function shouldStop(
   observed: { successes: number; trials: number },
   baseline: BaselineStat,
-  options: StopOptions
+  options: StopOptions,
 ): StopDecision {
   const opts = { ...DEFAULT_STOP_OPTIONS, ...options };
-  requireCounts(observed.successes, observed.trials, 'shouldStop');
-  requireCounts(baseline.successes, baseline.trials, 'shouldStop.baseline');
-  requireOpenProbability(opts.mde, 'mde', 'shouldStop');
-  requireOpenProbability(opts.fdr, 'fdr', 'shouldStop');
-  requireEvidence(opts.evidence, 'shouldStop');
-  requirePositiveConfig(opts.altConcentration, 'altConcentration', 'shouldStop');
+  requireCounts(observed.successes, observed.trials, "shouldStop");
+  requireCounts(baseline.successes, baseline.trials, "shouldStop.baseline");
+  requireOpenProbability(opts.mde, "mde", "shouldStop");
+  requireOpenProbability(opts.fdr, "fdr", "shouldStop");
+  requireEvidence(opts.evidence, "shouldStop");
+  requirePositiveConfig(opts.altConcentration, "altConcentration", "shouldStop");
   if (!Number.isInteger(opts.suiteSize) || opts.suiteSize < 1) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStop: suiteSize must be a positive integer, got ${opts.suiteSize}`, {
-      detail: { suiteSize: opts.suiteSize },
-      hint: 'this is the number of cases in the family you will pass to gate(), which sets the bar m / fdr',
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `shouldStop: suiteSize must be a positive integer, got ${opts.suiteSize}`,
+      {
+        detail: { suiteSize: opts.suiteSize },
+        hint: "this is the number of cases in the family you will pass to gate(), which sets the bar m / fdr",
+      },
+    );
   }
   if (opts.maxTrials !== undefined && (!Number.isInteger(opts.maxTrials) || opts.maxTrials < 1)) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStop: maxTrials must be a positive integer, got ${opts.maxTrials}`, {
-      detail: { maxTrials: opts.maxTrials },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `shouldStop: maxTrials must be a positive integer, got ${opts.maxTrials}`,
+      {
+        detail: { maxTrials: opts.maxTrials },
+      },
+    );
   }
   if (baseline.trials === 0) {
-    throw new PeeksafeError('PEEKSAFE_E_BASELINE_MISSING', 'shouldStop: this case has no baseline, so there is nothing to test against', {
-      detail: { trials: observed.trials },
-      hint: 'a case with no baseline is not gated at all; gate() returns it in newCases; do not run it against an invented null',
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_BASELINE_MISSING",
+      "shouldStop: this case has no baseline, so there is nothing to test against",
+      {
+        detail: { trials: observed.trials },
+        hint: "a case with no baseline is not gated at all; gate() returns it in newCases; do not run it against an invented null",
+      },
+    );
   }
 
   // Read before the early returns and before the `trials === 0` branch below.
@@ -192,7 +228,13 @@ export function shouldStop(
 
   if (cannotDropBy(baseline, opts.mde)) {
     return {
-      stop: true, reason: 'impossible', evalue: 1, logE: 0, bar, ceiling: 1, trials: observed.trials,
+      stop: true,
+      reason: "impossible",
+      evalue: 1,
+      logE: 0,
+      bar,
+      ceiling: 1,
+      trials: observed.trials,
       detail:
         `impossible: the baseline passes ${baseline.successes}/${baseline.trials}, which cannot drop by ` +
         `${(opts.mde * 100).toFixed(0)}pts. Not tested; lower mde for this case if smaller drops matter.`,
@@ -200,7 +242,13 @@ export function shouldStop(
   }
 
   const logE = logEvidence(
-    opts.evidence, observed.successes, observed.trials, baseline.successes, baseline.trials, opts.mde, opts.altConcentration
+    opts.evidence,
+    observed.successes,
+    observed.trials,
+    baseline.successes,
+    baseline.trials,
+    opts.mde,
+    opts.altConcentration,
   );
   const evalue = toEvalue(logE);
 
@@ -208,10 +256,16 @@ export function shouldStop(
   // Wilson interval is the whole line, so `low` is 0, the ceiling is enormous,
   // and futility cannot fire before there is data. That is the intended
   // behaviour: futility is a statement about evidence, not about intentions.
-  const low = observed.trials === 0 ? 0 : wilsonInterval(observed.successes, observed.trials, z).low;
+  const low =
+    observed.trials === 0 ? 0 : wilsonInterval(observed.successes, observed.trials, z).low;
   const pessimistic = Math.max(1e-6, Math.min(1 - 1e-6, low));
   const ceilingLog = ceilingLogEvidence(
-    opts.evidence, pessimistic, baseline.successes, baseline.trials, opts.mde, opts.altConcentration
+    opts.evidence,
+    pessimistic,
+    baseline.successes,
+    baseline.trials,
+    opts.mde,
+    opts.altConcentration,
   );
   const ceiling = Math.exp(ceilingLog);
 
@@ -219,7 +273,9 @@ export function shouldStop(
 
   if (logE >= logBar) {
     return {
-      ...base, stop: true, reason: 'regressed',
+      ...base,
+      stop: true,
+      reason: "regressed",
       detail: `certified: e=${evalue.toExponential(2)} cleared the bar of ${bar} after ${observed.trials} trials`,
     };
   }
@@ -233,18 +289,29 @@ export function shouldStop(
     const bRate = baseline.successes / baseline.trials;
     const pAlt = Math.max(1e-6, Math.min(1 - 1e-6, bRate - opts.mde));
     const baselineLimited =
-      ceilingLogEvidence(opts.evidence, pAlt, baseline.successes, baseline.trials, opts.mde, opts.altConcentration) < logBar;
+      ceilingLogEvidence(
+        opts.evidence,
+        pAlt,
+        baseline.successes,
+        baseline.trials,
+        opts.mde,
+        opts.altConcentration,
+      ) < logBar;
 
     return baselineLimited
       ? {
-          ...base, stop: true, reason: 'futile',
+          ...base,
+          stop: true,
+          reason: "futile",
           detail:
             `futile: a ${(opts.mde * 100).toFixed(0)}pt drop could not be certified against a baseline of ` +
             `${baseline.trials} runs at any candidate budget (ceiling ${ceiling.toExponential(2)}, bar ${bar}). ` +
             `More baseline runs, not more candidate runs.`,
         }
       : {
-          ...base, stop: true, reason: 'settled',
+          ...base,
+          stop: true,
+          reason: "settled",
           detail:
             `settled: even at a rate of ${pessimistic.toFixed(3)}, the worst these counts still permit, this case ` +
             `could only reach ${ceiling.toExponential(2)} against a bar of ${bar}. It is not regressing enough to ` +
@@ -253,12 +320,16 @@ export function shouldStop(
   }
   if (opts.maxTrials !== undefined && observed.trials >= opts.maxTrials) {
     return {
-      ...base, stop: true, reason: 'budget',
+      ...base,
+      stop: true,
+      reason: "budget",
       detail: `budget: ${observed.trials} trials reached with e=${evalue.toExponential(2)}, short of the bar of ${bar}`,
     };
   }
   return {
-    ...base, stop: false, reason: 'continue',
+    ...base,
+    stop: false,
+    reason: "continue",
     detail: `continue: e=${evalue.toExponential(2)} of a required ${bar}, ceiling ${ceiling.toExponential(2)}`,
   };
 }
@@ -275,9 +346,9 @@ export interface PairedStopOptions {
   futilityConfidence?: number;
 }
 
-export type PairedStopReason = 'regressed' | 'settled' | 'budget' | 'continue';
+export type PairedStopReason = "regressed" | "settled" | "budget" | "continue";
 
-export interface PairedStopDecision extends Omit<StopDecision, 'reason' | 'ceiling' | 'trials'> {
+export interface PairedStopDecision extends Omit<StopDecision, "reason" | "ceiling" | "trials"> {
   reason: PairedStopReason;
   pairs: number;
   /** Evidence that the drop is smaller than `mde`; `settled` fires when it reaches `1 / (1 - futilityConfidence)`. */
@@ -288,27 +359,41 @@ export interface PairedStopDecision extends Omit<StopDecision, 'reason' | 'ceili
  * `shouldStop` for a paired case. With no ceiling to stop a healthy case, `settled` comes from a
  * second e-process against "dropped by at least `mde`", valid under repeated looks like `regressed`.
  */
-export function shouldStopPaired(counts: PairedCounts, options: PairedStopOptions): PairedStopDecision {
+export function shouldStopPaired(
+  counts: PairedCounts,
+  options: PairedStopOptions,
+): PairedStopDecision {
   const opts = { ...DEFAULT_STOP_OPTIONS, ...options };
-  requirePairedCounts(counts, 'shouldStopPaired');
-  requireOpenProbability(opts.mde, 'mde', 'shouldStopPaired');
-  requireOpenProbability(opts.fdr, 'fdr', 'shouldStopPaired');
+  requirePairedCounts(counts, "shouldStopPaired");
+  requireOpenProbability(opts.mde, "mde", "shouldStopPaired");
+  requireOpenProbability(opts.fdr, "fdr", "shouldStopPaired");
   if (!Number.isInteger(opts.suiteSize) || opts.suiteSize < 1) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStopPaired: suiteSize must be a positive integer, got ${opts.suiteSize}`, {
-      detail: { suiteSize: opts.suiteSize },
-      hint: 'this is the number of cases in the family you will pass to gate(), which sets the bar m / fdr',
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `shouldStopPaired: suiteSize must be a positive integer, got ${opts.suiteSize}`,
+      {
+        detail: { suiteSize: opts.suiteSize },
+        hint: "this is the number of cases in the family you will pass to gate(), which sets the bar m / fdr",
+      },
+    );
   }
   if (opts.maxPairs !== undefined && (!Number.isInteger(opts.maxPairs) || opts.maxPairs < 1)) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG', `shouldStopPaired: maxPairs must be a positive integer, got ${opts.maxPairs}`, {
-      detail: { maxPairs: opts.maxPairs },
-    });
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `shouldStopPaired: maxPairs must be a positive integer, got ${opts.maxPairs}`,
+      {
+        detail: { maxPairs: opts.maxPairs },
+      },
+    );
   }
   if (!(opts.futilityConfidence > 0 && opts.futilityConfidence < 1)) {
-    throw new PeeksafeError('PEEKSAFE_E_CONFIG',
-      `shouldStopPaired: futilityConfidence must be strictly between 0 and 1, got ${opts.futilityConfidence}`, {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `shouldStopPaired: futilityConfidence must be strictly between 0 and 1, got ${opts.futilityConfidence}`,
+      {
         detail: { futilityConfidence: opts.futilityConfidence },
-      });
+      },
+    );
   }
 
   const bar = ebhSoloThreshold(opts.suiteSize, opts.fdr);
@@ -320,18 +405,35 @@ export function shouldStopPaired(counts: PairedCounts, options: PairedStopOption
   const base = { evalue, logE, bar, pairs, settleEvalue };
 
   if (logE >= Math.log(bar)) {
-    return { ...base, stop: true, reason: 'regressed', detail: `certified: e=${evalue.toExponential(2)} cleared the bar of ${bar} after ${pairs} pairs` };
+    return {
+      ...base,
+      stop: true,
+      reason: "regressed",
+      detail: `certified: e=${evalue.toExponential(2)} cleared the bar of ${bar} after ${pairs} pairs`,
+    };
   }
   if (logSettle >= -Math.log(1 - opts.futilityConfidence)) {
     return {
-      ...base, stop: true, reason: 'settled',
+      ...base,
+      stop: true,
+      reason: "settled",
       detail: `settled: after ${pairs} pairs a ${(opts.mde * 100).toFixed(0)}pt drop is ruled out at ${opts.futilityConfidence} confidence`,
     };
   }
   if (opts.maxPairs !== undefined && pairs >= opts.maxPairs) {
-    return { ...base, stop: true, reason: 'budget', detail: `budget: ${pairs} pairs reached with e=${evalue.toExponential(2)}, short of the bar of ${bar}` };
+    return {
+      ...base,
+      stop: true,
+      reason: "budget",
+      detail: `budget: ${pairs} pairs reached with e=${evalue.toExponential(2)}, short of the bar of ${bar}`,
+    };
   }
-  return { ...base, stop: false, reason: 'continue', detail: `continue: e=${evalue.toExponential(2)} of a required ${bar} after ${pairs} pairs` };
+  return {
+    ...base,
+    stop: false,
+    reason: "continue",
+    detail: `continue: e=${evalue.toExponential(2)} of a required ${bar} after ${pairs} pairs`,
+  };
 }
 
 // Mean of prod(1 - lambda (D - mde)) over fixed bets, D = +1 worse, -1 better; a supermartingale whenever E[D] >= mde.
@@ -341,8 +443,8 @@ function settleLogE(c: PairedCounts, mde: number): number {
     const lambda = k / 10 / (1 - mde);
     terms.push(
       c.worse * Math.log1p(-lambda * (1 - mde)) +
-      c.better * Math.log1p(lambda * (1 + mde)) +
-      (c.bothPass + c.bothFail) * Math.log1p(lambda * mde)
+        c.better * Math.log1p(lambda * (1 + mde)) +
+        (c.bothPass + c.bothFail) * Math.log1p(lambda * mde),
     );
   }
   const top = Math.max(...terms);

@@ -21,13 +21,23 @@
  * The simulation is self-contained: seeded Bernoulli draws, no runner, no
  * subject, no suite loader. A user can read it, run it, and disagree with it.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from "vitest";
 import {
-  fisherExact2x2, bhCorrect, ebhCorrect, twoSampleLogE,
-  evidenceCeilingLogE, evidenceCeilingSlope, evidenceCeilingAsymptotic,
-  expectedLogE, samplesForEvidence, ebhSoloThreshold, twoSamplePriors, logBetaPdf,
-  pairedLogE, makeRand,
-} from '../src/index.js';
+  bhCorrect,
+  ebhCorrect,
+  ebhSoloThreshold,
+  evidenceCeilingAsymptotic,
+  evidenceCeilingLogE,
+  evidenceCeilingSlope,
+  expectedLogE,
+  fisherExact2x2,
+  logBetaPdf,
+  makeRand,
+  pairedLogE,
+  samplesForEvidence,
+  twoSampleLogE,
+  twoSamplePriors,
+} from "../src/index.js";
 
 const Q = 0.05;
 const MDE = 0.15;
@@ -66,9 +76,9 @@ function trajectory(p: number, n: number, stream: string): number[] {
 
 /* ════════════════ §1 · peeking, and what it costs ═════════════════════════ */
 
-describe('a p-value taken at a stopping boundary is not a p-value', () => {
-  const M = 10;                 // small suite: the regime the cost economics push you to
-  const REPS = 20;              // no-op pull requests
+describe("a p-value taken at a stopping boundary is not a p-value", () => {
+  const M = 10; // small suite: the regime the cost economics push you to
+  const REPS = 20; // no-op pull requests
   const BASELINE_RUNS = 60;
   const MAX_N = 96;
   const FIRST_PEEK = 8;
@@ -103,7 +113,7 @@ describe('a p-value taken at a stopping boundary is not a p-value', () => {
     fixed.push(Array.from({ length: M }, (_, i) => fixedP(i, rep)));
   }
 
-  it('inflates the per-case false-positive rate, on the same draws', () => {
+  it("inflates the per-case false-positive rate, on the same draws", () => {
     const rate = (xs: number[][]) => xs.flat().filter((p) => p <= 0.05).length / (REPS * M);
     const peekRate = rate(peeked);
     const fixedRate = rate(fixed);
@@ -111,21 +121,23 @@ describe('a p-value taken at a stopping boundary is not a p-value', () => {
     expect(peekRate).toBeGreaterThan(fixedRate);
     console.log(
       `per-case P(p <= 0.05): peeking ${(peekRate * 100).toFixed(1)}%, ` +
-      `same runs at fixed N ${(fixedRate * 100).toFixed(1)}%, ` +
-      `inflation ${(peekRate / Math.max(fixedRate, 1e-9)).toFixed(1)}x`
+        `same runs at fixed N ${(fixedRate * 100).toFixed(1)}%, ` +
+        `inflation ${(peekRate / Math.max(fixedRate, 1e-9)).toFixed(1)}x`,
     );
   });
 
-  it('turns into false discoveries that the same runs at fixed N do not produce', () => {
+  it("turns into false discoveries that the same runs at fixed N do not produce", () => {
     const discoveries = (xs: number[][]) =>
       xs.reduce((acc, ps) => acc + bhCorrect(ps, Q).rejected.filter(Boolean).length, 0);
     const peekD = discoveries(peeked);
     const fixedD = discoveries(fixed);
     expect(peekD).toBeGreaterThanOrEqual(fixedD);
-    console.log(`BH discoveries over ${REPS} no-op PRs at m=${M}: peeking ${peekD}, fixed N ${fixedD}`);
+    console.log(
+      `BH discoveries over ${REPS} no-op PRs at m=${M}: peeking ${peekD}, fixed N ${fixedD}`,
+    );
   });
 
-  it('and the e-value construction makes none on the same draws', () => {
+  it("and the e-value construction makes none on the same draws", () => {
     let discoveries = 0;
     for (let rep = 0; rep < REPS; rep++) {
       const es = Array.from({ length: M }, (_, i) => {
@@ -162,11 +174,14 @@ describe('a p-value taken at a stopping boundary is not a p-value', () => {
       });
       bigD += bhCorrect(ps, Q).rejected.filter(Boolean).length;
     }
-    const smallD = peeked.reduce((a, ps) => a + bhCorrect(ps, Q).rejected.filter(Boolean).length, 0);
+    const smallD = peeked.reduce(
+      (a, ps) => a + bhCorrect(ps, Q).rejected.filter(Boolean).length,
+      0,
+    );
     const perPr = (d: number) => d / REPS;
     console.log(
       `false discoveries per no-op PR while peeking: m=${M} -> ${perPr(smallD).toFixed(2)}, ` +
-      `m=${BIG} -> ${perPr(bigD).toFixed(2)}`
+        `m=${BIG} -> ${perPr(bigD).toFixed(2)}`,
     );
     // The per-case invalidity is the same in both. Only the correction's bar moved.
     expect(bigD).toBeGreaterThanOrEqual(0);
@@ -175,23 +190,24 @@ describe('a p-value taken at a stopping boundary is not a p-value', () => {
 
 /* ════════════════ §2 · the evidence ceiling ═══════════════════════════════ */
 
-describe('the evidence ceiling', () => {
+describe("the evidence ceiling", () => {
   const SUITE_SIZE = 200;
   const rate = 0.85;
   const mde = 0.15;
   const pTrue = rate - mde;
   const ceilingAt = (nb: number) => evidenceCeilingLogE(pTrue, Math.round(rate * nb), nb, mde);
 
-  it('equals the prior density ratio at the observed rate, checked against the closed form', () => {
+  it("equals the prior density ratio at the observed rate, checked against the closed form", () => {
     for (const nb of [24, 60, 240, 480]) {
       const s = Math.round(rate * nb);
       const { nullPrior, altPrior } = twoSamplePriors(s, nb, mde);
-      const closed = logBetaPdf(pTrue, altPrior.a, altPrior.b) - logBetaPdf(pTrue, nullPrior.a, nullPrior.b);
+      const closed =
+        logBetaPdf(pTrue, altPrior.a, altPrior.b) - logBetaPdf(pTrue, nullPrior.a, nullPrior.b);
       expect(evidenceCeilingLogE(pTrue, s, nb, mde)).toBeCloseTo(closed, 12);
     }
   });
 
-  it('is approached from below and never exceeded, at any number of candidate runs', () => {
+  it("is approached from below and never exceeded, at any number of candidate runs", () => {
     const nb = 60;
     const s = Math.round(rate * nb);
     const ceiling = ceilingAt(nb);
@@ -205,7 +221,7 @@ describe('the evidence ceiling', () => {
     expect(expectedLogE(pTrue, 65536, s, nb, mde)).toBeGreaterThan(ceiling * 0.99);
   });
 
-  it('binds the realised e-value too, not only the mean trajectory', () => {
+  it("binds the realised e-value too, not only the mean trajectory", () => {
     const nb = 60;
     const s = Math.round(rate * nb);
     const ceiling = ceilingAt(nb);
@@ -217,38 +233,52 @@ describe('the evidence ceiling', () => {
   it('so "how many candidate runs would it take" is Infinity, not a large number', () => {
     const bar = Math.log(ebhSoloThreshold(SUITE_SIZE, Q));
     expect(ceilingAt(60)).toBeLessThan(bar);
-    expect(samplesForEvidence(pTrue, Math.round(rate * 60), 60, mde, bar, 1_000_000)).toBe(Infinity);
+    expect(samplesForEvidence(pTrue, Math.round(rate * 60), 60, mde, bar, 1_000_000)).toBe(
+      Infinity,
+    );
   });
 
-  it('and baseline runs are what lift it, which is the amortised-baseline argument quantified', () => {
+  it("and baseline runs are what lift it, which is the amortised-baseline argument quantified", () => {
     const bar = Math.log(ebhSoloThreshold(SUITE_SIZE, Q));
     const ladder = [24, 60, 240, 480, 960].map(ceilingAt);
     for (let i = 1; i < ladder.length; i++) expect(ladder[i]!).toBeGreaterThan(ladder[i - 1]!);
     expect(ladder[0]!).toBeLessThan(bar);
     expect(ladder.at(-1)!).toBeGreaterThan(bar);
     console.log(
-      'ceiling log E by baseline runs: ' +
-      [24, 60, 240, 480, 960].map((n, i) => `${n}->${ladder[i]!.toFixed(2)}`).join('  ') +
-      `   (bar ${bar.toFixed(2)})`
+      "ceiling log E by baseline runs: " +
+        [24, 60, 240, 480, 960].map((n, i) => `${n}->${ladder[i]!.toFixed(2)}`).join("  ") +
+        `   (bar ${bar.toFixed(2)})`,
     );
   });
 
-  it('grows linearly in baseline runs, at rate KL(baseline rate || candidate rate)', () => {
+  it("grows linearly in baseline runs, at rate KL(baseline rate || candidate rate)", () => {
     // Not the other KL. At 85% losing 15 points the two directions are 0.0611
     // and 0.0720, an 18% error in the one constant that decides how long a
     // baseline has to be.
     const slope = evidenceCeilingSlope(rate, pTrue);
     expect(slope).toBeCloseTo(0.06106, 4);
     expect(evidenceCeilingSlope(pTrue, rate)).not.toBeCloseTo(slope, 3);
-    for (const [nb, tol] of [[4000, 0.02], [20_000, 0.005]] as Array<[number, number]>) {
+    for (const [nb, tol] of [
+      [4000, 0.02],
+      [20_000, 0.005],
+    ] as Array<[number, number]>) {
       const measured = evidenceCeilingLogE(pTrue, Math.round(rate * nb), nb, mde) / nb;
       expect(Math.abs(measured / slope - 1)).toBeLessThan(tol);
     }
   });
 
-  it('and the closed form matches the exact ceiling to 0.3% at 60 baseline runs, 0.01% at 240', () => {
-    for (const [p0, d] of [[0.85, 0.15], [0.9, 0.1], [0.7, 0.25], [0.95, 0.2]] as Array<[number, number]>) {
-      for (const [nb, tol] of [[60, 0.004], [240, 0.0002], [960, 0.00002]] as Array<[number, number]>) {
+  it("and the closed form matches the exact ceiling to 0.3% at 60 baseline runs, 0.01% at 240", () => {
+    for (const [p0, d] of [
+      [0.85, 0.15],
+      [0.9, 0.1],
+      [0.7, 0.25],
+      [0.95, 0.2],
+    ] as Array<[number, number]>) {
+      for (const [nb, tol] of [
+        [60, 0.004],
+        [240, 0.0002],
+        [960, 0.00002],
+      ] as Array<[number, number]>) {
         const s = Math.round(p0 * nb);
         const exact = evidenceCeilingLogE(p0 - d, s, nb, d);
         const asym = evidenceCeilingAsymptotic(s, nb, p0 - d, d);
@@ -258,21 +288,28 @@ describe('the evidence ceiling', () => {
     expect(() => evidenceCeilingAsymptotic(0, 0, 0.7, 0.15)).toThrow(/at least one baseline trial/);
   });
 
-  it('so the baseline size a case needs is log(m/q)/KL, plus about 20%', () => {
+  it("so the baseline size a case needs is log(m/q)/KL, plus about 20%", () => {
     const bar = Math.log(ebhSoloThreshold(SUITE_SIZE, Q));
     const rows: string[] = [];
-    for (const [p0, d] of [[0.85, 0.15], [0.9, 0.1], [0.7, 0.25], [0.95, 0.2]] as Array<[number, number]>) {
+    for (const [p0, d] of [
+      [0.85, 0.15],
+      [0.9, 0.1],
+      [0.7, 0.25],
+      [0.95, 0.2],
+    ] as Array<[number, number]>) {
       const ruleOfThumb = bar / evidenceCeilingSlope(p0, p0 - d);
       let n = 8;
       while (n < 200_000 && evidenceCeilingLogE(p0 - d, Math.round(p0 * n), n, d) < bar) n++;
       expect(ruleOfThumb).toBeLessThan(n);
       expect(n / ruleOfThumb).toBeLessThan(1.3);
-      rows.push(`${(p0 * 100).toFixed(0)}% -${(d * 100).toFixed(0)}pts: rule ${ruleOfThumb.toFixed(0)}, exact ${n}`);
+      rows.push(
+        `${(p0 * 100).toFixed(0)}% -${(d * 100).toFixed(0)}pts: rule ${ruleOfThumb.toFixed(0)}, exact ${n}`,
+      );
     }
-    console.log('baseline runs needed at bar log(4000): ' + rows.join('  |  '));
+    console.log(`baseline runs needed at bar log(4000): ${rows.join("  |  ")}`);
   });
 
-  it('while the paired e-value has no such limit, growing linearly in discordant pairs', () => {
+  it("while the paired e-value has no such limit, growing linearly in discordant pairs", () => {
     let prev = -Infinity;
     for (const d of [10, 100, 1000, 10000]) {
       const v = pairedLogE(Math.round(0.75 * d), d);
