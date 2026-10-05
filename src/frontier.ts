@@ -299,6 +299,13 @@ export function evaluatePoint(
   // there. Same for a baseline rate of 0 or 1.
   requireOpenProbability(mde, 'mde', 'evaluatePoint');
   requireOpenProbability(cfg.baselineRate, 'baselineRate', 'evaluatePoint');
+  // `makePlan` refuses these two and this did not, so one options object was a
+  // refusal through the planner and a priced frontier through here. Both end up
+  // in `sprtExpectedN`, which answers NaN or Infinity outside (0,1), and
+  // `typicalObservationsPerCase` reads either as "cannot price this" and falls
+  // back to the run ceiling.
+  requireOpenProbability(cfg.alpha, 'alpha', 'evaluatePoint');
+  requireOpenProbability(cfg.beta, 'beta', 'evaluatePoint');
   requireProbability(cfg.pairCoupling, 'pairCoupling', 'evaluatePoint');
   if (!Number.isInteger(cases) || cases < 1) {
     throw new PeeksafeError('PEEKSAFE_E_CONFIG', `frontier: cases must be a positive integer, got ${cases}`, {
