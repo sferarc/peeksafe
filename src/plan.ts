@@ -33,7 +33,12 @@
  */
 
 import { type BaselineStat, baselineNullRate, type CaseRef } from "./baseline.js";
-import { PeeksafeError, requireOpenProbability, requireProbability } from "./errors.js";
+import {
+  PeeksafeError,
+  requireErrorRates,
+  requireOpenProbability,
+  requireProbability,
+} from "./errors.js";
 import {
   betaQuantile,
   ebhSoloThreshold,
@@ -301,7 +306,7 @@ export function planCase(
     baseline: { successes, trials, rate },
     alternativeRate: alt,
     barLogE,
-    fixedNPerArm: sampleSizeTwoProportion(Math.max(1e-6, rate), cfg.mde),
+    fixedNPerArm: sampleSizeTwoProportion(Math.max(1e-6, rate), cfg.mde, cfg.alpha, cfg.beta),
   };
 
   if (trials === 0) {
@@ -474,8 +479,7 @@ export function makePlan(
   // callers of it here gate on `Number.isFinite(raw) && raw > 0` and quote
   // `maxTrials` when that fails. So an alpha of 2 produced a complete plan with
   // every case at the per-case cap and no error anywhere.
-  requireOpenProbability(cfg.alpha, "alpha", "makePlan");
-  requireOpenProbability(cfg.beta, "beta", "makePlan");
+  requireErrorRates(cfg.alpha, cfg.beta, "makePlan");
   requireProbability(cfg.pairCoupling, "pairCoupling", "makePlan");
   if (cases.length === 0) {
     throw new PeeksafeError("PEEKSAFE_E_SUITE_EMPTY", "makePlan: no cases to plan for", {
@@ -690,6 +694,7 @@ export function affordabilityGrid(
   mdes: number[] = [0.1, 0.15, 0.25, 0.35],
 ): AffordabilityCell[] {
   requireProbability(baselineRate, "baselineRate", "affordabilityGrid");
+  requireErrorRates(cfg.alpha, cfg.beta, "affordabilityGrid");
   // Every other planner entry point refuses a case with no baseline: `planCase`
   // returns IMPOSSIBLE with "no baseline", `evaluatePoint` throws on
   // `baselineRuns < 1`, and `gate` throws PEEKSAFE_E_BASELINE_MISSING. This one
