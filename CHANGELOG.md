@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+
+- `gate` and `shouldStop` refuse an `altConcentration` above 16 (`MAX_ALT_CONCENTRATION`, now
+  exported) with the default statistic, with `PEEKSAFE_E_CONFIG`. A concentrated alternative is
+  the one known way the default statistic exceeds alpha inside the checked range: 1.04 times
+  alpha at 32, which the README used to recommend as safe. At 16 the worst checked cell is 0.91
+  of alpha. `universal` takes any positive value, and `typeOneError` and `certifyProbability`
+  still compute any concentration, so a corner can be inspected.
+
 ## 0.1.0
 
 First release. There is no earlier version to compare against, so this section

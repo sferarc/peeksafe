@@ -51,10 +51,10 @@
 import type { BaselineStat } from "./baseline.js";
 import {
   PeeksafeError,
+  requireAltConcentration,
   requireCounts,
   requireOpenProbability,
   requirePairedCounts,
-  requirePositiveConfig,
 } from "./errors.js";
 import {
   ceilingLogEvidence,
@@ -107,7 +107,8 @@ export interface GateOptions {
   /**
    * Concentration of the alternative prior. Lower spreads the alternative over
    * "anything materially worse", which is closer to how a broken case behaves
-   * than a point mass exactly `mde` below the baseline.
+   * than a point mass exactly `mde` below the baseline. At most
+   * `MAX_ALT_CONCENTRATION` (16) with the default `bayes` statistic.
    */
   altConcentration?: number;
   /**
@@ -198,7 +199,7 @@ export function gate(
   requireOpenProbability(opts.mde, "mde", "gate");
   requireOpenProbability(opts.fdr, "fdr", "gate");
   requireEvidence(opts.evidence, "gate");
-  requirePositiveConfig(opts.altConcentration, "altConcentration", "gate");
+  requireAltConcentration(opts.altConcentration, opts.evidence, "gate");
 
   const seen = new Set<string>();
   for (const c of cases) {

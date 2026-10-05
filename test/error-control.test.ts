@@ -22,6 +22,7 @@ import {
   logBeta,
   logGamma,
   logMarginalBetaBinomial,
+  MAX_ALT_CONCENTRATION,
   makeRand,
   shouldStop,
   twoSampleLogE,
@@ -202,10 +203,39 @@ describe("where the bound is known not to hold", () => {
     expect(typeOne(0.15, 240, 0.15, 1 / 4000, 600, 32) * 4000).toBeLessThan(1);
   });
 
+  it("exceeds alpha at an altConcentration of 32 just below mde, which is why gate caps it", () => {
+    const cell = typeOne(0.26, 60, 0.3, 1 / 4000, 600, 32) * 4000;
+    console.log(`type I error ${cell.toFixed(3)} x alpha: altConcentration 32, rate 0.26, mde 0.3`);
+    expect(cell).toBeGreaterThan(1);
+    expect(cell).toBeLessThan(1.05);
+  });
+
   it("stays under alpha in the two thin-baseline corners the 0.35 shape floor failed", () => {
     // Shapes below 1 piled the alternative onto a rate of 0, where these baselines sit; they were 1.09x and 2.42x.
     expect(typeOne(0.005, 30, 0.05, 1 / 4000, 1000) * 4000).toBeLessThan(0.1);
     expect(typeOne(0.005, 5, 0.15, 0.005, 600, 2) / 0.005).toBeLessThan(0.05);
+  });
+});
+
+describe("the altConcentration cap", () => {
+  it(`stays under alpha at MAX_ALT_CONCENTRATION (${MAX_ALT_CONCENTRATION}) around mde, where concentration bites`, () => {
+    let worst = { ratio: 0, cell: "" };
+    for (const alpha of [0.05, 1 / 4000]) {
+      for (const nb of [10, 30, 60, 120, 240]) {
+        for (const mde of [0.05, 0.15, 0.3]) {
+          for (let i = 0; i < 8; i++) {
+            const p = Math.round((mde - 0.04 + 0.02 * i) * 100) / 100;
+            const ratio = typeOne(p, nb, mde, alpha, 600, MAX_ALT_CONCENTRATION) / alpha;
+            if (ratio > worst.ratio)
+              worst = { ratio, cell: `alpha=${alpha} nb=${nb} mde=${mde} p=${p}` };
+          }
+        }
+      }
+    }
+    console.log(
+      `worst type I error at the cap: ${worst.ratio.toFixed(3)} x alpha at ${worst.cell}`,
+    );
+    expect(worst.ratio).toBeLessThan(0.92);
   });
 });
 

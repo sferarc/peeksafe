@@ -73,6 +73,7 @@ export {
 } from "./cluster.js";
 /* ── errors and determinism ──────────────────────────────────────────────── */
 export {
+  MAX_ALT_CONCENTRATION,
   PeeksafeError,
   type PeeksafeErrorCode,
   type PeeksafeErrorOptions,
