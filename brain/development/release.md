@@ -21,13 +21,13 @@ A pushed `v*` tag triggers `Release`, which on the Node and pnpm from `mise.toml
 2. Re-runs typecheck, tests, build and the no-runtime-dependencies check, because a tag can point at a commit CI never saw. The pack step also fails if the packed `package.json` still contains a `catalog:` specifier, which npm could not resolve.
 3. Fails if that version is already on the registry (`npm view`), rather than letting npm answer with a misleading 403.
 4. Fails unless the npm bundled with the `mise.toml` Node is `11.5.1` or newer, the floor for trusted publishing. Node 26.10.0 ships npm 11.19.1.
-5. Runs `npm publish <tarball> --provenance --access public` on the tarball pnpm packed in step 2, so what ships is what was checked; npm packing the directory itself would ship the `catalog:` specifiers. `id-token: write` is granted for provenance and OIDC trusted publishing; when the `NPM_TOKEN` repository secret is set, the step appends `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` to `~/.npmrc`, the same line `actions/setup-node` wrote before, as the fallback.
+5. Runs `npm publish <tarball> --provenance --access public` on the tarball pnpm packed in step 2, so what ships is what was checked; npm packing the directory itself would ship the `catalog:` specifiers. Authentication is npm trusted publishing only: `id-token: write` lets npm exchange the GitHub OIDC token for a short-lived publish credential and sign provenance. There is no `NPM_TOKEN` secret and nothing writes `~/.npmrc`; the owner chose this on 2026-10-05 (#39). A tag pushed before the trusted publisher is configured fails at this step with an auth error.
 
 The registry steps stay on npm while everything before them uses pnpm. They only run on a tag, so nothing exercises them ahead of a release, and npm is the client npm's trusted publishing is documented for.
 
 ## The first release is different
 
-npm cannot configure a trusted publisher for a package that does not exist, so the first publish is a manual one by the owner: `mise install`, `pnpm install --frozen-lockfile`, `pnpm pack`, then `npm publish peeksafe-X.Y.Z.tgz --access public`. `npm ci` no longer works (there is no `package-lock.json`), and `npm publish` on the directory would ship `catalog:` specifiers. After that the trusted publisher is configured on npmjs.com for this repository and workflow, and later releases go through the tag. Once a release has gone green without the token, the `NODE_AUTH_TOKEN` fallback can be removed.
+npm cannot configure a trusted publisher for a package that does not exist, so the first publish is a manual one by the owner: `mise install`, `pnpm install --frozen-lockfile`, `pnpm pack`, then `npm publish peeksafe-X.Y.Z.tgz --access public`. `npm ci` no longer works (there is no `package-lock.json`), and `npm publish` on the directory would ship `catalog:` specifiers. After that the trusted publisher is configured on npmjs.com for this repository and workflow, and later releases go through the tag.
 
 ### Commands for 0.1.0
 
@@ -44,7 +44,7 @@ git tag -a v0.1.0 -m v0.1.0
 git push origin v0.1.0               # Release then fails at "already published", which is expected
 ```
 
-Then configure the trusted publisher on npmjs.com (package settings, this repository, `release.yml`), so 0.1.1 onwards publish from the tag with provenance and no token. Alternatively, add an `NPM_TOKEN` secret first and push only the tag: the workflow then publishes 0.1.0 itself, with provenance. As of 2026-10-02 the repository has no secrets.
+Then configure the trusted publisher on npmjs.com (package settings, this repository, `release.yml`), so 0.1.1 onwards publish from the tag with provenance and no token. The workflow has no token path, so it cannot publish 0.1.0 itself.
 
 ## Current state
 

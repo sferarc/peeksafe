@@ -119,22 +119,15 @@ jobs:
             exit 1
           }
 
-      # Two ways in, on purpose, because they become available in that order.
+      # Trusted publishing only: no token, no ~/.npmrc. npm exchanges the
+      # GitHub OIDC token granted by `id-token: write` above for a short-lived
+      # publish credential, which works once npmjs.com -> peeksafe -> Settings
+      # -> Trusted Publisher names this repository and this workflow file.
       #
       # npm cannot configure a trusted publisher for a package that does not
-      # exist yet, so the first release is a manual `npm publish` from a laptop.
-      # After that, npmjs.com → peeksafe → Settings → Trusted Publisher, naming
-      # this repository and this workflow file, and CI can publish with no token
-      # at all: `id-token: write` above is what it uses.
-      #
-      # `NPM_TOKEN` stays as the fallback so this workflow works before that
-      # switch is flipped as well as after. npm prefers OIDC when a trusted
-      # publisher is configured and the token is then unused. Remove it once
-      # you have seen a green release without it, not before.
-      #
-      # actions/setup-node used to write the auth line below through its
-      # `registry-url` input. mise-action does not, so the step writes the same
-      # line itself, only when the secret is set.
+      # exist yet, so the first release is a manual `npm publish` by the owner
+      # (brain/development/release.md). A tag pushed before the trusted
+      # publisher is configured fails here with an auth error, by design.
       #
       # It publishes the tarball pnpm packed and the step above checked. Run on
       # the directory, npm would pack its own and ship `catalog:` specifiers.
@@ -142,12 +135,4 @@ jobs:
         run: |
           set -euo pipefail
           TARBALL="$(ls peeksafe-*.tgz)"
-          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
-            # Literal on purpose: npm expands the variable when it reads .npmrc,
-            # so the token never reaches the file or the log.
-            # shellcheck disable=SC2016
-            echo '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' >> "$HOME/.npmrc"
-          fi
           npm publish "./$TARBALL" --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
