@@ -37,7 +37,8 @@
     "CHANGELOG.md",
     "LICENSE",
     "NOTICE",
-    "RESEARCH-NOTES.md"
+    "RESEARCH-NOTES.md",
+    "src"
   ],
   "engines": {
     "node": ">=22"

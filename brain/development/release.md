@@ -27,6 +27,21 @@ A pushed `v*` tag triggers `Release`, which on Node 24:
 
 npm cannot configure a trusted publisher for a package that does not exist, so the first publish is a manual `npm publish` by the owner. After that the trusted publisher is configured on npmjs.com for this repository and workflow, and later releases go through the tag. Once a release has gone green without the token, the `NODE_AUTH_TOKEN` fallback can be removed.
 
+### Commands for 0.1.0
+
+After the release pull request is merged, from a clean clone of `main` with npm logged in as an owner of the name:
+
+```bash
+git pull --ff-only
+npm ci
+npm test
+npm publish --access public          # prepack builds dist/; no provenance from a laptop
+git tag -a v0.1.0 -m v0.1.0
+git push origin v0.1.0               # Release then fails at "already published", which is expected
+```
+
+Then configure the trusted publisher on npmjs.com (package settings, this repository, `release.yml`), so 0.1.1 onwards publish from the tag with provenance and no token. Alternatively, add an `NPM_TOKEN` secret first and push only the tag: the workflow then publishes 0.1.0 itself, with provenance. As of 2026-10-02 the repository has no secrets.
+
 ## Current state
 
 As of 2026-10-02 no version is published (`npm view peeksafe` returns 404) and the repository has no tags. See [[decisions/2026-10-02-first-release-pending]].
