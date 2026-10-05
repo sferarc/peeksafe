@@ -3,7 +3,7 @@ import {
   logGamma, logBeta, ibeta, erf, gammaP, normalCdf, normalQuantile,
   wilsonInterval, betaPosterior, betaQuantile, betaCredibleInterval, betaMassBetween,
   diffInterval, cohensH, twoProportionZTest, fisherExact2x2,
-  sprtDecision, bhCorrect, ebhCorrect, twoSampleLogE, logMarginalBetaBinomial,
+  sprtDecision, sprtExpectedN, bhCorrect, ebhCorrect, twoSampleLogE, logMarginalBetaBinomial,
   sampleSizeTwoProportion, bernoulliEntropy,
 } from '../src/index.js';
 import { makeRand } from '../src/rand.js';
@@ -219,6 +219,42 @@ describe('SPRT', () => {
     const fixedN = sampleSizeTwoProportion(opts.p0, opts.p0 - opts.p1, opts.alpha, opts.beta);
     expect(total / REPS).toBeLessThan(fixedN);
   });
+
+  it('refuses an error rate outside (0,1) rather than deciding against a NaN wall', () => {
+    // `alpha` and `beta` were the two arguments in this file that nothing
+    // checked. A beta above 1 makes `log(beta / (1 - alpha))` the log of a
+    // negative number, so `lower` came back NaN and every comparison against
+    // it was false: the test reported CONTINUE for ever against a wall that is
+    // not a number. An alpha of 0 puts `upper` at Infinity, which no evidence
+    // ever crosses. `sprtExpectedN` returned NaN or Infinity for the same
+    // inputs, and its callers in plan.ts and frontier.ts read either as
+    // "cannot price this" and quote `maxTrials` instead, so neither ever
+    // surfaced as an error.
+    const domain = expect.objectContaining({ code: 'PEEKSAFE_E_STAT_DOMAIN' });
+    for (const bad of [0, 1, -1, 2, NaN, Infinity]) {
+      expect(() => sprtDecision({ successes: 3, trials: 10, ...opts, alpha: bad }), `decision alpha=${bad}`).toThrow(domain);
+      expect(() => sprtDecision({ successes: 3, trials: 10, ...opts, beta: bad }), `decision beta=${bad}`).toThrow(domain);
+      expect(() => sprtExpectedN(0.5, opts.p0, opts.p1, bad, opts.beta), `expectedN alpha=${bad}`).toThrow(domain);
+      expect(() => sprtExpectedN(0.5, opts.p0, opts.p1, opts.alpha, bad), `expectedN beta=${bad}`).toThrow(domain);
+    }
+    // The defaults are inside the domain, and the published boundaries are
+    // unchanged, so the guard cannot have been satisfied by tightening them.
+    const r = sprtDecision({ successes: 3, trials: 10, p0: opts.p0, p1: opts.p1 });
+    expect(Number.isFinite(r.upper) && Number.isFinite(r.lower)).toBe(true);
+    expect(sprtExpectedN(0.5, opts.p0, opts.p1)).toBeGreaterThan(0);
+    // An alpha and beta summing to 1 are in domain and describe a test nobody
+    // should run: both walls sit at a log likelihood ratio of 0, so it decides
+    // before it has seen anything. The answer is 0 runs, and it used to be NaN
+    // for the pairs where both walls round to exactly 0. The callers' `> 0`
+    // fallback still fires on a 0, which is the right conservative answer, but
+    // it now fires on a number rather than on a NaN.
+    for (const [a, b] of [[0.5, 0.5], [0.25, 0.75], [0.125, 0.875]] as const) {
+      expect(sprtExpectedN(0.5, opts.p0, opts.p1, a, b), `alpha=${a} beta=${b}`).toBe(0);
+    }
+    // The neighbourhood converges to that 0 rather than jumping to it.
+    expect(sprtExpectedN(0.5, opts.p0, opts.p1, 0.5, 0.499)).toBeLessThan(1e-3);
+    expect(sprtExpectedN(0.5, opts.p0, opts.p1, 0.5, 0.501)).toBeLessThan(1e-3);
+  });
 });
 
 describe('multiplicity correction', () => {
@@ -308,6 +344,22 @@ describe('planning and entropy', () => {
     expect(n).toBeGreaterThan(126);
     expect(n).toBeLessThan(140);
     expect(sampleSizeTwoProportion(0.9, 0.05, 0.05, 0.1)).toBeGreaterThan(n * 5);
+  });
+
+  it('sampleSizeTwoProportion refuses an error rate outside (0,1)', () => {
+    // An alpha of 1 sets its own critical value to Φ⁻¹(0.5) = 0, so the
+    // formula dropped the type I error term entirely and answered a run count
+    // for a design with no error control in it. This is the comparator the
+    // README measures peeksafe against, so a plausible number here understates
+    // what the naive design costs.
+    const domain = expect.objectContaining({ code: 'PEEKSAFE_E_STAT_DOMAIN' });
+    for (const bad of [0, 1, -1, 2, NaN, Infinity]) {
+      expect(() => sampleSizeTwoProportion(0.9, 0.15, bad, 0.1), `alpha=${bad}`).toThrow(domain);
+      expect(() => sampleSizeTwoProportion(0.9, 0.15, 0.05, bad), `beta=${bad}`).toThrow(domain);
+    }
+    // An effect the case cannot suffer is still Infinity rather than a refusal:
+    // that is an answer about the design, not about the arguments.
+    expect(sampleSizeTwoProportion(0.1, 0.15, 0.05, 0.1)).toBe(Infinity);
   });
 
   it('Bernoulli entropy peaks at ½', () => {
