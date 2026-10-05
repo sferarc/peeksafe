@@ -495,10 +495,12 @@ export function makePlan(
   const m = cases.length;
   const planned = cases.map((c) => {
     const pilot = pilots.get(c.id);
-    // A negative phi is noise around independence for a design that couples by construction.
+    // pairPhi validates the counts, so a malformed pilot is refused even when it sums to 0.
+    const phi = pilot ? pairPhi(pilot) : 0;
     // An empty pilot measured nothing, so it leaves the configured coupling in place.
     const measured = pilot && pilot.bothPass + pilot.worse + pilot.better + pilot.bothFail > 0;
-    const caseCfg = measured ? { ...cfg, pairCoupling: Math.max(0, pairPhi(pilot)) } : cfg;
+    // A negative phi is noise around independence for a design that couples by construction.
+    const caseCfg = measured ? { ...cfg, pairCoupling: Math.max(0, phi) } : cfg;
     return planCase(c, baseline.get(c.id), caseCfg, m);
   });
 

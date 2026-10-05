@@ -272,6 +272,10 @@ describe("the design per case, from a measured coupling", () => {
     const empty = { bothPass: 0, worse: 0, better: 0, bothFail: 0 };
     const ignored = makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN, new Map([["flow", empty]]));
     expect(ignored.cases[0]!.pairCoupling).toBe(DEFAULT_PLAN.pairCoupling);
+    const zeroSum = { bothPass: -1, worse: 1, better: 0, bothFail: 0 };
+    expect(() =>
+      makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN, new Map([["flow", zeroSum]])),
+    ).toThrow(expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }));
     const bad = { bothPass: -1, worse: 3, better: 3, bothFail: 7 };
     expect(() =>
       makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN, new Map([["flow", bad]])),
