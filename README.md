@@ -296,6 +296,7 @@ for (const c of plan.cases) {
   c.unpaired.runs;        // what the default design costs, or Infinity
   c.paired.pairs;         // what the paired design costs
   c.baselineRunsNeeded;   // baseline runs that would make unpaired work, or null
+  c.design;               // 'unpaired' | 'paired' | null, the cheaper design that decides it
 }
 ```
 
@@ -311,6 +312,32 @@ search/rerank      PAIRED_ONLY    unpaired=Infinity paired=   53 needBaseline=63
 Read that as four different answers, not one number. `parsing/nested` has a 240-run baseline and needs 93 candidate runs. `routing/fallback` and `search/rerank` have thin baselines, so the unpaired design cannot do them at any budget, but 75 and 63 more baseline runs respectively would fix that, and pairing works today. `summary/tone` passes 10% of the time and cannot lose 15 points at all, so `sampleSizeTwoProportion(0.1, 0.15)` is `Infinity` rather than a plausible-looking 44.
 
 `plan.totals` carries the suite-level roll-up, including `decidableUnpaired` and `decidableBest`: how many cases each design can decide at all.
+
+### Choosing a design by cost
+
+`c.design` is the design to run a case with: of the two that decide it within `runsPerCaseCeiling`, the one that needs fewer runs, unpaired on a tie, and `null` when neither does. A paired observation is two runs, the candidate and a fresh baseline run, so pairing wins only when the coupling between the arms cuts the discordances enough to pay for the second run. `DEFAULT_PLAN.pairCoupling` assumes 0.9. Measure it instead: run a short pilot with both arms on the same revision and pass each case's pair table to `makePlan`, which prices that case at the pilot's `pairPhi` (floored at 0; an empty table is ignored).
+
+```ts
+import { makePlan, toBaselineMap, DEFAULT_PLAN } from 'peeksafe';
+
+const baselines = [
+  { caseId: 'checkout/flow', successes: 180, trials: 240 },
+  { caseId: 'parsing/nested', successes: 216, trials: 240 },
+];
+const cases = baselines.map((b) => ({ id: b.caseId }));
+const pilots = new Map([['checkout/flow', { bothPass: 27, worse: 3, better: 3, bothFail: 7 }]]);
+
+const assumed = makePlan(cases, toBaselineMap(baselines), DEFAULT_PLAN);
+const measured = makePlan(cases, toBaselineMap(baselines), DEFAULT_PLAN, pilots);
+```
+
+```
+                 unpaired   paired at 0.9   design   paired at the pilot's 0.6   design
+checkout/flow         164             118   paired                         206   unpaired
+parsing/nested         75             100   unpaired              (no pilot) 100   unpaired
+```
+
+At the assumed coupling, `checkout/flow` would pair and spend 118 runs instead of 164. The pilot measures 0.6, pairing would cost 206, and the plan keeps it on the stored baseline. A case only pairing can decide (`PAIRED_ONLY`) is paired whatever the pilot says, because independent pairs are still valid; the coupling only moves its price.
 
 ## The paired alternative
 

@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- `PlanCase.design`: the design to run each case with, the one of unpaired and paired that
+  decides it within `runsPerCaseCeiling` in fewer runs (unpaired on a tie), or `null` when neither
+  does. `PlanCase.pairCoupling` is the coupling its paired figures were priced at.
+- `makePlan(cases, baseline, cfg, pilots)`: an optional map of per-case pilot pair tables. A case
+  with one is priced at its measured `pairPhi` (floored at 0) instead of `cfg.pairCoupling`; an
+  empty table is ignored. In the README example a case at 75% on a 240-run baseline pairs at the
+  assumed 0.9 (118 runs against 164) and stays unpaired at a measured 0.6 (206 runs).
+
 ### Changed
 
 - `gate` and `shouldStop` refuse an `altConcentration` above 16 (`MAX_ALT_CONCENTRATION`, now

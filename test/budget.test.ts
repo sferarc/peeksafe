@@ -16,6 +16,7 @@ import {
   ebhSoloThreshold,
   evidenceCeilingLogE,
   makePlan,
+  pairPhi,
   planCase,
   sampleSizeTwoProportion,
   toBaselineMap,
@@ -217,6 +218,68 @@ describe("the planner answers before anything is spent", () => {
     // A recorded baseline still prices, so the guard refuses the missing
     // baseline and not the grid.
     expect(affordabilityGrid(0.85, 60, DEFAULT_PLAN, 5, [20], [0.15])).toHaveLength(1);
+  });
+});
+
+describe("the design per case, from a measured coupling", () => {
+  const bl: BaselineStat[] = [
+    { caseId: "flow", successes: 180, trials: 240 },
+    { caseId: "nested", successes: 216, trials: 240 },
+    { caseId: "thin", successes: 54, trials: 60 },
+    { caseId: "low", successes: 6, trials: 60 },
+  ];
+  const cases = bl.map((b) => ({ id: b.caseId }));
+  const byId = (plan: ReturnType<typeof makePlan>) =>
+    Object.fromEntries(plan.cases.map((c) => [c.caseId, c]));
+
+  it("picks the design that decides a case in fewer runs, and none for a case neither decides", () => {
+    const plan = byId(makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN));
+    for (const c of Object.values(plan)) {
+      if (c.detectability === "UNPAIRED")
+        expect(c.design).toBe(c.paired.runs < c.unpaired.runs ? "paired" : "unpaired");
+    }
+    expect(plan.flow!.design).toBe("paired");
+    expect(plan.nested!.design).toBe("unpaired");
+    expect(plan.thin!.detectability).toBe("PAIRED_ONLY");
+    expect(plan.thin!.design).toBe("paired");
+    expect(plan.low!.design).toBeNull();
+  });
+
+  it("prices a case with a pilot at the pilot's pairPhi and leaves the others at the configured coupling", () => {
+    const pilot = { bothPass: 27, worse: 3, better: 3, bothFail: 7 };
+    const plan = byId(makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN, new Map([["flow", pilot]])));
+    expect(plan.flow!.pairCoupling).toBeCloseTo(pairPhi(pilot), 12);
+    expect(plan.nested!.pairCoupling).toBe(DEFAULT_PLAN.pairCoupling);
+    expect(plan.flow!.design).toBe("unpaired");
+  });
+
+  it("keeps a paired-only case paired under an independent pilot, and only its price moves", () => {
+    const independent = { bothPass: 20, worse: 5, better: 5, bothFail: 0 };
+    const assumed = byId(makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN)).thin!;
+    const measured = byId(
+      makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN, new Map([["thin", independent]])),
+    ).thin!;
+    expect(measured.pairCoupling).toBe(0);
+    expect(measured.design).toBe("paired");
+    expect(measured.paired.runs).toBeGreaterThan(assumed.paired.runs);
+  });
+
+  it("floors a negative pilot phi at 0, ignores an empty pilot, and refuses a malformed one", () => {
+    const negative = { bothPass: 2, worse: 10, better: 10, bothFail: 2 };
+    expect(pairPhi(negative)).toBeLessThan(0);
+    const floored = makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN, new Map([["flow", negative]]));
+    expect(floored.cases[0]!.pairCoupling).toBe(0);
+    const empty = { bothPass: 0, worse: 0, better: 0, bothFail: 0 };
+    const ignored = makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN, new Map([["flow", empty]]));
+    expect(ignored.cases[0]!.pairCoupling).toBe(DEFAULT_PLAN.pairCoupling);
+    const zeroSum = { bothPass: -1, worse: 1, better: 0, bothFail: 0 };
+    expect(() =>
+      makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN, new Map([["flow", zeroSum]])),
+    ).toThrow(expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }));
+    const bad = { bothPass: -1, worse: 3, better: 3, bothFail: 7 };
+    expect(() =>
+      makePlan(cases, toBaselineMap(bl), DEFAULT_PLAN, new Map([["flow", bad]])),
+    ).toThrow(expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }));
   });
 });
 

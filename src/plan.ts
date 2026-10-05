@@ -39,6 +39,8 @@ import {
   ebhSoloThreshold,
   evidenceCeilingLogE,
   mcnemarSamplesForEvidence,
+  type PairedCounts,
+  pairPhi,
   sampleSizeTwoProportion,
   samplesForEvidence,
   sprtExpectedN,
@@ -132,7 +134,18 @@ export interface PlanCase {
   ceilingLogE: number;
   unpaired: { runs: number; costUsd: number; wallMs: number };
   paired: { pairs: number; runs: number; costUsd: number; wallMs: number };
+  /**
+   * The coupling `paired` is priced at: `pairPhi` of this case's pilot when
+   * `makePlan` was given one, floored at 0, otherwise `config.pairCoupling`.
+   */
+  pairCoupling: number;
   detectability: Detectability;
+  /**
+   * The design to run this case with: of the designs that decide it within
+   * `runsPerCaseCeiling`, the one that needs fewer runs, unpaired on a tie.
+   * Null when neither does.
+   */
+  design: "unpaired" | "paired" | null;
   /**
    * How many baseline runs this case would need for the *unpaired* design to
    * work, or null if it already works. This is the actionable half of an
@@ -297,7 +310,9 @@ export function planCase(
       ceilingLogE: 0,
       unpaired: { runs: Infinity, costUsd: Infinity, wallMs: Infinity },
       paired: { pairs: Infinity, runs: Infinity, costUsd: Infinity, wallMs: Infinity },
+      pairCoupling: cfg.pairCoupling,
       detectability: "IMPOSSIBLE",
+      design: null,
       baselineRunsNeeded: null,
       reason: "no baseline: nothing to compare against, record one first",
     };
@@ -308,7 +323,9 @@ export function planCase(
       ceilingLogE: 0,
       unpaired: { runs: Infinity, costUsd: Infinity, wallMs: Infinity },
       paired: { pairs: Infinity, runs: Infinity, costUsd: Infinity, wallMs: Infinity },
+      pairCoupling: cfg.pairCoupling,
       detectability: "IMPOSSIBLE",
+      design: null,
       baselineRunsNeeded: null,
       reason:
         `baseline rate ${(rate * 100).toFixed(0)}% cannot lose ${(cfg.mde * 100).toFixed(0)} points, ` +
@@ -367,8 +384,26 @@ export function planCase(
 
   const baselineRunsNeeded =
     detectability === "UNPAIRED" ? null : baselineRunsToClear(rate, cfg.mde, barLogE);
+  const design =
+    detectability === "PAIRED_ONLY"
+      ? "paired"
+      : detectability !== "UNPAIRED"
+        ? null
+        : paired.runs < unpaired.runs
+          ? "paired"
+          : "unpaired";
 
-  return { ...base, ceilingLogE, unpaired, paired, detectability, baselineRunsNeeded, reason };
+  return {
+    ...base,
+    ceilingLogE,
+    unpaired,
+    paired,
+    pairCoupling: cfg.pairCoupling,
+    detectability,
+    design,
+    baselineRunsNeeded,
+    reason,
+  };
 }
 
 /**
@@ -416,10 +451,17 @@ export function expectedSequentialSamples(
   return { samples: total, perCase };
 }
 
+/**
+ * Plan a suite. `pilots` holds a pair table per case from a pilot run of the
+ * paired design, ideally with both arms on the same revision; a case with one
+ * prices pairing at its measured `pairPhi` instead of `cfg.pairCoupling`, so
+ * its `design` is chosen from a coupling the runner actually delivers.
+ */
 export function makePlan(
   cases: Array<CaseRef>,
   baseline: Map<string, BaselineStat>,
   cfg: PlanConfig = DEFAULT_PLAN,
+  pilots: Map<string, PairedCounts> = new Map(),
 ): Plan {
   // Open interval: mde = 0 asks for a zero-point drop and fdr = 0 asks for a
   // bar of Infinity. Both used to be accepted and produce a plan in which
@@ -451,7 +493,16 @@ export function makePlan(
   }
 
   const m = cases.length;
-  const planned = cases.map((c) => planCase(c, baseline.get(c.id), cfg, m));
+  const planned = cases.map((c) => {
+    const pilot = pilots.get(c.id);
+    // pairPhi validates the counts, so a malformed pilot is refused even when it sums to 0.
+    const phi = pilot ? pairPhi(pilot) : 0;
+    // An empty pilot measured nothing, so it leaves the configured coupling in place.
+    const measured = pilot && pilot.bothPass + pilot.worse + pilot.better + pilot.bothFail > 0;
+    // A negative phi is noise around independence for a design that couples by construction.
+    const caseCfg = measured ? { ...cfg, pairCoupling: Math.max(0, phi) } : cfg;
+    return planCase(c, baseline.get(c.id), caseCfg, m);
+  });
 
   const finite = (x: number) => (Number.isFinite(x) ? x : 0);
   const decidableUnpaired = planned.filter((p) => p.detectability === "UNPAIRED");

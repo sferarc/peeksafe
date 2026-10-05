@@ -361,6 +361,41 @@ describe("README: planning", () => {
   });
 });
 
+describe("README: choosing a design by cost", () => {
+  const baselines: BaselineStat[] = [
+    { caseId: "checkout/flow", successes: 180, trials: 240 },
+    { caseId: "parsing/nested", successes: 216, trials: 240 },
+  ];
+  const cases = baselines.map((b) => ({ id: b.caseId }));
+  const pilot = { bothPass: 27, worse: 3, better: 3, bothFail: 7 };
+  const assumed = makePlan(cases, toBaselineMap(baselines), DEFAULT_PLAN);
+  const measured = makePlan(
+    cases,
+    toBaselineMap(baselines),
+    DEFAULT_PLAN,
+    new Map([["checkout/flow", pilot]]),
+  );
+
+  it("reproduces the table", () => {
+    const [flowA, nestedA] = assumed.cases;
+    const [flowM, nestedM] = measured.cases;
+    expect(DEFAULT_PLAN.pairCoupling).toBe(0.9);
+    expect([flowA!.unpaired.runs, flowA!.paired.runs, flowA!.design]).toEqual([164, 118, "paired"]);
+    expect([nestedA!.unpaired.runs, nestedA!.paired.runs, nestedA!.design]).toEqual([
+      75,
+      100,
+      "unpaired",
+    ]);
+    expect(flowM!.pairCoupling).toBeCloseTo(0.6, 12);
+    expect([flowM!.unpaired.runs, flowM!.paired.runs, flowM!.design]).toEqual([
+      164,
+      206,
+      "unpaired",
+    ]);
+    expect([nestedM!.paired.runs, nestedM!.design]).toEqual([100, "unpaired"]);
+  });
+});
+
 describe("README: the paired alternative", () => {
   const counts = { bothPass: 70, worse: 22, better: 4, bothFail: 4 };
 
