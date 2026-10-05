@@ -1,10 +1,11 @@
 # Plans
 
-The roadmap lives in [`ROADMAP.md`](../../ROADMAP.md) at the repository root, so contributors see it without opening this vault. It is not duplicated here. As of 2026-10-02 it lists, in order:
+The roadmap lives in [`ROADMAP.md`](../../ROADMAP.md) at the repository root, so contributors see it without opening this vault. It is not duplicated here. As of 2026-10-05 it lists, in order:
 
-1. Pairing in the planner's defaults, now that `gate` takes paired cases ([[decisions/2026-10-02-paired-cases-in-gate]])
-2. What is left for the stored-baseline statistics: a cap on `altConcentration` ([[decisions/2026-10-02-alt-shape-floor]])
-3. The first release ([[decisions/2026-10-02-first-release-pending]])
+1. What is left for the stored-baseline statistics: a cap on `altConcentration` ([[decisions/2026-10-02-alt-shape-floor]])
+2. The first release ([[decisions/2026-10-02-first-release-pending]])
+
+Pairing in the planner, item 1 until 2026-10-05, landed as [[decisions/2026-10-05-plan-design-per-case]].
 
 And as not planned: a runner, graders, a baseline store, CI adapters or a CLI.
 

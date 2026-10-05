@@ -2,6 +2,7 @@
 
 Dated records of choices a later change could undo by accident. Each says what was decided, why, and what would reopen it. Newest first.
 
+- [[2026-10-05-plan-design-per-case]]: `makePlan` recommends a design per case, priced at a pilot's measured coupling
 - [[2026-10-05-trusted-publishing-only]]: `release.yml` publishes through npm trusted publishing (OIDC) only, with no token fallback
 - [[2026-10-02-alt-shape-floor]]: the default statistic's alternative shapes are floored at 1, not 0.35
 - [[2026-10-02-paired-cases-in-gate]]: the proven path is pairing, not a new stored-baseline statistic

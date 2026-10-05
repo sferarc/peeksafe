@@ -14,7 +14,9 @@ From the module header in `src/plan.ts`:
 
 `makePlan(cases, baselines, config)` returns a `Plan` with one `PlanCase` per case and `totals`. Each case has a `detectability` of `UNPAIRED`, `PAIRED_ONLY`, `TOO_EXPENSIVE` or `IMPOSSIBLE`, the unpaired run count (or `Infinity`), the paired pair count, and `baselineRunsNeeded` (or `null`). `IMPOSSIBLE` uses the same rule as `gate`'s `impossible` flag. `totals` includes `decidableUnpaired` and `decidableBest`.
 
-`DEFAULT_PLAN` carries cost and timing assumptions (`costPerRunUsd`, `msPerRun`, `screenRuns`, `pairCoupling` and more; see `PlanConfig`). `pairCoupling` should be measured with `pairPhi` on a pilot, not assumed.
+`DEFAULT_PLAN` carries cost and timing assumptions (`costPerRunUsd`, `msPerRun`, `screenRuns`, `pairCoupling` and more; see `PlanConfig`). `pairCoupling` should be measured with `pairPhi` on a pilot, not assumed: `makePlan`'s fourth argument takes a pilot pair table per case, and a case with one is priced at its `pairPhi`, floored at 0, with an empty table ignored ([[decisions/2026-10-05-plan-design-per-case]]).
+
+Each `PlanCase` also carries `design`, the design to run it with: of unpaired and paired, the one that decides it within `runsPerCaseCeiling` in fewer runs, unpaired on a tie, `null` when neither does; and `pairCoupling`, the coupling its paired figures used. This is the same per-case choice `totals.bestRuns` sums. The suite-level `recommendedDesign` is separate: it decides which design the expected bill is priced for, and still flips to paired when more than a quarter of the suite is `PAIRED_ONLY`.
 
 ## Things that have been wrong before
 
