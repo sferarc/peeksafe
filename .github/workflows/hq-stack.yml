@@ -46,11 +46,11 @@ jobs:
             "$comment": "The owner-approved stack as rules CI can check. The page that explains it is kb/company/tech-stack.md. `hq-stack.yml` in every tenant runs these through .github/workflows/stack.yml, which `pnpm stack:render` regenerates from this file.",
             "repositories": {
               "sferarc/hq": "enforce",
-              "sferarc/platform": "warn",
+              "sferarc/platform": "enforce",
               "sferarc/pgbeam": "warn",
               "sferarc/nuclom": "warn",
               "sferarc/pgseek": "enforce",
-              "sferarc/peeksafe": "warn"
+              "sferarc/peeksafe": "enforce"
             },
             "rules": [
               {
