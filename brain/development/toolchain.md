@@ -18,15 +18,18 @@ pnpm build       # tsc -p tsconfig.build.json, emits dist/
 pnpm lint        # biome check: lint and format, read-only
 pnpm fix         # biome check --write
 pnpm knip        # unused files, exports and dependencies
+pnpm check       # lint, knip, typecheck and test, queued behind other worktrees' checks
 ```
 
 `pnpm install` also installs a lefthook pre-commit hook (`lefthook.yml`) that runs `biome check --write` on staged TypeScript, `.mjs` and JSON files and restages them. `biome.json` follows the sferarc house style: double quotes, semicolons, two-space indent, 100 columns, the recommended preset plus `noUnusedImports`. `noNonNullAssertion` is off because `noUncheckedIndexedAccess` makes every indexed read optional, and the numerical loops assert in-bounds reads with `!` (about 200 of them). Markdown is not formatted. Checked on 2026-10-05 in a fresh clone (#40): `pnpm install --frozen-lockfile` with the `mise.toml` pnpm 12.8.1 ran lefthook's postinstall, wrote `.git/hooks/pre-commit`, and a commit of a misformatted line in `src/index.ts` landed formatted. CI cannot check this because it never commits; it runs `lefthook validate` instead.
+
+`pnpm check` runs under `scripts/with-lock.pl`, a `flock` on `checks.lock` in `git rev-parse --git-common-dir`, so agents checking in several worktrees of one clone queue ("waiting for lock held by pid N") instead of running the Monte Carlo suite side by side. The kernel drops the lock when its holder dies, so it never goes stale, and a locked command that calls another runs straight through (`WITH_LOCK_HELD`). The lefthook pre-push hook runs `pnpm check`. Measured 2026-10-07 on a 14-core Mac with other agents loading it: two concurrent checks peaked at 2.2 to 2.7 GB summed RSS unlocked and 1.3 GB locked, at the cost of wall time (21 to 37 s unlocked, 48 to 49 s locked). One check alone is unchanged, about 1.3 GB.
 
 `pnpm test:watch` runs vitest in watch mode. `prepack` cleans and rebuilds, so `pnpm pack` and `pnpm publish` always ship a fresh `dist/`. pnpm strips `prepack` from the packed `package.json` and writes the dev dependencies as the exact catalog versions; neither changes what a consumer installs. CI fails if a `catalog:` specifier survives into the packed manifest. Publish the tarball `pnpm pack` produces: `npm publish` on the directory packs its own and keeps `catalog:`.
 
 ## TypeScript
 
-`tsconfig.json` targets ES2023 with `module` and `moduleResolution` `NodeNext`, `strict`, `noUncheckedIndexedAccess` and `verbatimModuleSyntax`. Relative imports therefore carry a `.js` extension (`src/index.ts`). The package is ESM only (`"type": "module"`) with a single `.` export. `files` ships `dist`, `src` (so the maps in `dist` resolve), the README, CHANGELOG, LICENSE, NOTICE and RESEARCH-NOTES; `scripts/` and `test/` stay out. On 2026-10-02 the tarball was 66 files, 185 kB packed.
+`tsconfig.json` targets ES2023 with `module` and `moduleResolution` `NodeNext`, `strict`, `noUncheckedIndexedAccess` and `verbatimModuleSyntax`. Relative imports therefore carry a `.js` extension (`src/index.ts`). `tsconfig.json` is `incremental`; the build info goes to `tsconfig.tsbuildinfo` (gitignored), which takes a warm `tsc --noEmit` from 0.12 s to 0.10 s and 128 MB to 90 MB. `tsconfig.build.json` turns it off, because with build info left over `pnpm build` after `pnpm clean` would see nothing to emit. The package is ESM only (`"type": "module"`) with a single `.` export. `files` ships `dist`, `src` (so the maps in `dist` resolve), the README, CHANGELOG, LICENSE, NOTICE and RESEARCH-NOTES; `scripts/` and `test/` stay out. On 2026-10-02 the tarball was 66 files, 185 kB packed.
 
 ## Dependencies
 

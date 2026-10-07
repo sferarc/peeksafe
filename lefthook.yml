@@ -5,3 +5,9 @@ pre-commit:
     - name: biome
       glob: "*.{ts,mjs,json}"
       run: pnpm exec biome check --write --no-errors-on-unmatched {staged_files} && git add {staged_files}
+
+# The full check, queued behind any other worktree's check of this clone.
+pre-push:
+  jobs:
+    - name: check
+      run: pnpm check

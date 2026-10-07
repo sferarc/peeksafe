@@ -52,6 +52,7 @@
     "knip": "knip --treat-config-hints-as-errors",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check": "scripts/with-lock.pl sh -c 'biome check . && knip --treat-config-hints-as-errors && tsc -p tsconfig.json --noEmit && vitest run'",
     "prepack": "pnpm run clean && pnpm run build",
     "version": "node scripts/release-changelog.mjs && git add CHANGELOG.md"
   },
