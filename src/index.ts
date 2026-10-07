@@ -6,7 +6,7 @@
  * Benjamini-Hochberg. That construction has no error control. A p-value computed
  * at a stopping boundary is not a p-value, and BH assumes it is.
  *
- * The library is organised in three layers, and most callers only need the first.
+ * The library is organised in four layers, and most callers only need the first.
  *
  * ## 1. The decision
  *
@@ -25,7 +25,16 @@
  * the case where the honest answer is that no candidate budget will do and only
  * more baseline runs will.
  *
- * ## 3. The statistics
+ * ## 3. The check
+ *
+ *   typeOneError(...)              the error rate the gate delivers at rates you name
+ *   certifyProbability(...)        the same computation with separate baseline and candidate rates
+ *   pairedCertifyProbability(...)  the power of a paired design
+ *
+ * These are exact, not simulated, so a caller can check the gate on their own
+ * rates before trusting a verdict.
+ *
+ * ## 4. The statistics
  *
  * Everything the first two layers are built from, exported so a caller can check
  * the arithmetic, build a different gate, or use one piece on its own: special
