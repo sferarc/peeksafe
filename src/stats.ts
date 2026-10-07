@@ -1546,6 +1546,19 @@ export function probabilityMoved(
 ): number {
   requireCounts(baselineSuccesses, baselineTrials, "probabilityMoved(baseline)");
   requireCounts(candidateSuccesses, candidateTrials, "probabilityMoved(candidate)");
+  // Both were unchecked. A negative mde answered the probability of a rise, and
+  // a node count below 1 skipped the quadrature and answered 0, "did not move".
+  // Checked before the early return so the first call of a loop refuses too.
+  requireOpenProbability(mde, "mde", "probabilityMoved");
+  if (!Number.isInteger(nodes) || nodes < 1) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `probabilityMoved: nodes must be a positive integer, got ${nodes}`,
+      {
+        detail: { nodes },
+      },
+    );
+  }
   if (candidateTrials === 0) return 0;
   const a0 = 1 + baselineSuccesses,
     b0 = 1 + baselineTrials - baselineSuccesses;

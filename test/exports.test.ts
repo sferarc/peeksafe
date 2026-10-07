@@ -360,6 +360,22 @@ describe("the rest of the statistical core", () => {
     expect(probabilityMoved(51, 60, 0, 0, 0.15)).toBe(0);
   });
 
+  it("probabilityMoved refuses an mde or a node count it cannot use, with or without candidate runs", () => {
+    // A negative mde used to answer the probability of a *rise*, and a node
+    // count below 1 skipped the quadrature and answered 0, "did not move".
+    for (const mde of [-0.15, 0, 1, Number.NaN]) {
+      expect(() => probabilityMoved(51, 60, 20, 96, mde)).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+      expect(() => probabilityMoved(51, 60, 0, 0, mde)).toThrow(PeeksafeError);
+    }
+    for (const nodes of [-2, 0, 1.5, Number.POSITIVE_INFINITY]) {
+      expect(() => probabilityMoved(51, 60, 20, 96, 0.15, nodes)).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+    }
+  });
+
   it("hash32 is FNV-1a, and streamFor is a stream keyed by the joined parts", () => {
     expect(hash32("")).toBe(0x811c9dc5);
     expect(hash32("a")).toBe(0xe40c292c);
