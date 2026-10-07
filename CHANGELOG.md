@@ -13,6 +13,9 @@ All notable changes to this project are documented here. The format follows
   case at `minTrials`. They now refuse them with `PEEKSAFE_E_CONFIG`.
 - `PlanCase.fixedNPerArm` ignored the plan's `alpha` and `beta` and always priced the fixed-N
   comparator at 0.05 and 0.1. It now uses the plan's own error rates; the defaults are unchanged.
+- `probabilityMoved` checked neither `mde` nor `nodes`. A negative `mde` returned the probability
+  of a rise, and a `nodes` below 1 skipped the quadrature and returned 0. It now refuses an `mde`
+  outside (0, 1) and a `nodes` that is not a positive integer with `PEEKSAFE_E_STAT_DOMAIN`.
 
 ### Added
 
