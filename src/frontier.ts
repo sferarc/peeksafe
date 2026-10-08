@@ -293,6 +293,11 @@ export function typicalObservationsPerCase(
   cfg: FrontierConfig,
   baselineRuns: number,
 ): number {
+  // `makePlan` reaches this quantile through `baselineNullRate`, which refuses
+  // one outside (0,1). This handed it to `betaQuantile` directly, which answers
+  // 0 for a quantile at or below 0, 1 at or above 1, and about 0 for NaN, so the
+  // frontier priced the typical bill against a null rate nobody chose.
+  requireOpenProbability(cfg.nullQuantile, "nullQuantile", "typicalObservationsPerCase");
   const s = Math.round(rate * baselineRuns);
   const p0 = betaQuantile(1 + s, 1 + baselineRuns - s, cfg.nullQuantile);
   const p1 = Math.max(0.005, p0 - mde);
@@ -328,6 +333,7 @@ export function evaluatePoint(
   // back to the run ceiling.
   requireErrorRates(cfg.alpha, cfg.beta, "evaluatePoint");
   requireProbability(cfg.pairCoupling, "pairCoupling", "evaluatePoint");
+  requireOpenProbability(cfg.nullQuantile, "nullQuantile", "evaluatePoint");
   if (!Number.isInteger(cases) || cases < 1) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",
