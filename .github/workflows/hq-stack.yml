@@ -30,7 +30,7 @@ jobs:
 
       # Only mise itself: the check needs Node 26 and none of the repository's own tools.
       - name: Install mise
-        uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
           install: false
           cache: false
@@ -754,3 +754,139 @@ jobs:
           HQ_STACK_CHECK
           cd "$RUNNER_TEMP"
           mise exec node@26 -- node stack-check.ts --policy stack-policy.json --root "$GITHUB_WORKSPACE" --repository "$REPOSITORY"
+
+  attribution:
+    name: No Claude attribution
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install mise
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          install: false
+          cache: false
+          working_directory: ${{ runner.temp }}
+
+      - name: Check what would land for Claude attribution
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/attribution.ts" <<'HQ_STACK_ATTRIBUTION'
+          /**
+           * Fails a pull request that would land Claude Code's attribution on main: a
+           * Co-Authored-By or Claude-Session trailer, the "Generated with Claude Code"
+           * footer or a claude.ai session link in its title or description, or Claude as
+           * its author. Every tenant squash-merges with the pull request's title and
+           * description as the commit message, so the branch's own commits never reach
+           * main; their attribution is reported as a warning only.
+           *
+           * It ships inside `.github/workflows/stack.yml` next to the stack check, so it
+           * imports only `node:` builtins and uses only erasable syntax. Lines are matched
+           * whole, so prose that mentions a trailer is not a finding.
+           */
+
+          import { execFileSync } from "node:child_process";
+
+          const ATTRIBUTION_LINE = [
+            /^\s*co-authored-by:\s*claude\b/i,
+            /^\s*claude-session:/i,
+            /^\s*(?:🤖\s*)?_?generated (?:with|by) \[claude code\]/i,
+            /^\s*https:\/\/claude\.ai\/code\/session_\w+\s*$/i,
+          ];
+
+          const CLAUDE_AUTHOR = /<noreply@anthropic\.com>/i;
+
+          /** The lines of `text` that are Claude Code attribution. */
+          export function attributionLines(text: string): string[] {
+            return text.split("\n").filter((line) => ATTRIBUTION_LINE.some((rule) => rule.test(line)));
+          }
+
+          export interface Commit {
+            sha: string;
+            author: string;
+            message: string;
+          }
+
+          const CLAUDE_LOGIN = /^claude(?:\[bot\])?$/i;
+
+          /** What would land on main: the squash commit's message and its author. */
+          export function findLanding(title: string, body: string, author: string): string[] {
+            const findings: string[] = [];
+            if (CLAUDE_LOGIN.test(author)) findings.push(`the pull request is authored by ${author}`);
+            for (const line of attributionLines(`${title}\n${body}`)) {
+              findings.push(`description: ${line.trim()}`);
+            }
+            return findings;
+          }
+
+          /** Attribution in the branch's commits, which the squash merge leaves behind. */
+          export function findInCommits(commits: readonly Commit[]): string[] {
+            const findings: string[] = [];
+            for (const commit of commits) {
+              const short = commit.sha.slice(0, 7);
+              if (CLAUDE_AUTHOR.test(commit.author)) {
+                findings.push(`commit ${short} is authored as ${commit.author}`);
+              }
+              for (const line of attributionLines(commit.message)) {
+                findings.push(`commit ${short}: ${line.trim()}`);
+              }
+            }
+            return findings;
+          }
+
+          /** `git log` of `range` as commits; a NUL ends each record. */
+          export function readCommits(range: string): Commit[] {
+            const out = execFileSync("git", ["log", "--format=%H%n%an <%ae>%n%B%x00", range], {
+              encoding: "utf8",
+            });
+            return out
+              .split("\0")
+              .map((record) => record.replace(/^\n+/, ""))
+              .filter((record) => record.trim() !== "")
+              .map((record) => {
+                const [sha = "", author = "", ...message] = record.split("\n");
+                return { sha, author, message: message.join("\n") };
+              });
+          }
+
+          if (import.meta.main) {
+            const base = process.env.BASE_SHA;
+            const head = process.env.HEAD_SHA;
+            if (!base || !head) {
+              console.error(
+                "usage: BASE_SHA=<sha> HEAD_SHA=<sha> [PR_TITLE=<text>] [PR_BODY=<text>] [PR_AUTHOR=<login>] node attribution.ts",
+              );
+              process.exit(2);
+            }
+            for (const finding of findInCommits(readCommits(`${base}..${head}`))) {
+              console.log(`::warning title=Claude attribution (not landed)::${finding}`);
+            }
+            const findings = findLanding(
+              process.env.PR_TITLE ?? "",
+              process.env.PR_BODY ?? "",
+              process.env.PR_AUTHOR ?? "",
+            );
+            for (const finding of findings) console.log(`::error title=Claude attribution::${finding}`);
+            if (findings.length > 0) {
+              console.log(
+                "Edit the description and re-run this check. Set attribution.commit and attribution.pr to empty strings and attribution.sessionUrl to false in Claude Code's settings.",
+              );
+            }
+            process.exit(findings.length > 0 ? 1 : 0);
+          }
+          HQ_STACK_ATTRIBUTION
+          cd "$RUNNER_TEMP"
+          GIT_DIR="$GITHUB_WORKSPACE/.git" mise exec node@26 -- node attribution.ts
