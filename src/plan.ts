@@ -481,6 +481,10 @@ export function makePlan(
   // every case at the per-case cap and no error anywhere.
   requireErrorRates(cfg.alpha, cfg.beta, "makePlan");
   requireProbability(cfg.pairCoupling, "pairCoupling", "makePlan");
+  // Refused by `baselineNullRate` already, but only once a case with a baseline
+  // reaches it, and under that function's name for it, `q`. Checked here so
+  // every planner entry point refuses it the same way and names it.
+  requireOpenProbability(cfg.nullQuantile, "nullQuantile", "makePlan");
   if (cases.length === 0) {
     throw new PeeksafeError("PEEKSAFE_E_SUITE_EMPTY", "makePlan: no cases to plan for", {
       hint: "pass at least one case; makePlan prices a suite, not an empty list",
@@ -695,6 +699,10 @@ export function affordabilityGrid(
 ): AffordabilityCell[] {
   requireProbability(baselineRate, "baselineRate", "affordabilityGrid");
   requireErrorRates(cfg.alpha, cfg.beta, "affordabilityGrid");
+  // The typical bill below takes this quantile of the baseline posterior
+  // straight from `betaQuantile`, which answers 0 or 1 for a quantile outside
+  // (0,1) and about 0 for NaN instead of refusing. `makePlan` refuses it.
+  requireOpenProbability(cfg.nullQuantile, "nullQuantile", "affordabilityGrid");
   // Every other planner entry point refuses a case with no baseline: `planCase`
   // returns IMPOSSIBLE with "no baseline", `evaluatePoint` throws on
   // `baselineRuns < 1`, and `gate` throws PEEKSAFE_E_BASELINE_MISSING. This one

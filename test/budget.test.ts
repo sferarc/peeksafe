@@ -256,6 +256,18 @@ describe("the planner answers before anything is spent", () => {
     // baseline and not the grid.
     expect(affordabilityGrid(0.85, 60, DEFAULT_PLAN, 5, [20], [0.15])).toHaveLength(1);
   });
+
+  it("refuses an out-of-range nullQuantile, the same as makePlan", () => {
+    const { cases, baseline } = suite(20, 0.85, 60);
+    for (const bad of [0, 1, -0.5, 1.5, NaN]) {
+      const cfg = { ...DEFAULT_PLAN, nullQuantile: bad };
+      expect(() => makePlan(cases, baseline, cfg), `makePlan q=${bad}`).toThrow(/nullQuantile/);
+      expect(
+        () => affordabilityGrid(0.85, 60, cfg, 5, [20], [0.15]),
+        `affordabilityGrid q=${bad}`,
+      ).toThrow(/nullQuantile/);
+    }
+  });
 });
 
 describe("the design per case, from a measured coupling", () => {
@@ -344,6 +356,17 @@ describe("the frontier", () => {
       expect(() => computeFrontier({ ...DEFAULT_FRONTIER, beta: bad }), `beta=${bad}`).toThrow(
         /beta/,
       );
+    }
+  });
+
+  it("refuses an out-of-range nullQuantile, the same as makePlan", () => {
+    for (const bad of [0, 1, -0.5, 1.5, NaN]) {
+      const cfg = { ...DEFAULT_FRONTIER, nullQuantile: bad };
+      expect(() => computeFrontier(cfg), `computeFrontier q=${bad}`).toThrow(/nullQuantile/);
+      expect(
+        () => typicalObservationsPerCase(0.85, 0.15, cfg, 240),
+        `typicalObservationsPerCase q=${bad}`,
+      ).toThrow(/nullQuantile/);
     }
   });
 });

@@ -29,6 +29,7 @@ Each `PlanCase` also carries `design`, the design to run it with: of unpaired an
 
 - Error rates that sum to 1 or more were accepted. Wald's walls meet or cross there, so `sprtExpectedN` answers a small positive number (0.33 at `alpha` 0.6, `beta` 0.5) and the plan priced every case at `minTrials`. `makePlan`, `affordabilityGrid` and `evaluatePoint` now refuse `alpha + beta >= 1` through `requireErrorRates` in `src/errors.ts`, so the `alpha + beta === 1` fallback to `maxTrials` described above is no longer reachable from the planner. Raised in the review of #45 and recorded in #47.
 - `fixedNPerArm` called `sampleSizeTwoProportion` without the plan's `alpha` and `beta`, so the fixed-N comparator ignored them. Same source.
+- `nullQuantile` reached `makePlan` through `baselineNullRate`, which refuses one outside `(0, 1)`, but `affordabilityGrid` and `typicalObservationsPerCase` (and so `evaluatePoint` and `computeFrontier`) passed it straight to `betaQuantile`. That function clamps a quantile at or below 0 to 0 and one at or above 1 to 1, and bisects a NaN down to about 0, so the typical bill was priced against a null rate nobody chose. All four now refuse it by name, and so does `makePlan`, before any case is read. `test/budget.test.ts` pins the refusals. `betaQuantile` itself still clamps; a caller that takes a quantile from configuration has to check it first.
 
 Everything here evaluates the mean trajectory. Realised counts vary around it.
 
