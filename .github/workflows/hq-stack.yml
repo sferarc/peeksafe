@@ -6,6 +6,8 @@ name: HQ approved stack
 
 on:
   pull_request:
+    # `edited` so a corrected description is checked again: a re-run reads the event as it was.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
   workflow_dispatch:
@@ -48,7 +50,6 @@ jobs:
               "sferarc/hq": "enforce",
               "sferarc/platform": "enforce",
               "sferarc/pgbeam": "warn",
-              "sferarc/nuclom": "warn",
               "sferarc/pgseek": "enforce",
               "sferarc/peeksafe": "enforce"
             },
@@ -882,7 +883,7 @@ jobs:
             for (const finding of findings) console.log(`::error title=Claude attribution::${finding}`);
             if (findings.length > 0) {
               console.log(
-                "Edit the description and re-run this check. Set attribution.commit and attribution.pr to empty strings and attribution.sessionUrl to false in Claude Code's settings.",
+                "Edit the description: the edit runs this check again, while a re-run reads the description as it was. Set attribution.commit and attribution.pr to empty strings and attribution.sessionUrl to false in Claude Code's settings.",
               );
             }
             process.exit(findings.length > 0 ? 1 : 0);
