@@ -1,6 +1,6 @@
 # First release is pending the owner
 
-Recorded 2026-10-02.
+Recorded 2026-10-02. Updated 2026-10-20.
 
 ## State
 
