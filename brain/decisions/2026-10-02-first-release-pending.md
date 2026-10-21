@@ -5,9 +5,9 @@ Recorded 2026-10-02. Updated 2026-10-21.
 ## State
 
 - `package.json` says `0.1.0`.
-- `npm view peeksafe` returns 404 and the repository has no tags.
+- `0.1.0` was published to npm on 2026-10-21 by the owner (`npm view peeksafe version`); the repository has no tags yet and the trusted publisher is not configured.
 - `CHANGELOG.md` folds everything into one `## 0.1.0 (2026-10-21)` section, labelled "First release", under an empty `Unreleased` heading. Entries written as fixes or changes after the first fold (#48, #49, #50, #56) were restated there as what the library does; the notes for #42, #45 and #57 were first added to the 0.1.0 Notes, since those PRs never touched the changelog.
-- `ROADMAP.md` item 1 says `0.1.0` is not on npm yet.
+- `ROADMAP.md` item 1 lists the tag and the trusted publisher as what is left.
 
 ## Decision
 
