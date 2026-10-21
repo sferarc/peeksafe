@@ -2,12 +2,8 @@
 
 Statistically valid gates for non-deterministic eval suites. Stop early without losing error control.
 
-Not on npm yet. Until the first release, build a tarball from source and install that:
-
 ```bash
-git clone https://github.com/sferarc/peeksafe.git
-cd peeksafe && pnpm install && pnpm pack
-npm install /path/to/peeksafe/peeksafe-*.tgz
+npm install peeksafe
 ```
 
 Zero runtime dependencies. TypeScript, ESM, Node 22 or newer.
