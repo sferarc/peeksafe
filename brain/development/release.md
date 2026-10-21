@@ -27,24 +27,11 @@ The registry steps stay on npm while everything before them uses pnpm. They only
 
 ## The first release is different
 
-npm cannot configure a trusted publisher for a package that does not exist, so the first publish is a manual one by the owner: `mise install`, `pnpm install --frozen-lockfile`, `pnpm pack`, then `npm publish peeksafe-X.Y.Z.tgz --access public`. `npm ci` no longer works (there is no `package-lock.json`), and `npm publish` on the directory would ship `catalog:` specifiers. After that the trusted publisher is configured on npmjs.com for this repository and workflow, and later releases go through the tag.
+npm cannot configure a trusted publisher for a package that does not exist, so the first publish (`0.1.0`, 2026-10-21) was a manual one by the owner, from a tarball made by `pnpm pack`: `npm publish` on the directory would ship `catalog:` specifiers, and `npm ci` does not work because there is no `package-lock.json`. Later releases go through the tag once the trusted publisher is configured.
 
-### Commands for 0.1.0
+### Trusted publisher bootstrap
 
-After the release pull request is merged, from a clean clone of `main` with mise installed and npm logged in as an owner of the name:
-
-```bash
-git pull --ff-only
-mise install
-pnpm install --frozen-lockfile
-pnpm test
-pnpm pack                            # prepack builds dist/
-npm publish ./peeksafe-0.1.0.tgz --access public   # no provenance from a laptop
-git tag -a v0.1.0 -m v0.1.0
-git push origin v0.1.0               # Release then fails at "already published", which is expected
-```
-
-Then configure the trusted publisher on npmjs.com (package settings, this repository, `release.yml`), so 0.1.1 onwards publish from the tag with provenance and no token. The workflow has no token path, so it cannot publish 0.1.0 itself.
+With `0.1.0` on npm, configure the trusted publisher on npmjs.com (package settings, this repository, workflow `release.yml`). Then 0.1.1 onwards publish from the tag with provenance and no token. The workflow has no token path, so it cannot publish a version by any other route.
 
 ## Current state
 
