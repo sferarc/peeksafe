@@ -144,15 +144,17 @@ describes what the package contains rather than what changed.
   at the plan's own `alpha` and `beta`; the defaults are 0.05 and 0.1.
 - `probabilityMoved` refuses an `mde` outside (0, 1) and a `nodes` that is not a positive integer
   with `PEEKSAFE_E_STAT_DOMAIN`.
-- `makePlan`, `affordabilityGrid`, `computeFrontier` and `typicalObservationsPerCase` refuse a
-  `nullQuantile` outside (0, 1) with `PEEKSAFE_E_STAT_DOMAIN`, naming the field. `betaQuantile`
-  returns 0 or 1 for such a value, so the planners used to price the typical bill against a null
-  rate of 0 or 1 that nobody chose and return a complete answer.
+- `makePlan`, `affordabilityGrid`, `computeFrontier`, `evaluatePoint` and `typicalObservationsPerCase`
+  refuse a `nullQuantile` outside (0, 1) with `PEEKSAFE_E_STAT_DOMAIN`, naming the field.
+  `betaQuantile` returns 0 or 1 for such a value, which would price the typical bill against a null
+  rate that nobody chose and still return a complete answer.
 - `affordabilityGrid` refuses a `baselineTrials` that is not a positive integer with
-  `PEEKSAFE_E_CONFIG`, the same refusal `evaluatePoint` gives. A suite with no baseline used to be
-  priced against a Beta(1, 1) null, a rate of 0.5, and came out cheaper than the same suite with a
-  real 60-run baseline. `planCase` still reports it as `impossible` and `gate` as missing a baseline.
-- An `alpha` or `beta` outside (0, 1) is refused by `makePlan`, `affordabilityGrid`, `evaluatePoint`,
-  `sprtDecision`, `sprtExpectedN` and `sampleSizeTwoProportion`. `sprtExpectedN` returns `NaN` or
-  `Infinity` there, and the planners read either as "no finite answer" and priced every case at the
-  per-case cap, so a plan three times too expensive looked the same as a suite that needs the cap.
+  `PEEKSAFE_E_CONFIG`, the same refusal `evaluatePoint` gives, because a suite with no baseline
+  would otherwise be priced against a Beta(1, 1) null, a rate of 0.5, and come out cheaper than the
+  same suite with a real 60-run baseline. `planCase` still reports it as `impossible` and `gate` as
+  missing a baseline.
+- An `alpha` or `beta` outside (0, 1) is refused by `makePlan`, `affordabilityGrid`, `computeFrontier`,
+  `evaluatePoint`, `sprtDecision`, `sprtExpectedN` and `sampleSizeTwoProportion`, because
+  `sprtExpectedN` returns `NaN` or `Infinity` there and the planners read either as "no finite
+  answer" and price every case at the per-case cap, which looks the same as a suite that needs the
+  cap.
