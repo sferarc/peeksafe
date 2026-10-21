@@ -21,4 +21,4 @@ The fold is not a move of headings. A first release has nothing to be a delta ag
 
 ## Tags are never pushed by accident
 
-The `v0.1.0` tag reached the remote because `push.followTags` was true and an agent pushed a branch. The tag was kept. The repository now sets `push.followTags=false` (`git config push.followTags false`, recorded in `CONTRIBUTING.md`), and agents still never create or push tags.
+The `v0.1.0` tag reached the remote because `push.followTags` was true and an agent pushed a branch. The tag was kept. `CONTRIBUTING.md` asks every clone to run `git config push.followTags false`; the maintainer's main checkout has it set, but git config is per clone, so the global setting stays on and a fresh clone can push tags again. Agents still never create or push tags.

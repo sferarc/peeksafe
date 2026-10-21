@@ -31,7 +31,7 @@ npm cannot configure a trusted publisher for a package that does not exist, so t
 
 ### The v0.1.0 tag
 
-The annotated `v0.1.0` tag is on `ff97abc`, the merged release commit, and not on current `main`. It was not pushed on purpose: with `push.followTags` set globally, an agent's branch push carried it to the remote. `Release` ran and failed at "Version is not already published", as expected, since `0.1.0` was published by hand. The tag stays. Agents never create or push tags, and the repository sets `push.followTags=false` (see [[decisions/2026-10-02-first-release-pending]]).
+The annotated `v0.1.0` tag is on `ff97abc`, the merged release commit, and not on current `main`. It was not pushed on purpose: with `push.followTags` set globally, an agent's branch push carried it to the remote. `Release` ran and failed at "Version is not already published", as expected, since `0.1.0` was published by hand. The tag stays. Agents never create or push tags, and `CONTRIBUTING.md` asks every clone to run `git config push.followTags false`; the global setting is still on, so a clone without it can push tags again (see [[decisions/2026-10-02-first-release-pending]]).
 
 ### Trusted publisher bootstrap
 
