@@ -27,7 +27,18 @@ The registry steps stay on npm while everything before them uses pnpm. They only
 
 ## The first release is different
 
-npm cannot configure a trusted publisher for a package that does not exist, so the first publish (`0.1.0`, 2026-10-21) was a manual one by the owner, from a tarball made by `pnpm pack`: `npm publish` on the directory would ship `catalog:` specifiers, and `npm ci` does not work because there is no `package-lock.json`. Later releases go through the tag once the trusted publisher is configured.
+npm cannot configure a trusted publisher for a package that does not exist, so the first release (`0.1.0`, 2026-10-21) was a manual publish by the owner, from a tarball made by `pnpm pack`: `npm publish` on the directory would ship `catalog:` specifiers, and `npm ci` does not work because there is no `package-lock.json`. Later releases go through the tag once the trusted publisher is configured.
+
+### The v0.1.0 tag
+
+The tag is still to be pushed, on the merged release commit and not on current `main`:
+
+```bash
+git tag -a v0.1.0 -m v0.1.0 ff97abc
+git push origin v0.1.0
+```
+
+`Release` then runs and fails at the "already published" check. That is expected, since `0.1.0` was published by hand.
 
 ### Trusted publisher bootstrap
 
@@ -35,4 +46,4 @@ With `0.1.0` on npm, configure the trusted publisher on npmjs.com (package setti
 
 ## Current state
 
-As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`, published 2026-10-21) and the repository has no tags. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the `v0.1.0` tag and the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. `pnpm version` cannot be used for this release because `package.json` is already at `0.1.0`. See [[decisions/2026-10-02-first-release-pending]].
+As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`, published 2026-10-21; the registry also lists a `0.0.0-stage` version created a minute earlier, whose purpose is unknown from the repository) and the repository has no tags. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the `v0.1.0` tag and the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. `pnpm version` cannot be used for this release because `package.json` is already at `0.1.0`. See [[decisions/2026-10-02-first-release-pending]].
