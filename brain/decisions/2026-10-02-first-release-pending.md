@@ -5,9 +5,9 @@ Recorded 2026-10-02. Updated 2026-10-21.
 ## State
 
 - `package.json` says `0.1.0`.
-- `0.1.0` was published to npm on 2026-10-21 by the owner (`npm view peeksafe version`); the repository has no tags pushed yet and the trusted publisher is not configured. The tag belongs on `ff97abc` (#62), not on `main`: the published tarball matches that commit, and `main` has since changed `CHANGELOG.md` and `README.md`.
+- `0.1.0` was published to npm on 2026-10-21 by the owner (`npm view peeksafe version`); the annotated `v0.1.0` tag is on `ff97abc` (#62), not on `main`, because the published tarball matches that commit and `main` has since changed `CHANGELOG.md` and `README.md`. The tag reached the remote on 2026-10-21 through `push.followTags` on an agent branch push, not by an explicit decision. Its [Release run](https://github.com/sferarc/peeksafe/actions/runs/39630834765) failed at "Version is not already published", after typecheck, test, build and the dependency check passed. The trusted publisher is not configured.
 - `CHANGELOG.md` folds everything into one `## 0.1.0 (2026-10-21)` section, labelled "First release", under an empty `Unreleased` heading. Entries written as fixes or changes after the first fold (#48, #49, #50, #56) were restated there as what the library does; the notes for #42, #45 and #57 were first added to the 0.1.0 Notes, since those PRs never touched the changelog.
-- `ROADMAP.md` item 1 lists the tag and the trusted publisher as what is left.
+- `ROADMAP.md` item 1 lists the trusted publisher as what is left.
 
 ## Decision
 
