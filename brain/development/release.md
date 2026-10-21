@@ -40,7 +40,7 @@ pnpm install --frozen-lockfile
 pnpm test
 pnpm pack                            # prepack builds dist/
 npm publish ./peeksafe-0.1.0.tgz --access public   # no provenance from a laptop
-git tag -a v0.1.0 -m v0.1.0
+git tag -a v0.1.0 ff97abc -m v0.1.0  # the commit that was published, not the current main
 git push origin v0.1.0               # Release then fails at "already published", which is expected
 ```
 
@@ -48,4 +48,4 @@ Then configure the trusted publisher on npmjs.com (package settings, this reposi
 
 ## Current state
 
-As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`). The `v0.1.0` tag is annotated on `ff97abc`, the #62 merge commit, where `package.json` is `0.1.0`. Pushing it starts one `Release` run that is expected to fail at "Version is not already published", before any publish step; that red run is not a defect. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. See [[decisions/2026-10-02-first-release-pending]].
+As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`) and no tag is pushed. The tag belongs on `ff97abc`, the #62 merge commit, where `package.json` is `0.1.0` and the files match the published tarball; `main` has moved on with changelog and README edits. Pushing it starts one `Release` run that is expected to stop at "Version is not already published", before any publish step. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is that tag and the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. See [[decisions/2026-10-02-first-release-pending]].
