@@ -48,8 +48,8 @@ Then configure the trusted publisher on npmjs.com (package settings, this reposi
 
 ## Current state
 
-As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`, published 2026-10-21) and the repository has no tags. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the `v0.1.0` tag and the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. `pnpm version` cannot be used for this release because `package.json` is already at `0.1.0`. See [[decisions/2026-10-02-first-release-pending]].
+As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`, published 2026-10-21) and the tag `v0.1.0` exists (annotated, on the release commit `ff97abc`; it was pushed by accident and the owner kept it, see [[decisions/2026-10-21-keep-v0-1-0-tag]]). `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. `pnpm version` cannot be used for this release because `package.json` is already at `0.1.0`. See [[decisions/2026-10-02-first-release-pending]].
 
 ## Tags
 
-Only the owner creates tags. Do not rely on `push.followTags`: with it enabled, a plain `git push` also sends annotated tags, and that pushed `v0.1.0` by accident. The owner decided to keep that tag and to set `push.followTags=false` in the checkout (`git config push.followTags false`, local `.git/config` only), so a push never carries a tag along. Agents and contributors push branches and never tags.
+Only the owner creates tags. Do not enable `push.followTags`: with it on, a plain `git push` also sends annotated tags that are missing on the remote, and that pushed `v0.1.0` by accident. The owner decided to keep that tag and to set `push.followTags=false` in the checkout (`git config push.followTags false`, local `.git/config` only), so a push never carries a tag along. Agents and contributors push branches and never tags.

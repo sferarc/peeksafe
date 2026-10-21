@@ -61,6 +61,6 @@ rather than a public issue.
 
 ## Tags
 
-Tags are created by the owner when releasing. Do not create or push one, and do not
-rely on `push.followTags`: with it enabled, `git push` sends annotated tags along.
-Set `git config push.followTags false` in your checkout to be safe.
+Tags are created by the owner when releasing. Do not create or push one, and
+do not enable `push.followTags`: with it on, `git push` sends annotated tags
+along. Run `git config push.followTags false` in your checkout to be safe.

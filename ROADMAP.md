@@ -8,9 +8,9 @@ quoted here come from `test/`, as CONTRIBUTING asks.
 `0.1.0` is on npm, published by hand on 2026-10-21. `release.yml` documents the bootstrap: the first
 publish is manual, then a trusted publisher is configured and later releases go through the workflow.
 
-`CHANGELOG.md` has a dated `0.1.0` section and `package.json` is at
-`0.1.0`. What is left is the owner's manual step: the `v0.1.0` tag and the trusted publisher on npmjs.com
-(`brain/development/release.md`).
+`CHANGELOG.md` has a dated `0.1.0` section, `package.json` is at
+`0.1.0` and the `v0.1.0` tag exists. What is left is the owner's manual step: the trusted publisher on
+npmjs.com (`brain/development/release.md`).
 
 ## Not planned
 
