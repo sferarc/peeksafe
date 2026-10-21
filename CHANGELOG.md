@@ -153,7 +153,7 @@ describes what the package contains rather than what changed.
   would otherwise be priced against a Beta(1, 1) null, a rate of 0.5, and come out cheaper than the
   same suite with a real 60-run baseline. `planCase` still reports it as `impossible` and `gate` as
   missing a baseline.
-- An `alpha` or `beta` outside (0, 1) is refused by `makePlan`, `affordabilityGrid`, `computeFrontier`,
+- An `alpha` or `beta` outside (0, 1) is refused with `PEEKSAFE_E_STAT_DOMAIN` by `makePlan`, `affordabilityGrid`, `computeFrontier`,
   `evaluatePoint`, `sprtDecision`, `sprtExpectedN` and `sampleSizeTwoProportion`, because
   `sprtExpectedN` returns `NaN` or `Infinity` there and the planners read either as "no finite
   answer" and price every case at the per-case cap, which looks the same as a suite that needs the
