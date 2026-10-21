@@ -48,4 +48,4 @@ Then configure the trusted publisher on npmjs.com (package settings, this reposi
 
 ## Current state
 
-As of 2026-10-02 no version is published (`npm view peeksafe` returns 404) and the repository has no tags. See [[decisions/2026-10-02-first-release-pending]].
+As of 2026-10-20 no version is published (`npm view peeksafe` returns 404) and the repository has no tags. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-20)` section under an empty `Unreleased`; the publish and the tag are the owner's manual step, with the commands above. `pnpm version` cannot be used for this release because `package.json` is already at `0.1.0`. See [[decisions/2026-10-02-first-release-pending]].

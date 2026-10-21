@@ -1,13 +1,13 @@
 # First release is pending the owner
 
-Recorded 2026-10-02.
+Recorded 2026-10-02. Updated 2026-10-20.
 
 ## State
 
 - `package.json` says `0.1.0`.
 - `npm view peeksafe` returns 404 and the repository has no tags.
-- `CHANGELOG.md` folds everything into one `0.1.0` section, labelled "First release", under an empty `Unreleased` heading.
-- `ROADMAP.md` item 3 says `0.1.0` is not on npm yet.
+- `CHANGELOG.md` folds everything into one `## 0.1.0 (2026-10-20)` section, labelled "First release", under an empty `Unreleased` heading. Entries written as fixes or changes after the first fold (#48, #49, #50, #56) were restated there as what the library does.
+- `ROADMAP.md` item 1 says `0.1.0` is not on npm yet.
 
 ## Decision
 

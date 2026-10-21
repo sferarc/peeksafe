@@ -6,37 +6,7 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
-### Fixed
-
-- `makePlan`, `affordabilityGrid` and `computeFrontier` accepted error rates with
-  `alpha + beta >= 1`, where the sequential test decides before it sees a run, and priced every
-  case at `minTrials`. They now refuse them with `PEEKSAFE_E_CONFIG`.
-- `PlanCase.fixedNPerArm` ignored the plan's `alpha` and `beta` and always priced the fixed-N
-  comparator at 0.05 and 0.1. It now uses the plan's own error rates; the defaults are unchanged.
-- `probabilityMoved` checked neither `mde` nor `nodes`. A negative `mde` returned the probability
-  of a rise, and a `nodes` below 1 skipped the quadrature and returned 0. It now refuses an `mde`
-  outside (0, 1) and a `nodes` that is not a positive integer with `PEEKSAFE_E_STAT_DOMAIN`.
-
-### Added
-
-- `PlanCase.design`: the design to run each case with, the one of unpaired and paired that
-  decides it within `runsPerCaseCeiling` in fewer runs (unpaired on a tie), or `null` when neither
-  does. `PlanCase.pairCoupling` is the coupling its paired figures were priced at.
-- `makePlan(cases, baseline, cfg, pilots)`: an optional map of per-case pilot pair tables. A case
-  with one is priced at its measured `pairPhi` (floored at 0) instead of `cfg.pairCoupling`; an
-  empty table is ignored. In the README example a case at 75% on a 240-run baseline pairs at the
-  assumed 0.9 (118 runs against 164) and stays unpaired at a measured 0.6 (206 runs).
-
-### Changed
-
-- `gate` and `shouldStop` refuse an `altConcentration` above 16 (`MAX_ALT_CONCENTRATION`, now
-  exported) with the default statistic, with `PEEKSAFE_E_CONFIG`. A concentrated alternative is
-  the one known way the default statistic exceeds alpha inside the checked range: 1.04 times
-  alpha at 32, which the README used to recommend as safe. At 16 the worst checked cell is 0.91
-  of alpha. `universal` takes any positive value, and `typeOneError` and `certifyProbability`
-  still compute any concentration, so a corner can be inspected.
-
-## 0.1.0
+## 0.1.0 (2026-10-20)
 
 First release. There is no earlier version to compare against, so this section
 describes what the package contains rather than what changed.
@@ -89,6 +59,13 @@ describes what the package contains rather than what changed.
 - `RESEARCH-NOTES.md`, a literature check on what in this work is novel and what
   is not. Two of the four claims the prototype made turned out to be documented
   elsewhere, and the prose says so.
+- `PlanCase.design`: the design to run each case with, the one of unpaired and paired that
+  decides it within `runsPerCaseCeiling` in fewer runs (unpaired on a tie), or `null` when neither
+  does. `PlanCase.pairCoupling` is the coupling its paired figures were priced at.
+- `makePlan(cases, baseline, cfg, pilots)`: an optional map of per-case pilot pair tables. A case
+  with one is priced at its measured `pairPhi` (floored at 0) instead of `cfg.pairCoupling`; an
+  empty table is ignored. In the README example a case at 75% on a 240-run baseline pairs at the
+  assumed 0.9 (118 runs against 164) and stays unpaired at a measured 0.6 (206 runs).
 
 ### Notes
 
@@ -104,8 +81,12 @@ describes what the package contains rather than what changed.
   fixed rate, so its error control is computed rather than inferred. `test/error-control.test.ts`
   computes the type I error exactly over a grid of baselines, rates and `mde`, and runs
   `shouldStop` and `gate` end to end on simulated suites. At the defaults the worst cell found is
-  0.75 of alpha. The one cell outside the defaults where it exceeds alpha needs an
-  `altConcentration` of 100; it is pinned by the same test and named in the README.
+  0.75 of alpha. `gate` and `shouldStop` refuse an `altConcentration` above 16
+  (`MAX_ALT_CONCENTRATION`, exported) with the default statistic, with `PEEKSAFE_E_CONFIG`, because a
+  concentrated alternative is the one known way it exceeds alpha inside the checked range: 1.04
+  times alpha at 32. At 16 the worst checked cell is 0.91 of alpha. `universal` takes any positive
+  value, and `typeOneError` and `certifyProbability` still compute any concentration, so a corner
+  can be inspected.
 - The alternative's Beta shapes are floored at 1 rather than anywhere below it, because a shape
   under 1 piles the alternative's mass onto a rate of zero, which is where a thin baseline at a
   very low rate already sits. That corner is the one that costs the most error: a 30-run baseline
@@ -157,3 +138,9 @@ describes what the package contains rather than what changed.
   on a suite where every case moved by the same amount, which is what a pull request that moved
   nothing produces, and what `clusterRobustMean` and `iidMean` already answer for the same data.
   `compareEstimators` then reads a ratio of 1 and reports that the two estimators agree.
+- `makePlan`, `affordabilityGrid` and `computeFrontier` refuse error rates with `alpha + beta >= 1`
+  with `PEEKSAFE_E_CONFIG`, because the sequential test decides before it sees a run there and
+  every case would be priced at `minTrials`. `PlanCase.fixedNPerArm` prices the fixed-N comparator
+  at the plan's own `alpha` and `beta`; the defaults are 0.05 and 0.1.
+- `probabilityMoved` refuses an `mde` outside (0, 1) and a `nodes` that is not a positive integer
+  with `PEEKSAFE_E_STAT_DOMAIN`.
