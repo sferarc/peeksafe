@@ -27,7 +27,7 @@ The registry steps stay on npm while everything before them uses pnpm. They only
 
 ## The first release is different
 
-npm cannot configure a trusted publisher for a package that does not exist, so the first release (`0.1.0`, 2026-10-21) was a manual publish by the owner, from a tarball made by `pnpm pack`: `npm publish` on the directory would ship `catalog:` specifiers, and `npm ci` does not work because there is no `package-lock.json`. Later releases go through the tag once the trusted publisher is configured.
+npm cannot configure a trusted publisher for a package that does not exist, so the first release (`0.1.0`, 2026-10-21) was a manual publish by the owner. The published manifest still carries unresolved `catalog:` devDependencies, so it was published from the directory and not from a `pnpm pack` tarball; consumers are unaffected because devDependencies are not installed downstream. `0.1.1` must go through `pnpm pack`, and `npm ci` does not work because there is no `package-lock.json`. Later releases go through the tag once the trusted publisher is configured.
 
 ### The v0.1.0 tag
 
