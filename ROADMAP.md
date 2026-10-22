@@ -9,7 +9,7 @@ quoted here come from `test/`, as CONTRIBUTING asks.
 publish is manual, then a trusted publisher is configured and later releases go through the workflow.
 
 `CHANGELOG.md` has a dated `0.1.0` section and `package.json` is at
-`0.1.0`. What is left is the owner's manual step: the `v0.1.0` tag and the trusted publisher on npmjs.com
+`0.1.0`. `v0.1.0` is tagged. What is left is the owner's manual step: the trusted publisher on npmjs.com
 (`brain/development/release.md`).
 
 ## Not planned

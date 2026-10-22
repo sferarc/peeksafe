@@ -31,14 +31,7 @@ npm cannot configure a trusted publisher for a package that does not exist, so t
 
 ### The v0.1.0 tag
 
-The tag is still to be pushed, on the merged release commit and not on current `main`:
-
-```bash
-git tag -a v0.1.0 -m v0.1.0 ff97abc
-git push origin v0.1.0
-```
-
-`Release` then runs and fails at the "already published" check. That is expected, since `0.1.0` was published by hand.
+The `v0.1.0` tag is pushed (annotated, on the merged release commit `ff97abc`). `Release` ran on it and failed at the "already published" check, as expected, since `0.1.0` was published by hand.
 
 ### Trusted publisher bootstrap
 
@@ -46,4 +39,4 @@ With `0.1.0` on npm, configure the trusted publisher on npmjs.com (package setti
 
 ## Current state
 
-As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`, published 2026-10-21; the registry also lists a `0.0.0-stage` version created a minute earlier, whose purpose is unknown from the repository) and the repository has no tags. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the `v0.1.0` tag and the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. `pnpm version` cannot be used for this release because `package.json` is already at `0.1.0`. See [[decisions/2026-10-02-first-release-pending]].
+As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`, published 2026-10-21; the registry also lists a `0.0.0-stage` version created a minute earlier, whose purpose is unknown from the repository) and `v0.1.0` is tagged on `ff97abc`. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. `pnpm version` cannot be used for this release because `package.json` is already at `0.1.0`. See [[decisions/2026-10-02-first-release-pending]].
