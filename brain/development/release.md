@@ -27,11 +27,11 @@ The registry steps stay on npm while everything before them uses pnpm. They only
 
 ## The first release is different
 
-npm cannot configure a trusted publisher for a package that does not exist, so the first release (`0.1.0`, 2026-10-21) was a manual publish by the owner. The published manifest still carries unresolved `catalog:` devDependencies and the `prepack` script, so it was not packed with `pnpm pack`; consumers are unaffected because devDependencies are not installed downstream. `0.1.1` must go through the pnpm pack path, and `npm ci` does not work because there is no `package-lock.json`. Later releases go through the tag once the trusted publisher is configured.
+npm cannot configure a trusted publisher for a package that does not exist, so the first release (`0.1.0`, 2026-10-21) was a manual publish by the owner. The published manifest still carries unresolved `catalog:` devDependencies, so it was published from the directory and not from a `pnpm pack` tarball; consumers are unaffected because devDependencies are not installed downstream. `0.1.1` must go through `pnpm pack`, and `npm ci` does not work because there is no `package-lock.json`. Later releases go through the tag once the trusted publisher is configured.
 
 ### The v0.1.0 tag
 
-The `v0.1.0` tag is pushed (annotated, on the merged release commit `ff97abc`). `Release` ran on it and failed at the "already published" check, as expected, since `0.1.0` was published by hand.
+The annotated `v0.1.0` tag is on `ff97abc`, the merged release commit, and not on current `main`. It was not pushed on purpose: with `push.followTags` set globally, an agent's branch push carried it to the remote. `Release` ran and failed at "Version is not already published", as expected, since `0.1.0` was published by hand. The tag stays. Agents never create or push tags, and `CONTRIBUTING.md` asks every clone to run `git config push.followTags false`; the global setting is still on, so a clone without it can push tags again (see [[decisions/2026-10-02-first-release-pending]]).
 
 ### Trusted publisher bootstrap
 
@@ -39,4 +39,4 @@ With `0.1.0` on npm, configure the trusted publisher on npmjs.com (package setti
 
 ## Current state
 
-As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`, published 2026-10-21; the registry also lists a `0.0.0-stage` version created a minute earlier, whose purpose is unknown from the repository) and `v0.1.0` is tagged on `ff97abc`. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. `pnpm version` cannot be used for this release because `package.json` is already at `0.1.0`. See [[decisions/2026-10-02-first-release-pending]].
+As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`) and the annotated `v0.1.0` tag is on `ff97abc`, the #62 merge commit, where `package.json` is `0.1.0` and the files match the published tarball; `main` has moved on with changelog and README edits. The registry also lists a `0.0.0-stage` version created a minute before `0.1.0`, whose purpose is unknown from the repository. The tag's [Release run](https://github.com/sferarc/peeksafe/actions/runs/39630834765) failed at "Version is not already published", before any publish step. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. See [[decisions/2026-10-02-first-release-pending]].
