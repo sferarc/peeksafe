@@ -63,9 +63,3 @@ with the searches that support them, rather than in the README.
 
 Please use the repository's Security tab (private vulnerability reporting)
 rather than a public issue.
-
-## Tags
-
-Tags are created by the owner when releasing. Do not create or push one, and
-do not enable `push.followTags`: with it on, `git push` sends annotated tags
-along. Run `git config push.followTags false` in your checkout to be safe.

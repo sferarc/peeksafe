@@ -2,7 +2,6 @@
 
 Dated records of choices a later change could undo by accident. Each says what was decided, why, and what would reopen it. Newest first.
 
-- [[2026-10-21-keep-v0-1-0-tag]]: the accidentally pushed `v0.1.0` tag stays, and `push.followTags` is kept off
 - [[2026-10-05-plan-design-per-case]]: `makePlan` recommends a design per case, priced at a pilot's measured coupling
 - [[2026-10-05-alt-concentration-cap]]: `gate` and `shouldStop` refuse `altConcentration` above 16 with the default statistic
 - [[2026-10-05-trusted-publishing-only]]: `release.yml` publishes through npm trusted publishing (OIDC) only, with no token fallback
