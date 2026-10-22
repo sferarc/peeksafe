@@ -16,6 +16,11 @@ pnpm build
 `git commit` does not run it, `pnpm exec lefthook install` sets it up by hand.
 CI runs `pnpm lint` either way.
 
+Run `git config push.followTags false` in your clone. With it on, pushing a branch
+also pushes any annotated tag reachable from it, and a pushed `v*` tag starts
+the `Release` workflow. Releases are tagged by the maintainer only
+(`brain/development/release.md`).
+
 The library needs Node 22 or newer. `mise install` provides the Node and pnpm
 versions the repository is developed with. There are no runtime dependencies and
 the intention is to keep it that way, so a pull request that adds one needs to
