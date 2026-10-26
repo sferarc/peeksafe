@@ -1,6 +1,6 @@
 # CI
 
-`.github/workflows/ci.yml` runs on pushes to `main` and on every pull request. One job, `test`, with a Node matrix of `22`, `24` and `26` and `fail-fast: false`, so the checks are named `Node 22`, `Node 24` and `Node 26`. `Node 22` and `Node 24` are required to merge (the `main-default` ruleset, read 2026-10-03); `Node 26` is not yet.
+`.github/workflows/ci.yml` runs on pushes to `main` and on every pull request. One job, `test`, with a Node matrix of `22`, `24` and `26` and `fail-fast: false`, so the checks are named `Node 22`, `Node 24` and `Node 26`. All three are required to merge, alongside `Approved stack` and `No Claude attribution` from `.github/workflows/hq-stack.yml` (the `main-default` ruleset, read 2026-10-26).
 
 ## Steps
 
@@ -18,7 +18,7 @@ Actions are pinned to full commit SHAs with the version in a trailing comment. U
 
 ## Branch rules on `main`
 
-As read from the GitHub API on 2026-10-02: required status checks, linear history, no force pushes, no deletion, and changes through pull requests. Pull requests are squash-merged. A branch that falls behind is updated by merging `main` into it, not by rebasing and force-pushing.
+As read from the GitHub API on 2026-10-26: the five required status checks above, linear history, no force pushes, no deletion, and changes through pull requests. Pull requests are squash-merged. A branch that falls behind is updated by merging `main` into it, not by rebasing and force-pushing.
 
 ## Related
 
