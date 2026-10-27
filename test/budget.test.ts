@@ -268,6 +268,31 @@ describe("the planner answers before anything is spent", () => {
       ).toThrow(/nullQuantile/);
     }
   });
+
+  it("refuses an fdr, a run price or a case count that makePlan would refuse", () => {
+    // `affordabilityGrid` checked neither. An fdr of 2 is a solo bar of m / 2,
+    // so 50 cases at 90% over 60 baseline runs priced at 840 runs where 0.05
+    // prices 1310, `affordable: true`, with nothing to say the error rate was
+    // not one. A negative run price made every cell affordable, and a case
+    // count of 2.5 priced a fractional suite.
+    const grid = (cfg: typeof DEFAULT_PLAN, cases = [50]) =>
+      affordabilityGrid(0.9, 60, cfg, 50, cases, [0.15]);
+    expect(grid(DEFAULT_PLAN)[0]!.runs).toBe(1310);
+    for (const fdr of [0, 1, 2, -0.1, NaN]) {
+      const cfg = { ...DEFAULT_PLAN, fdr };
+      expect(() => grid(cfg), `affordabilityGrid fdr=${fdr}`).toThrow(/fdr/);
+      const { cases, baseline } = suite(20, 0.85, 60);
+      expect(() => makePlan(cases, baseline, cfg), `makePlan fdr=${fdr}`).toThrow(/fdr/);
+    }
+    for (const costPerRunUsd of [-1, NaN]) {
+      expect(() => grid({ ...DEFAULT_PLAN, costPerRunUsd }), `cost=${costPerRunUsd}`).toThrow(
+        /costPerRunUsd/,
+      );
+    }
+    for (const m of [0, -5, 2.5, NaN, Infinity]) {
+      expect(() => grid(DEFAULT_PLAN, [20, m]), `cases=${m}`).toThrow(/case count/);
+    }
+  });
 });
 
 describe("the design per case, from a measured coupling", () => {
@@ -367,6 +392,16 @@ describe("the frontier", () => {
         () => typicalObservationsPerCase(0.85, 0.15, cfg, 240),
         `typicalObservationsPerCase q=${bad}`,
       ).toThrow(/nullQuantile/);
+    }
+  });
+
+  it("refuses an fdr outside (0, 1), the same as makePlan", () => {
+    // Unchecked, an fdr of 2 put the bar at log(m / 2) and priced a cheaper
+    // frontier, and 0 put it at Infinity, which the unpaired points reported as
+    // a ceiling below the bar and the paired ones refused under
+    // `mcnemarSamplesForEvidence`'s name.
+    for (const fdr of [0, 1, 2, -0.1, NaN]) {
+      expect(() => computeFrontier({ ...DEFAULT_FRONTIER, fdr }), `fdr=${fdr}`).toThrow(/fdr/);
     }
   });
 });

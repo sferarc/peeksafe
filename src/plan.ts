@@ -703,6 +703,28 @@ export function affordabilityGrid(
   // straight from `betaQuantile`, which answers 0 or 1 for a quantile outside
   // (0,1) and about 0 for NaN instead of refusing. `makePlan` refuses it.
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "affordabilityGrid");
+  // makePlan refuses both; unchecked, an fdr of 2 priced a grid cheaper than one at 0.05.
+  requireOpenProbability(cfg.fdr, "fdr", "affordabilityGrid");
+  if (!(cfg.costPerRunUsd >= 0)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `affordabilityGrid: costPerRunUsd must be ≥ 0, got ${cfg.costPerRunUsd}`,
+      {
+        detail: { costPerRunUsd: cfg.costPerRunUsd },
+      },
+    );
+  }
+  for (const m of caseCounts) {
+    if (!Number.isInteger(m) || m < 1) {
+      throw new PeeksafeError(
+        "PEEKSAFE_E_CONFIG",
+        `affordabilityGrid: every case count must be a positive integer, got ${m}`,
+        {
+          detail: { cases: m },
+        },
+      );
+    }
+  }
   // Every other planner entry point refuses a case with no baseline: `planCase`
   // returns IMPOSSIBLE with "no baseline", `evaluatePoint` throws on
   // `baselineRuns < 1`, and `gate` throws PEEKSAFE_E_BASELINE_MISSING. This one

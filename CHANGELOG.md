@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- `affordabilityGrid` and `evaluatePoint` (and so `computeFrontier`) refuse an `fdr` outside (0, 1)
+  with `PEEKSAFE_E_STAT_DOMAIN`, as `makePlan` does. An `fdr` of 2 priced a 50-case grid at 840 runs
+  where 0.05 prices 1310. `affordabilityGrid` also refuses a negative or NaN `costPerRunUsd` and a
+  case count that is not a positive integer with `PEEKSAFE_E_CONFIG`.
+
 ## 0.1.0 (2026-10-21)
 
 First release. There is no earlier version to compare against, so this section
