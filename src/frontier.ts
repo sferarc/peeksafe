@@ -334,6 +334,8 @@ export function evaluatePoint(
   requireErrorRates(cfg.alpha, cfg.beta, "evaluatePoint");
   requireProbability(cfg.pairCoupling, "pairCoupling", "evaluatePoint");
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "evaluatePoint");
+  // makePlan refuses it; unchecked, an fdr of 2 cut the bar and 0 was blamed on the ceiling.
+  requireOpenProbability(cfg.fdr, "fdr", "evaluatePoint");
   if (!Number.isInteger(cases) || cases < 1) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",
