@@ -160,6 +160,15 @@ describe("it refuses the same things gate refuses", () => {
       () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, futilityConfidence: 0 }),
     ],
     [
+      // The largest double below 1: its z is infinite, which used to surface as a NaN pTrue.
+      "PEEKSAFE_E_CONFIG",
+      () =>
+        shouldStop({ successes: 1, trials: 2 }, FAT, {
+          ...opts,
+          futilityConfidence: 1 - Number.EPSILON / 2,
+        }),
+    ],
+    [
       "PEEKSAFE_E_STAT_DOMAIN",
       () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, fdr: 0 }),
     ],

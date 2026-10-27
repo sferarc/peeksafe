@@ -17,6 +17,7 @@ import {
   logMarginalBetaBinomial,
   normalCdf,
   normalQuantile,
+  PeeksafeError,
   sampleSizeTwoProportion,
   sprtDecision,
   sprtExpectedN,
@@ -110,6 +111,18 @@ describe("wilsonInterval", () => {
     close(a.low, 1 - b.high, 1e-12);
     close(a.high, 1 - b.low, 1e-12);
   });
+
+  it("refuses a z that would swap or blank the bounds, with or without data", () => {
+    // A negative z returned low above high, and a NaN or infinite z returned NaN bounds.
+    for (const z of [-1.96, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => wilsonInterval(3, 10, z)).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+      expect(() => wilsonInterval(0, 0, z)).toThrow(PeeksafeError);
+    }
+    const flat = wilsonInterval(3, 10, 0);
+    expect([flat.low, flat.high]).toEqual([0.3, 0.3]);
+  });
 });
 
 describe("betaPosterior", () => {
@@ -131,6 +144,15 @@ describe("betaPosterior", () => {
     // Beta(61,61): mean ½, sd √(¼/123)=0.0451 → P(|z|<2.217) ≈ 0.9734
     close(betaMassBetween(betaPosterior(60, 60), 0.4, 0.6), 0.9734, 2e-3);
   });
+
+  it("refuses a credible level outside (0, 1) instead of answering [0, 1] or [1, 0]", () => {
+    const post = betaPosterior(6, 4);
+    for (const level of [95, 1.5, 1, 0, -1, Number.NaN]) {
+      expect(() => betaCredibleInterval(post, level)).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+    }
+  });
 });
 
 describe("effect size", () => {
@@ -149,6 +171,15 @@ describe("effect size", () => {
     const d = diffInterval(10, 10, 0, 10);
     expect(d.low).toBeGreaterThanOrEqual(-1);
     expect(d.high).toBeLessThan(0);
+  });
+
+  it("diffInterval refuses a z that would swap or blank the bounds, even with an empty arm", () => {
+    for (const z of [-1.96, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => diffInterval(8, 10, 3, 10, z)).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+      expect(() => diffInterval(8, 10, 0, 0, z)).toThrow(PeeksafeError);
+    }
   });
 
   it("cohensH is 0 for no change and matches the arcsine formula", () => {

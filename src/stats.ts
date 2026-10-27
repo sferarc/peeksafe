@@ -244,6 +244,20 @@ export interface Interval {
   observations?: number;
 }
 
+// A negative z swapped the bounds and a non-finite one made them NaN; checked before the empty-arm returns.
+function requireZ(z: number, where: string): void {
+  if (!Number.isFinite(z) || z < 0) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: z must be finite and ≥ 0, got ${z}`,
+      {
+        detail: { z, where },
+        hint: "a standard normal quantile, such as 1.96 for a 95% interval",
+      },
+    );
+  }
+}
+
 /**
  * Wilson score interval for a binomial proportion.
  * Correct at the boundaries (0/n and n/n) where Wald is degenerate, which is
@@ -251,6 +265,7 @@ export interface Interval {
  */
 export function wilsonInterval(successes: number, n: number, z = 1.959963984540054): Interval {
   requireCounts(successes, n, "wilsonInterval");
+  requireZ(z, "wilsonInterval");
   // No data is not "p = 0.5". The interval is the whole line and the point
   // estimate is NaN-free only because callers must check `n`, which is why
   // `n` is echoed back in `observations`.
@@ -376,6 +391,8 @@ export function tQuantile(p: number, df: number): number {
 
 /** Equal-tailed credible interval of a Beta posterior. */
 export function betaCredibleInterval(post: BetaPosterior, level = 0.95): Interval {
+  // betaQuantile clamps q to [0, 1], so a level of 95 or -1 came back as [0, 1] or [1, 0].
+  requireOpenProbability(level, "level", "betaCredibleInterval");
   const tail = (1 - level) / 2;
   return {
     low: betaQuantile(post.alpha, post.beta, tail),
@@ -416,6 +433,7 @@ export function diffInterval(
 ): Interval {
   requireCounts(s1, n1, "diffInterval(arm 1)");
   requireCounts(s2, n2, "diffInterval(arm 2)");
+  requireZ(z, "diffInterval");
   // With an empty arm there is no difference to estimate. Saying so beats
   // reporting `p2 − 0` as if the missing arm had scored zero.
   if (n1 === 0 || n2 === 0) return { low: -1, high: 1, point: 0, observations: 0 };

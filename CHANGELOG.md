@@ -12,6 +12,15 @@ All notable changes to this project are documented here. The format follows
   with `PEEKSAFE_E_STAT_DOMAIN`, as `makePlan` does. An `fdr` of 2 priced a 50-case grid at 840 runs
   where 0.05 prices 1310. `affordabilityGrid` also refuses a negative or NaN `costPerRunUsd` and a
   case count that is not a positive integer with `PEEKSAFE_E_CONFIG`.
+- `betaCredibleInterval` did not check `level`. A level of `95` or `1.5` returned `[0, 1]`, `-1`
+  returned `[1, 0]` and `NaN` a point near 0. It now refuses a level outside (0, 1) with
+  `PEEKSAFE_E_STAT_DOMAIN`.
+- `wilsonInterval` and `diffInterval` did not check `z`. A negative `z` returned a lower bound above
+  the upper one, and a `NaN` or infinite `z` returned `NaN` bounds. They now refuse a `z` that is
+  negative or not finite with `PEEKSAFE_E_STAT_DOMAIN`, also for an empty arm.
+- `shouldStop` accepted `futilityConfidence: 0.9999999999999999`, whose `z` is infinite, and threw
+  an unrelated `evidenceCeilingLogE` error about a `NaN` rate. It now refuses it with
+  `PEEKSAFE_E_CONFIG`.
 
 ## 0.1.0 (2026-10-21)
 
