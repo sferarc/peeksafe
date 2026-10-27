@@ -4,7 +4,7 @@
 
 ## Options
 
-`suiteSize` is required and must be the size of the family that will be passed to `gate`, not the number of cases still running, because it sets the bar `suiteSize / fdr`. `DEFAULT_STOP_OPTIONS` takes `mde`, `fdr`, `altConcentration` and `evidence` from `DEFAULT_GATE_OPTIONS` and adds `futilityConfidence: 0.95`. Any `futilityConfidence` strictly between 0 and 1 is accepted (#7; it used to be one of three table entries). `maxTrials` is optional.
+`suiteSize` is required and must be the size of the family that will be passed to `gate`, not the number of cases still running, because it sets the bar `suiteSize / fdr`. `DEFAULT_STOP_OPTIONS` takes `mde`, `fdr`, `altConcentration` and `evidence` from `DEFAULT_GATE_OPTIONS` and adds `futilityConfidence: 0.95`. Any `futilityConfidence` strictly between 0 and 1 is accepted (#7; it used to be one of three table entries), except the largest double below 1, whose Wilson `z` is infinite; it is refused with `PEEKSAFE_E_CONFIG` rather than reaching the ceiling as a NaN rate (`test/stop.test.ts`). `maxTrials` is optional.
 
 A zero-trial baseline throws `PEEKSAFE_E_BASELINE_MISSING`: a case with no baseline is not gated at all.
 

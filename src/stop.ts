@@ -160,7 +160,19 @@ const zFor = (confidence: number): number => {
       },
     );
   }
-  return normalQuantile(1 - (1 - confidence) / 2);
+  const z = normalQuantile(1 - (1 - confidence) / 2);
+  // At the largest double below 1 the upper tail rounds to 1, and an infinite z reached the ceiling as NaN.
+  if (!Number.isFinite(z)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `shouldStop: futilityConfidence ${confidence} is too close to 1 for a finite interval`,
+      {
+        detail: { futilityConfidence: confidence },
+        hint: "a two-sided confidence level such as 0.95; higher makes futility fire later",
+      },
+    );
+  }
+  return z;
 };
 
 /**
