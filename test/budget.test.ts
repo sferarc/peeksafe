@@ -269,8 +269,8 @@ describe("the planner answers before anything is spent", () => {
     }
   });
 
-  it("refuses an fdr, a run price or a case count that makePlan would refuse", () => {
-    // `affordabilityGrid` checked neither. An fdr of 2 is a solo bar of m / 2,
+  it("refuses the fdr and run price makePlan refuses, and a fractional case count", () => {
+    // `affordabilityGrid` checked none of these. An fdr of 2 is a solo bar of m / 2,
     // so 50 cases at 90% over 60 baseline runs priced at 840 runs where 0.05
     // prices 1310, `affordable: true`, with nothing to say the error rate was
     // not one. A negative run price made every cell affordable, and a case
