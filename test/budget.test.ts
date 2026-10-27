@@ -134,6 +134,26 @@ describe("the planner answers before anything is spent", () => {
     ).toHaveLength(4);
   });
 
+  it("refuses a run ceiling below one run rather than calling every case undecidable", () => {
+    // The planners search up to eight times the ceiling. At NaN or 0 that search
+    // never ran, so both designs answered Infinity and every case came back
+    // with no design, under a reason that named the evidence bar.
+    const { cases, baseline } = suite(4, 0.85, 240);
+    const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
+    for (const bad of [0, 0.5, -2000, NaN, Infinity]) {
+      expect(
+        () => makePlan(cases, baseline, { ...DEFAULT_PLAN, runsPerCaseCeiling: bad }),
+        `makePlan ceiling=${bad}`,
+      ).toThrow(config);
+      expect(
+        () => computeFrontier({ ...DEFAULT_FRONTIER, runsPerCaseCeiling: bad }),
+        `computeFrontier ceiling=${bad}`,
+      ).toThrow(/runsPerCaseCeiling/);
+    }
+    const plan = makePlan(cases, baseline, DEFAULT_PLAN);
+    expect(plan.cases.every((c) => c.design !== null)).toBe(true);
+  });
+
   it("prices the fixed-N comparator at the plan's own error rates", () => {
     const at = (alpha: number, beta: number) =>
       planCase(

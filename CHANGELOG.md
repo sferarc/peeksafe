@@ -12,6 +12,11 @@ All notable changes to this project are documented here. The format follows
   with `PEEKSAFE_E_STAT_DOMAIN`, as `makePlan` does. An `fdr` of 2 priced a 50-case grid at 840 runs
   where 0.05 prices 1310. `affordabilityGrid` also refuses a negative or NaN `costPerRunUsd` and a
   case count that is not a positive integer with `PEEKSAFE_E_CONFIG`.
+- `makePlan` and `evaluatePoint` (and so `computeFrontier`) did not check `runsPerCaseCeiling`. At
+  `NaN` or 0 every case came back with no design. They now refuse a ceiling that is not finite and
+  at least 1 with `PEEKSAFE_E_CONFIG`. `samplesForEvidence` and `mcnemarSamplesForEvidence` refuse
+  the same for `maxN` and `maxPairs` with `PEEKSAFE_E_STAT_DOMAIN`, where a cap of `NaN` or 0
+  answered Infinity for a design that needs 262 runs or 172 pairs.
 - `betaCredibleInterval` did not check `level`. A level of `95` or `1.5` returned `[0, 1]`, `-1`
   returned `[1, 0]` and `NaN` a point near 0. It now refuses a level outside (0, 1) with
   `PEEKSAFE_E_STAT_DOMAIN`.
