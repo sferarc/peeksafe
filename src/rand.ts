@@ -75,8 +75,20 @@ export function hash32(s: string): number {
 }
 
 export function makeRand(seed: number | string): Rand {
-  const s = typeof seed === "string" ? hash32(seed) : seed >>> 0;
-  const base = lcg(s === 0 ? 1 : s);
+  // `>>> 0` folded NaN, Infinity, 1.5 and 2^32 onto 0, and the old 0-to-1 remap put seed 1 there too.
+  if (typeof seed === "number" && !(Number.isInteger(seed) && seed >= 0 && seed < 0x100000000)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `makeRand: a numeric seed must be an integer in [0, 2^32), got ${seed}`,
+      {
+        detail: { seed },
+        hint: "pass a string to key a stream by name; it is hashed with hash32",
+      },
+    );
+  }
+  const s = typeof seed === "string" ? hash32(seed) : seed;
+  // Hull-Dobell: an odd increment and a multiplier of 1 mod 4 give a full period from every seed, 0 included.
+  const base = lcg(s);
   const next = (() => mix32(Math.floor(base() * 0x100000000)) / 0x100000000) as Rand;
 
   next.bernoulli = (p: number) => next() < p;

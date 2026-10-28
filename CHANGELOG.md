@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `makeRand` folded numeric seeds onto one stream. `seed >>> 0` turned `NaN`, `Infinity`, 1.5 and
+  2^32 into 0, and 0 was then remapped to 1, so all of them drew the same numbers as seed 1, and a
+  replication loop starting at seed 0 ran its first replicate twice. -1 drew the stream of
+  2^32 - 1. Seed 0 now has its own stream, since the generator has a full period from every seed,
+  and a numeric seed that is not an integer in [0, 2^32) is refused with `PEEKSAFE_E_STAT_DOMAIN`.
+  String seeds, and every other numeric seed, draw the same numbers as before.
 - `iidMean` did not check its values. A `NaN` or infinite value answered `NaN` bounds and a `NaN`
   point, while `clusterRobustMean`, `randomEffectsMean` and `clusteredEffect` refused the same data
   through `groupByCluster`. It now refuses a value that is not finite with `PEEKSAFE_E_STAT_DOMAIN`
