@@ -153,11 +153,11 @@ export function requireAltConcentration(v: number, evidence: string, where: stri
 }
 
 /**
- * The error rates of the sequential test a planner prices: each strictly
- * between 0 and 1, and summing to less than 1.
+ * The error rates of a Wald SPRT, run by `sprtDecision` or priced by a
+ * planner: each strictly between 0 and 1, and summing to less than 1.
  *
  * At `alpha + beta >= 1` Wald's walls meet or cross, so the test decides
- * before it has seen a run. `sprtExpectedN` answers a small positive number
+ * before it has seen a run. `sprtExpectedN` answered a small positive number
  * there, and a plan at `alpha: 0.6, beta: 0.5` priced every case at
  * `minTrials` with nothing to say the design had no error control left.
  */

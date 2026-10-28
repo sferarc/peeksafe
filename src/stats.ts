@@ -23,6 +23,7 @@
 import {
   PeeksafeError,
   requireCounts,
+  requireErrorRates,
   requireOpenProbability,
   requireProbability,
 } from "./errors.js";
@@ -569,8 +570,9 @@ export function sprtDecision(opts: SprtOpts): SprtResult {
   // against a wall that is not a number. An alpha of 0 puts `upper` at
   // Infinity, which no evidence ever crosses. Open at both ends: an error rate
   // of 0 is a test that never decides and one of 1 is a test that always does.
-  requireOpenProbability(alpha, "alpha", "sprtDecision");
-  requireOpenProbability(beta, "beta", "sprtDecision");
+  // At `alpha + beta >= 1` the walls meet or cross, so a test at 0 runs and a
+  // log likelihood ratio of 0 already sat on the H1 wall and answered ACCEPT_H1.
+  requireErrorRates(alpha, beta, "sprtDecision");
   const e = 1e-12;
   const cl = (x: number) => Math.min(1 - e, Math.max(e, x));
   const q0 = cl(p0),
@@ -648,8 +650,9 @@ export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, b
   // and quote `maxTrials` when that fails, which both answers do, so a plan
   // built on an out-of-range error rate priced every case at the per-case cap
   // and reported it as a budget, with nothing to say it was not a real answer.
-  requireOpenProbability(alpha, "alpha", "sprtExpectedN");
-  requireOpenProbability(beta, "beta", "sprtExpectedN");
+  // At `alpha + beta >= 1` the test decides before its first run, and this
+  // answered 0 or a small positive number instead of saying so.
+  requireErrorRates(alpha, beta, "sprtExpectedN");
   const A = Math.log((1 - beta) / alpha);
   const B = Math.log(beta / (1 - alpha));
   const logR1 = Math.log(p1 / p0);
@@ -659,16 +662,6 @@ export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, b
   // p0 === p1 leaves every trial uninformative, so the drift and the curvature
   // are both 0 and no number of runs ends the test.
   if (second === 0) return Infinity;
-  // `A === B` is `alpha + beta === 1`: both walls sit at a log likelihood ratio
-  // of 0, which is where the test starts, so it decides before it has seen
-  // anything and the expected sample number is 0. The general form is
-  // `(L1·(A − B) + B) / drift`, which is 0 whatever `L1` is, but it computes
-  // `L1` as `(1 − B^h) / (A^h − B^h)`, a genuine 0/0 here, and so returned NaN
-  // for in-domain error rates: (0.5, 0.5) and (0.25, 0.75) both landed on it.
-  // The neighbouring configurations already converge to 0 from both sides.
-  // Only the pairs where both logs round to exactly 0 were affected, which is
-  // why this survived the error-rate guards above.
-  if (A === B) return 0;
   // The ASN is 0/0 where the tilt vanishes, and that limit is the one place
   // Wald's formula needs a different expression. What decides whether the
   // quotient is really 0/0 is the *tilt*, not the drift: near the zero
