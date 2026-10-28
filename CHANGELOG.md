@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `ebhSoloThreshold` did not check its arguments. A `q` of 2 answered half the bar, 5 for ten cases
+  where 0.05 answers 200, and a negative `m` or `q` answered a negative bar. It now refuses an `m`
+  that is not a positive integer and a `q` outside [0, 1] with `PEEKSAFE_E_STAT_DOMAIN`, as
+  `ebhCorrect` does for `q`.
 - `sprtDecision` and `sprtExpectedN` accepted error rates summing to 1 or more, where Wald's walls
   meet or cross. `sprtDecision` at `alpha` 0.6 and `beta` 0.5 answered `ACCEPT_H1` before a single
   run, and `sprtExpectedN` answered 0 or a small positive number. Both now refuse

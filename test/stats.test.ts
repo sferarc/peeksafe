@@ -9,6 +9,7 @@ import {
   cohensH,
   diffInterval,
   ebhCorrect,
+  ebhSoloThreshold,
   erf,
   fisherExact2x2,
   ibeta,
@@ -382,6 +383,19 @@ describe("multiplicity correction", () => {
     close(r.threshold, 10 / (0.05 * 3), 1e-9);
     expect(r.rejected.slice(0, 3).every(Boolean)).toBe(true);
     expect(ebhCorrect([1, 1, 1], 0.05).discoveries).toBe(0);
+  });
+
+  it("e-BH's solo bar refuses a family size or level that has no bar", () => {
+    const domain = expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" });
+    expect(ebhSoloThreshold(10, 0.05)).toBe(200);
+    expect(ebhSoloThreshold(10, 1)).toBe(10);
+    expect(ebhSoloThreshold(10, 0)).toBe(Infinity);
+    for (const m of [0, -3, 2.5, Number.NaN, Infinity]) {
+      expect(() => ebhSoloThreshold(m, 0.05)).toThrow(domain);
+    }
+    for (const q of [2, -0.05, Number.NaN]) {
+      expect(() => ebhSoloThreshold(10, q)).toThrow(domain);
+    }
   });
 });
 
