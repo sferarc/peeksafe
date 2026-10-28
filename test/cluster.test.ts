@@ -253,6 +253,32 @@ describe("the interval widens when it should", () => {
   });
 });
 
+describe("a non-finite value is refused at every door", () => {
+  for (const bad of [NaN, Infinity, -Infinity]) {
+    it(`refuses ${bad} in iidMean as the clustered estimators do`, () => {
+      const obs: ClusterObservation[] = [
+        { cluster: "a", value: 0.1 },
+        { cluster: "b", value: bad },
+        { cluster: "c", value: 0.3 },
+      ];
+      // iidMean answered NaN bounds here while the other three threw.
+      expect(() => iidMean(obs.map((o) => o.value))).toThrow(
+        /iidMean: value at index 1 is not finite/,
+      );
+      expect(() => clusterRobustMean(obs)).toThrow(/not finite/);
+      expect(() => randomEffectsMean(obs)).toThrow(/not finite/);
+      expect(() => clusteredEffect(obs)).toThrow(/not finite/);
+    });
+  }
+
+  it("still answers for finite values", () => {
+    const r = iidMean([0.1, 0.2, 0.3]);
+    expect(r.point).toBeCloseTo(0.2, 12);
+    expect(r.low).toBeLessThan(r.point);
+    expect(r.high).toBeGreaterThan(r.point);
+  });
+});
+
 describe("the confidence level is refused at every door", () => {
   const obs = correlated(6, 5, 0.2, "level");
   const values = obs.map((o) => o.value);
