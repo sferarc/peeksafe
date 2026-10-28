@@ -998,6 +998,16 @@ export function sampleSizeTwoProportion(
   // naive design costs.
   requireOpenProbability(alpha, "alpha", "sampleSizeTwoProportion");
   requireOpenProbability(beta, "beta", "sampleSizeTwoProportion");
+  // Both comparisons below are false for NaN, so it fell through to the formula and came back NaN.
+  if (Number.isNaN(delta)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "sampleSizeTwoProportion: delta must be a number, got NaN",
+      {
+        detail: { p0, delta },
+      },
+    );
+  }
   if (delta <= 0 || delta >= p0) return Infinity;
   const p1 = p0 - delta;
   const pbar = (p0 + p1) / 2;
