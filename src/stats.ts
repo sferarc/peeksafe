@@ -107,6 +107,16 @@ export const normalCdf = (x: number): number => 0.5 * (1 + erf(x / Math.SQRT2));
 
 /** Φ⁻¹(p): Acklam's inverse normal CDF, refined by one Halley step. */
 export function normalQuantile(p: number): number {
+  // Every branch below compares false for NaN, so it fell through to the tail formula and came back NaN.
+  if (Number.isNaN(p)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "normalQuantile: p must be a number, got NaN",
+      {
+        detail: { p },
+      },
+    );
+  }
   if (p <= 0) return -Infinity;
   if (p >= 1) return Infinity;
   const a = [
@@ -336,6 +346,12 @@ export function betaQuantile(alpha: number, beta: number, q: number): number {
         detail: { alpha, beta, q },
       },
     );
+  }
+  // The clamps below are kept, but a NaN fails every comparison in the bisection and came back near 0.
+  if (Number.isNaN(q)) {
+    throw new PeeksafeError("PEEKSAFE_E_STAT_DOMAIN", "betaQuantile: q must be a number, got NaN", {
+      detail: { alpha, beta, q },
+    });
   }
   if (q <= 0) return 0;
   if (q >= 1) return 1;

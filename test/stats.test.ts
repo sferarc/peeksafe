@@ -86,6 +86,16 @@ describe("special functions vs closed forms", () => {
       close(ibeta(a, b, betaQuantile(a, b, q)), q, 1e-8);
     }
   });
+
+  it("the quantile functions refuse a NaN probability and keep clamping the ends", () => {
+    const domain = expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" });
+    expect(() => normalQuantile(Number.NaN)).toThrow(domain);
+    expect(() => betaQuantile(2, 5, Number.NaN)).toThrow(domain);
+    expect(normalQuantile(0)).toBe(-Infinity);
+    expect(normalQuantile(1)).toBe(Infinity);
+    expect(betaQuantile(2, 5, -1)).toBe(0);
+    expect(betaQuantile(2, 5, 2)).toBe(1);
+  });
 });
 
 describe("wilsonInterval", () => {
