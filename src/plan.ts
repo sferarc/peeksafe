@@ -39,6 +39,7 @@ import {
   requireOpenProbability,
   requireProbability,
   requireRunCeiling,
+  requireTrialGrid,
 } from "./errors.js";
 import {
   betaQuantile,
@@ -433,6 +434,7 @@ export function expectedSequentialSamples(
   trueRate: (caseId: string, b: BaselineStat) => number = (_id, b) =>
     b.trials > 0 ? b.successes / b.trials : 0,
 ): { samples: number; perCase: Map<string, number> } {
+  requireTrialGrid(cfg, "expectedSequentialSamples");
   const perCase = new Map<string, number>();
   let total = 0;
   for (const c of cases) {
@@ -487,6 +489,7 @@ export function makePlan(
   // every planner entry point refuses it the same way and names it.
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "makePlan");
   requireRunCeiling(cfg.runsPerCaseCeiling, "makePlan");
+  requireTrialGrid(cfg, "makePlan");
   if (cases.length === 0) {
     throw new PeeksafeError("PEEKSAFE_E_SUITE_EMPTY", "makePlan: no cases to plan for", {
       hint: "pass at least one case; makePlan prices a suite, not an empty list",
@@ -707,6 +710,7 @@ export function affordabilityGrid(
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "affordabilityGrid");
   // makePlan refuses both; unchecked, an fdr of 2 priced a grid cheaper than one at 0.05.
   requireOpenProbability(cfg.fdr, "fdr", "affordabilityGrid");
+  requireTrialGrid(cfg, "affordabilityGrid");
   if (!(cfg.costPerRunUsd >= 0)) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",

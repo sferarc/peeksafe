@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- The planner did not check the batch grid it prices the gate on. `makePlan`,
+  `expectedSequentialSamples` and `affordabilityGrid` took any `minTrials`, `maxTrials` and
+  `batchSize`: a `NaN` bound or a `batchSize` of 0 made the typical bill `NaN`, and a `maxTrials` of 1,
+  under the default `minTrials` of 8, priced four cases at 85% over a 240-run baseline at 4 typical
+  runs where the defaults price 144. `evaluatePoint` checked `maxTrials` only, so `computeFrontier`
+  and `typicalObservationsPerCase` took a `NaN` `minTrials` or a zero batch. All five now refuse,
+  with `PEEKSAFE_E_CONFIG`, a `minTrials` or `batchSize` that is not a positive integer and a
+  `maxTrials` that is not an integer at least `minTrials`.
 - `makeRand` folded numeric seeds onto one stream. `seed >>> 0` turned `NaN`, `Infinity`, 1.5 and
   2^32 into 0, and 0 was then remapped to 1, so all of them drew the same numbers as seed 1, and a
   replication loop starting at seed 0 ran its first replicate twice. -1 drew the stream of
