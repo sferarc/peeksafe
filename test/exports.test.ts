@@ -137,6 +137,23 @@ describe("the paired design refuses rather than inventing", () => {
     expect(mcnemarSamplesForEvidence(0.9, 0.15, 0.5, Math.log(4000))).toBe(172);
   });
 
+  it("refuses a search cap below one run rather than answering that no number of runs will do", () => {
+    // A cap of NaN or 0 skipped the doubling loop, so both searches tested one
+    // run, fell short and returned Infinity for designs that need 262 runs and
+    // 172 pairs.
+    const bar = Math.log(4000);
+    for (const bad of [0, 0.5, -1, NaN, Infinity]) {
+      expect(() => samplesForEvidence(0.75, 216, 240, 0.15, bar, bad), `maxN=${bad}`).toThrow(
+        PeeksafeError,
+      );
+      expect(() => mcnemarSamplesForEvidence(0.9, 0.15, 0.5, bar, bad), `maxPairs=${bad}`).toThrow(
+        PeeksafeError,
+      );
+    }
+    expect(samplesForEvidence(0.75, 216, 240, 0.15, bar)).toBe(262);
+    expect(mcnemarSamplesForEvidence(0.9, 0.15, 0.5, bar)).toBe(172);
+  });
+
   it("rejects a concentration that is not positive, instead of substituting Beta(0.35, 0.35)", () => {
     // max(0.35, k·θ) turned a concentration of -6 into the 0.35 floor on both
     // shapes, which scored 40 of 50 discordant pairs at e = 1430 rather than

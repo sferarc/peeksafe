@@ -38,6 +38,7 @@ import {
   requireErrorRates,
   requireOpenProbability,
   requireProbability,
+  requireRunCeiling,
 } from "./errors.js";
 import {
   betaQuantile,
@@ -485,6 +486,7 @@ export function makePlan(
   // reaches it, and under that function's name for it, `q`. Checked here so
   // every planner entry point refuses it the same way and names it.
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "makePlan");
+  requireRunCeiling(cfg.runsPerCaseCeiling, "makePlan");
   if (cases.length === 0) {
     throw new PeeksafeError("PEEKSAFE_E_SUITE_EMPTY", "makePlan: no cases to plan for", {
       hint: "pass at least one case; makePlan prices a suite, not an empty list",

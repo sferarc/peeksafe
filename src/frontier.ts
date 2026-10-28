@@ -62,6 +62,7 @@ import {
   requireErrorRates,
   requireOpenProbability,
   requireProbability,
+  requireRunCeiling,
 } from "./errors.js";
 import { DEFAULT_PLAN } from "./plan.js";
 import {
@@ -336,6 +337,7 @@ export function evaluatePoint(
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "evaluatePoint");
   // makePlan refuses it; unchecked, an fdr of 2 cut the bar and 0 was blamed on the ceiling.
   requireOpenProbability(cfg.fdr, "fdr", "evaluatePoint");
+  requireRunCeiling(cfg.runsPerCaseCeiling, "evaluatePoint");
   if (!Number.isInteger(cases) || cases < 1) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",

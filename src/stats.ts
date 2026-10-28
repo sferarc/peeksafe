@@ -809,6 +809,23 @@ function requireConcentration(k: number, name: string, where: string): void {
   }
 }
 
+/**
+ * The most runs a sample-size search may try. Below 1, or NaN, the doubling
+ * loop never ran and the search answered Infinity, "no number of runs will
+ * do", for a design that needs a few hundred.
+ */
+function requireSearchCap(cap: number, name: string, where: string): void {
+  if (!(cap >= 1) || !Number.isFinite(cap)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: ${name} must be finite and at least 1, got ${cap}`,
+      {
+        detail: { [name]: cap, where },
+      },
+    );
+  }
+}
+
 // Below 1 a shape piles alternative mass onto 0 or 1, which pushed type I error past alpha for thin baselines.
 const ALT_SHAPE_FLOOR = 1;
 
@@ -1248,6 +1265,7 @@ export function samplesForEvidence(
   maxN = 100_000,
   altConcentration = 8,
 ): number {
+  requireSearchCap(maxN, "maxN", "samplesForEvidence");
   const ceiling = evidenceCeilingLogE(
     pTrue,
     baselineSuccesses,
@@ -1506,6 +1524,7 @@ export function mcnemarSamplesForEvidence(
   concentration = 6,
 ): number {
   requireConcentration(concentration, "concentration", "mcnemarSamplesForEvidence");
+  requireSearchCap(maxPairs, "maxPairs", "mcnemarSamplesForEvidence");
   // Every comparison below is a `<` against `logThreshold`, and a NaN loses all
   // of them: the doubling loop exited on its first test, the Infinity guard did
   // not fire, and the bisection returned its own starting point. The answer

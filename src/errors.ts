@@ -176,6 +176,23 @@ export function requireErrorRates(alpha: number, beta: number, where: string): v
   }
 }
 
+/**
+ * `runsPerCaseCeiling`: finite and at least one run. The planners search up to
+ * eight times it, and at NaN or 0 that search never ran, so every case came
+ * back undecidable with a reason that blamed the evidence bar.
+ */
+export function requireRunCeiling(v: number, where: string): void {
+  if (!(v >= 1) || !Number.isFinite(v)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: runsPerCaseCeiling must be finite and at least 1, got ${v}`,
+      {
+        detail: { runsPerCaseCeiling: v, where },
+      },
+    );
+  }
+}
+
 /** The four cells of a pair table, each a non-negative integer. */
 export function requirePairedCounts(
   p: { bothPass: number; worse: number; better: number; bothFail: number },
