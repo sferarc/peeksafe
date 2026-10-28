@@ -4,7 +4,7 @@
 
 ## Inputs and defaults
 
-Each `GateCase` carries `id`, candidate `successes` and `trials`, and an optional `baseline`. A `PairedGateCase` carries `id` and `paired`, a pair table, instead; `gate` takes an array of either. Paired cases are decided by `pairedLogE`, are never `impossible` or `undetectable` (ceiling `Infinity`), count as having a baseline, and report each arm's passes over the pair count as `observed` and `baseline`. `CaseVerdict.design` says which kind a case was. See [[decisions/2026-10-02-paired-cases-in-gate]]. `DEFAULT_GATE_OPTIONS` is `mde: 0.15`, `fdr: 0.05`, `altConcentration: 8`, `evidence: 'bayes'`. `shouldStop` and `check.ts` read their defaults from the same object, so the three cannot drift apart.
+Each `GateCase` carries `id`, candidate `successes` and `trials`, and an optional `baseline`. A `PairedGateCase` carries `id` and `paired`, a pair table, instead; `gate` takes an array of either. Paired cases are decided by `pairedLogE`, are never `impossible` or `undetectable` (ceiling `Infinity`), count as having a baseline, and report each arm's passes over the pair count as `observed` and `baseline`. `CaseVerdict.design` says which kind a case was. See [[decisions/2026-10-02-paired-cases-in-gate]]. `DEFAULT_GATE_OPTIONS` is `mde: 0.15`, `fdr: 0.05`, `altConcentration: 8`, `evidence: 'bayes'`. `shouldStop` and `check.ts` read their defaults from the same object, so the three cannot drift apart. An option passed as `undefined` takes its default: `gate`, `shouldStop` and `shouldStopPaired` drop `undefined` entries (`definedOptions` in `src/gate.ts`) before spreading over the defaults, which a plain spread did not, and `check.ts` reads each option with `??` (`test/stop.test.ts`).
 
 ## What it does, in order
 

@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `gate`, `shouldStop` and `shouldStopPaired` refused an option passed as `undefined`. They merged
+  their defaults with a plain spread, so `{ mde: undefined }`, which the option types accept, replaced
+  the default 0.15 with `undefined` and was refused as an `mde` outside (0, 1); the same held for
+  `fdr`, `altConcentration`, `evidence` and `futilityConfidence`. An option passed as `undefined` now
+  takes its default, as it already did in `certifyProbability` and `typeOneError`. `suiteSize` has
+  no default and is still refused.
 - `makeRand` folded numeric seeds onto one stream. `seed >>> 0` turned `NaN`, `Infinity`, 1.5 and
   2^32 into 0, and 0 was then remapped to 1, so all of them drew the same numbers as seed 1, and a
   replication loop starting at seed 0 ran its first replicate twice. -1 drew the stream of
