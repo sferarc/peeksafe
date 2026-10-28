@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `logGamma`, and so `logBeta`, did not check its argument. At a pole it answered a finite number,
+  37.78 at `x` -1 where log Γ is infinite, and at `x` Infinity it answered `NaN`. It now refuses an
+  `x` that is not finite and positive with `PEEKSAFE_E_STAT_DOMAIN`, the domain its doc comment
+  already named; `x` in (0, ½) still goes through the reflection formula.
 - `gammaP` did not check its shape. At `a` -0.5 and `x` 0.2 it answered -1.5058, a negative
   probability, and at `x` Infinity it answered `NaN`, so `erf` and `normalCdf` were `NaN` at
   either infinity. It now refuses an `a` that is not finite and positive, and a `NaN` `x`, with
