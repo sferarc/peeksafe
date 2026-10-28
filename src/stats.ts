@@ -37,6 +37,16 @@ const LANCZOS = [
 
 /** Lanczos approximation to log Γ(x), x > 0. ~15 significant digits. */
 export function logGamma(x: number): number {
+  // Below 0 the reflection answered finite values at the poles, 37.78 at x = -1, and Infinity answered NaN.
+  if (!(x > 0) || x === Infinity) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `logGamma: x must be finite and positive, got ${x}`,
+      {
+        detail: { x },
+      },
+    );
+  }
   if (x < 0.5) {
     // reflection: Γ(x)Γ(1-x) = π / sin(πx)
     return Math.log(Math.PI / Math.abs(Math.sin(Math.PI * x))) - logGamma(1 - x);

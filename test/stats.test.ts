@@ -37,6 +37,20 @@ describe("special functions vs closed forms", () => {
     close(Math.exp(logGamma(0.5)), Math.sqrt(Math.PI), 1e-10);
   });
 
+  it("logGamma and logBeta refuse x outside (0, Infinity)", () => {
+    // At x = -1, a pole, the reflection answered 37.78; at Infinity the series answered NaN.
+    for (const x of [-1, -2, -0.5, 0, NaN, Infinity, -Infinity]) {
+      expect(() => logGamma(x), `x=${x}`).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+    }
+    expect(() => logBeta(-1, 2)).toThrow(
+      expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+    );
+    // The reflection still covers (0, ½): Γ(¼) = 3.6256099082.
+    close(Math.exp(logGamma(0.25)), 3.625609908221908, 1e-10);
+  });
+
   it("logBeta matches B(a,b) = (a-1)!(b-1)!/(a+b-1)!", () => {
     close(Math.exp(logBeta(2, 3)), 1 / 12, 1e-12); // 1!·2!/4! = 2/24
     close(Math.exp(logBeta(1, 1)), 1, 1e-12);
