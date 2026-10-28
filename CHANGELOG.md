@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `sprtDecision` and `sprtExpectedN` accepted error rates summing to 1 or more, where Wald's walls
+  meet or cross. `sprtDecision` at `alpha` 0.6 and `beta` 0.5 answered `ACCEPT_H1` before a single
+  run, and `sprtExpectedN` answered 0 or a small positive number. Both now refuse
+  `alpha + beta >= 1` with `PEEKSAFE_E_CONFIG`, as the planners already did.
 - `affordabilityGrid` and `evaluatePoint` (and so `computeFrontier`) refuse an `fdr` outside (0, 1)
   with `PEEKSAFE_E_STAT_DOMAIN`, as `makePlan` does. An `fdr` of 2 priced a 50-case grid at 840 runs
   where 0.05 prices 1310. `affordabilityGrid` also refuses a negative or NaN `costPerRunUsd` and a

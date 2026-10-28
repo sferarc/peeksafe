@@ -314,22 +314,33 @@ describe("SPRT", () => {
     const r = sprtDecision({ successes: 3, trials: 10, p0: opts.p0, p1: opts.p1 });
     expect(Number.isFinite(r.upper) && Number.isFinite(r.lower)).toBe(true);
     expect(sprtExpectedN(0.5, opts.p0, opts.p1)).toBeGreaterThan(0);
-    // An alpha and beta summing to 1 are in domain and describe a test nobody
-    // should run: both walls sit at a log likelihood ratio of 0, so it decides
-    // before it has seen anything. The answer is 0 runs, and it used to be NaN
-    // for the pairs where both walls round to exactly 0. The callers' `> 0`
-    // fallback still fires on a 0, which is the right conservative answer, but
-    // it now fires on a number rather than on a NaN.
+  });
+
+  it("refuses error rates summing to 1 or more, where the walls meet or cross", () => {
+    // Both walls sit at a log likelihood ratio of 0 at a sum of 1 and cross
+    // above it, so a test at 0 runs already sat on the H1 wall.
+    const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
     for (const [a, b] of [
       [0.5, 0.5],
       [0.25, 0.75],
       [0.125, 0.875],
+      [0.6, 0.5],
+      [0.5, 0.501],
     ] as const) {
-      expect(sprtExpectedN(0.5, opts.p0, opts.p1, a, b), `alpha=${a} beta=${b}`).toBe(0);
+      expect(
+        () => sprtDecision({ successes: 0, trials: 0, ...opts, alpha: a, beta: b }),
+        `decision alpha=${a} beta=${b}`,
+      ).toThrow(config);
+      expect(
+        () => sprtExpectedN(0.5, opts.p0, opts.p1, a, b),
+        `expectedN alpha=${a} beta=${b}`,
+      ).toThrow(config);
     }
-    // The neighbourhood converges to that 0 rather than jumping to it.
+    // Just under a sum of 1 is still a test, one that stops almost at once.
+    expect(
+      sprtDecision({ successes: 0, trials: 0, ...opts, alpha: 0.5, beta: 0.499 }).decision,
+    ).toBe("CONTINUE");
     expect(sprtExpectedN(0.5, opts.p0, opts.p1, 0.5, 0.499)).toBeLessThan(1e-3);
-    expect(sprtExpectedN(0.5, opts.p0, opts.p1, 0.5, 0.501)).toBeLessThan(1e-3);
   });
 });
 
