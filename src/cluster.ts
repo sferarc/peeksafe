@@ -188,6 +188,18 @@ export interface ClusteredMean extends Interval {
 /** The naive iid interval, kept so the two can be printed side by side. */
 export function iidMean(values: number[], level = 0.95): Interval {
   requireLevel(level, "iidMean");
+  // groupByCluster refused these for the other estimators, so the same data was an error there and a NaN interval here.
+  for (let i = 0; i < values.length; i++) {
+    if (!Number.isFinite(values[i])) {
+      throw new PeeksafeError(
+        "PEEKSAFE_E_STAT_DOMAIN",
+        `iidMean: value at index ${i} is not finite`,
+        {
+          detail: { index: i, value: values[i] },
+        },
+      );
+    }
+  }
   const n = values.length;
   if (n === 0) return { low: -1, high: 1, point: 0, observations: 0 };
   const mean = values.reduce((a, b) => a + b, 0) / n;

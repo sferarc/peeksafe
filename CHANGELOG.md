@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `iidMean` did not check its values. A `NaN` or infinite value answered `NaN` bounds and a `NaN`
+  point, while `clusterRobustMean`, `randomEffectsMean` and `clusteredEffect` refused the same data
+  through `groupByCluster`. It now refuses a value that is not finite with `PEEKSAFE_E_STAT_DOMAIN`
+  and names its index.
 - `logGamma`, and so `logBeta`, did not check its argument. At a pole it answered a finite number,
   37.78 at `x` -1 where log Γ is infinite, and at `x` Infinity it answered `NaN`. It now refuses an
   `x` that is not finite and positive with `PEEKSAFE_E_STAT_DOMAIN`, the domain its doc comment
