@@ -935,8 +935,25 @@ export function ebhCorrect(evalues: number[], q = 0.05): EbhResult {
   return { rejected, discoveries: kStar, threshold: kStar > 0 ? m / (q * kStar) : m / q };
 }
 
-/** The e-value a case must reach to be certain of rejection whatever the others do. */
-export const ebhSoloThreshold = (m: number, q = 0.05): number => m / q;
+/**
+ * The e-value a case must reach to be certain of rejection whatever the others do.
+ *
+ * `q` is checked as `ebhCorrect` checks it, so a level of 0 answers Infinity.
+ */
+export function ebhSoloThreshold(m: number, q = 0.05): number {
+  if (!Number.isInteger(m) || m < 1) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `ebhSoloThreshold: m must be a positive integer, got ${m}`,
+      {
+        detail: { m },
+        hint: "m is the number of cases in the e-BH family",
+      },
+    );
+  }
+  requireProbability(q, "q", "ebhSoloThreshold");
+  return m / q;
+}
 
 /* ──────────────────────────────── planning ──────────────────────────── */
 
