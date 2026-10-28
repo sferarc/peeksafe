@@ -87,7 +87,14 @@ function gammaQContinued(a: number, x: number): number {
 
 /** Regularized lower incomplete gamma P(a,x), accurate to ~1e-15. */
 export function gammaP(a: number, x: number): number {
+  // A shape at or below 0 answered a negative probability, and x = Infinity fed Infinity - Infinity to exp.
+  if (!(a > 0) || !Number.isFinite(a) || Number.isNaN(x)) {
+    throw new PeeksafeError("PEEKSAFE_E_STAT_DOMAIN", "gammaP: need finite a > 0 and a number x", {
+      detail: { a, x },
+    });
+  }
   if (x <= 0) return 0;
+  if (x === Infinity) return 1;
   return x < a + 1 ? gammaPSeries(a, x) : 1 - gammaQContinued(a, x);
 }
 

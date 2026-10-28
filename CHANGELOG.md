@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `gammaP` did not check its shape. At `a` -0.5 and `x` 0.2 it answered -1.5058, a negative
+  probability, and at `x` Infinity it answered `NaN`, so `erf` and `normalCdf` were `NaN` at
+  either infinity. It now refuses an `a` that is not finite and positive, and a `NaN` `x`, with
+  `PEEKSAFE_E_STAT_DOMAIN`, and answers 1 at `x` Infinity.
 - `sampleSizeTwoProportion` answered `NaN` for a `NaN` `delta`: both of its range checks are false
   for NaN, so it skipped the `Infinity` branch and fed the formula. It now refuses it with
   `PEEKSAFE_E_STAT_DOMAIN`; a `delta` at or below 0, or at or above `p0`, still answers `Infinity`.

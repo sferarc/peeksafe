@@ -30,6 +30,7 @@ import {
   MIN_TRUSTWORTHY_CLUSTERS,
   makeRand,
   mcnemarSamplesForEvidence,
+  normalCdf,
   PeeksafeError,
   pairedDiscordance,
   pairedLogE,
@@ -175,6 +176,28 @@ describe("the rest of the statistical core", () => {
       expect(gammaP(1, x)).toBeCloseTo(1 - Math.exp(-x), 12);
       expect(gammaP(0.5, x)).toBeCloseTo(erf(Math.sqrt(x)), 7);
     }
+  });
+
+  it("gammaP refuses a shape outside (0, Infinity) and a NaN x, and reaches 1 at x = Infinity", () => {
+    // At a = -0.5, x = 0.2 it answered -1.5058, a negative probability.
+    for (const [a, x] of [
+      [-0.5, 0.2],
+      [0, 1],
+      [NaN, 1],
+      [Infinity, 1],
+      [1, NaN],
+    ]) {
+      expect(() => gammaP(a!, x!), `a=${a}, x=${x}`).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+    }
+    // x = Infinity answered NaN, so erf and normalCdf did too.
+    expect(gammaP(3, Infinity)).toBe(1);
+    expect(erf(Infinity)).toBe(1);
+    expect(erf(-Infinity)).toBe(-1);
+    expect(normalCdf(Infinity)).toBe(1);
+    expect(normalCdf(-Infinity)).toBe(0);
+    expect(gammaP(3, -Infinity)).toBe(0);
   });
 
   it("sprtExpectedN is Wald's approximation at both hypotheses", () => {
