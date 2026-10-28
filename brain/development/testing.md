@@ -27,6 +27,8 @@ Any figure in the README, a doc comment or a commit message must be reproducible
 
 `src/rand.ts` is a fixed LCG with an integer avalanche, written out rather than imported. Replacing it changes every simulated number in the README.
 
+A numeric seed must be an integer in [0, 2^32); `makeRand` refuses anything else rather than folding it with `>>> 0`. Seed 0 has its own stream: it used to be remapped to 1, so seeds 0 and 1 drew the same numbers (`test/exports.test.ts`). No test or README figure used seed 0, so no published number moved.
+
 ## Related
 
 - [[architecture/error-control-check]] for the exact computation the error-control tests use

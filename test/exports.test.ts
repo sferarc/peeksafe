@@ -423,6 +423,24 @@ describe("the rest of the statistical core", () => {
     const b = makeRand(hash32("case|7"));
     for (let i = 0; i < 5; i++) expect(a()).toBe(b());
   });
+
+  it("makeRand gives seeds 0 and 1 their own streams and refuses a seed it would fold", () => {
+    const head = (seed: number) => {
+      const r = makeRand(seed);
+      return [r(), r(), r()];
+    };
+    // Seeds 0 and 1 drew the same stream, so a replication loop from 0 ran its first draw twice.
+    expect(head(0)).not.toEqual(head(1));
+    expect(head(1)).toEqual(head(1));
+    expect(head(0x100000000 - 1)).not.toEqual(head(0));
+    // Each of these was folded onto seed 0 by `>>> 0`, or onto 2^32 - 1 for -1, without an error.
+    for (const seed of [Number.NaN, Infinity, -Infinity, 1.5, -1, 0x100000000]) {
+      expect(() => makeRand(seed)).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+    }
+    expect(() => makeRand(Number.NaN)).toThrow(/makeRand: a numeric seed must be an integer/);
+  });
 });
 
 describe("baselines", () => {
