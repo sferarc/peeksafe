@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `normalQuantile` and `betaQuantile` accepted a `NaN` probability. `normalQuantile` answered `NaN`
+  and `betaQuantile` bisected it down to about 0. Both now refuse it with `PEEKSAFE_E_STAT_DOMAIN`;
+  a probability at or beyond 0 or 1 is still clamped to the end of the support as before.
 - `ebhSoloThreshold` did not check its arguments. A `q` of 2 answered half the bar, 5 for ten cases
   where 0.05 answers 200, and a negative `m` or `q` answered a negative bar. It now refuses an `m`
   that is not a positive integer and a `q` outside [0, 1] with `PEEKSAFE_E_STAT_DOMAIN`, as
