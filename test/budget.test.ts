@@ -15,6 +15,7 @@ import {
   DEFAULT_PLAN,
   ebhSoloThreshold,
   evidenceCeilingLogE,
+  expectedSequentialSamples,
   makePlan,
   pairPhi,
   planCase,
@@ -152,6 +153,38 @@ describe("the planner answers before anything is spent", () => {
     }
     const plan = makePlan(cases, baseline, DEFAULT_PLAN);
     expect(plan.cases.every((c) => c.design !== null)).toBe(true);
+  });
+
+  it("refuses a trial grid the gate cannot sample on, through every planner door", () => {
+    // Unchecked, a NaN bound or a zero batch made the typical bill NaN, and a
+    // maxTrials of 1 under the default minTrials of 8 priced these four cases
+    // at 4 runs where the defaults price 144.
+    const { cases, baseline } = suite(4, 0.85, 240);
+    const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
+    const bad: Array<Partial<typeof DEFAULT_PLAN>> = [
+      { minTrials: NaN },
+      { minTrials: 0 },
+      { minTrials: 2.5 },
+      { maxTrials: NaN },
+      { maxTrials: Infinity },
+      { maxTrials: 1 },
+      { minTrials: 200 },
+      { batchSize: 0 },
+      { batchSize: -4 },
+      { batchSize: 2.5 },
+    ];
+    for (const grid of bad) {
+      const label = JSON.stringify(grid);
+      const plan = { ...DEFAULT_PLAN, ...grid };
+      const frontier = { ...DEFAULT_FRONTIER, ...grid };
+      expect(() => makePlan(cases, baseline, plan), `makePlan ${label}`).toThrow(config);
+      expect(() => expectedSequentialSamples(cases, baseline, plan), label).toThrow(config);
+      expect(() => affordabilityGrid(0.85, 240, plan, 10), `grid ${label}`).toThrow(config);
+      expect(() => computeFrontier(frontier), `computeFrontier ${label}`).toThrow(config);
+      expect(() => typicalObservationsPerCase(0.85, 0.15, frontier, 240), label).toThrow(config);
+    }
+    expect(makePlan(cases, baseline, DEFAULT_PLAN).totals.typicalRuns).toBe(144);
+    expect(makePlan(cases, baseline, { ...DEFAULT_PLAN, minTrials: 96 }).cases).toHaveLength(4);
   });
 
   it("prices the fixed-N comparator at the plan's own error rates", () => {
