@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `sampleSizeTwoProportion` answered `NaN` for a `NaN` `delta`: both of its range checks are false
+  for NaN, so it skipped the `Infinity` branch and fed the formula. It now refuses it with
+  `PEEKSAFE_E_STAT_DOMAIN`; a `delta` at or below 0, or at or above `p0`, still answers `Infinity`.
 - `normalQuantile` and `betaQuantile` accepted a `NaN` probability. `normalQuantile` answered `NaN`
   and `betaQuantile` bisected it down to about 0. Both now refuse it with `PEEKSAFE_E_STAT_DOMAIN`;
   a probability at or beyond 0 or 1 is still clamped to the end of the support as before.

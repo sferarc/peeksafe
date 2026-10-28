@@ -487,6 +487,17 @@ describe("planning and entropy", () => {
     expect(sampleSizeTwoProportion(0.1, 0.15, 0.05, 0.1)).toBe(Infinity);
   });
 
+  it("sampleSizeTwoProportion refuses a NaN delta", () => {
+    // Every comparison is false for NaN, so it skipped the Infinity branch and answered NaN.
+    expect(() => sampleSizeTwoProportion(0.9, NaN)).toThrow(
+      expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+    );
+    // A delta at or past either end is still an answer about the design.
+    expect(sampleSizeTwoProportion(0.9, 0)).toBe(Infinity);
+    expect(sampleSizeTwoProportion(0.9, Infinity)).toBe(Infinity);
+    expect(sampleSizeTwoProportion(0.9, -Infinity)).toBe(Infinity);
+  });
+
   it("Bernoulli entropy peaks at ½", () => {
     close(bernoulliEntropy(0.5), 1, 1e-12);
     close(bernoulliEntropy(0), 0, 1e-12);
