@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `gate`, `shouldStop` and `shouldStopPaired` refused an option passed as `undefined`. They merged
+  their defaults with a plain spread, so `{ mde: undefined }`, which the option types accept, replaced
+  the default 0.15 with `undefined` and was refused as an `mde` outside (0, 1); the same held for
+  `fdr`, `altConcentration`, `evidence` and `futilityConfidence`. An option passed as `undefined` now
+  takes its default, as it already did in `certifyProbability` and `typeOneError`. `suiteSize` has
+  no default and is still refused.
 - The planner did not check the batch grid it prices the gate on. `makePlan`,
   `expectedSequentialSamples` and `affordabilityGrid` took any `minTrials`, `maxTrials` and
   `batchSize`: a `NaN` bound or a `batchSize` of 0 made the typical bill `NaN`, and a `maxTrials` of 1,

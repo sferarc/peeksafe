@@ -80,6 +80,11 @@ export const cannotDropBy = (
   mde: number,
 ): boolean => baseline.successes / baseline.trials <= mde;
 
+/** `options` without its `undefined` entries, so a spread over the defaults leaves those defaults in place. */
+export function definedOptions<T extends object>(options: T): T {
+  return Object.fromEntries(Object.entries(options ?? {}).filter(([, v]) => v !== undefined)) as T;
+}
+
 /** One case's candidate result, and the baseline it is measured against. */
 export interface GateCase {
   id: string;
@@ -195,7 +200,7 @@ export function gate(
   cases: readonly (GateCase | PairedGateCase)[],
   options: GateOptions = {},
 ): GateResult {
-  const opts: Required<GateOptions> = { ...DEFAULT_GATE_OPTIONS, ...options };
+  const opts: Required<GateOptions> = { ...DEFAULT_GATE_OPTIONS, ...definedOptions(options) };
   requireOpenProbability(opts.mde, "mde", "gate");
   requireOpenProbability(opts.fdr, "fdr", "gate");
   requireEvidence(opts.evidence, "gate");

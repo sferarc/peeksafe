@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type BaselineStat,
+  DEFAULT_GATE_OPTIONS,
   evidenceCeilingAsymptotic,
   evidenceCeilingLogE,
   expectedLogE,
@@ -18,6 +19,7 @@ import {
   PeeksafeError,
   type StopReason,
   shouldStop,
+  shouldStopPaired,
   twoSampleLogE,
   twoSamplePriors,
   universalTwoSampleLogE,
@@ -252,6 +254,60 @@ describe("it refuses the same things gate refuses", () => {
     // of a loop accepted a level that every later call would throw on.
     expect(() =>
       shouldStop({ successes: 0, trials: 0 }, FAT, { ...opts, futilityConfidence: 5 }),
+    ).toThrow(PeeksafeError);
+  });
+});
+
+describe("an option passed as undefined takes its default", () => {
+  // A plain spread let `{ mde: undefined }`, which the types accept, replace the default and be refused.
+  const unset = {
+    mde: undefined,
+    fdr: undefined,
+    altConcentration: undefined,
+    evidence: undefined,
+  };
+
+  it("gate answers what it answers with the option left out", () => {
+    const cases = [
+      { id: "moved", successes: 30, trials: 60, baseline: FAT },
+      { id: "held", successes: 54, trials: 60, baseline: FAT },
+    ];
+    const result = gate(cases, unset);
+    expect(result).toEqual(gate(cases));
+    expect(result.options).toEqual(DEFAULT_GATE_OPTIONS);
+    expect(result.regressed.map((v) => v.id)).toEqual(["moved"]);
+  });
+
+  it("shouldStop answers what it answers with the option left out", () => {
+    const observed = { successes: 30, trials: 60 };
+    const decision = shouldStop(observed, FAT, {
+      suiteSize: 3,
+      ...unset,
+      maxTrials: undefined,
+      futilityConfidence: undefined,
+    });
+    expect(decision).toEqual(shouldStop(observed, FAT, { suiteSize: 3 }));
+    expect(decision.reason).toBe("regressed");
+  });
+
+  it("shouldStopPaired answers what it answers with the option left out", () => {
+    const counts = { bothPass: 40, worse: 18, better: 2, bothFail: 0 };
+    const decision = shouldStopPaired(counts, {
+      suiteSize: 3,
+      mde: undefined,
+      fdr: undefined,
+      maxPairs: undefined,
+      futilityConfidence: undefined,
+    });
+    expect(decision).toEqual(shouldStopPaired(counts, { suiteSize: 3 }));
+    expect(decision.reason).toBe("regressed");
+  });
+
+  it("still refuses a suiteSize passed as undefined, since it has no default", () => {
+    const missing = { suiteSize: undefined as unknown as number };
+    expect(() => shouldStop({ successes: 1, trials: 2 }, FAT, missing)).toThrow(PeeksafeError);
+    expect(() =>
+      shouldStopPaired({ bothPass: 1, worse: 0, better: 0, bothFail: 0 }, missing),
     ).toThrow(PeeksafeError);
   });
 });

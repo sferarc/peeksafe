@@ -60,7 +60,7 @@ import {
   requireEvidence,
   toEvalue,
 } from "./evidence.js";
-import { cannotDropBy, DEFAULT_GATE_OPTIONS } from "./gate.js";
+import { cannotDropBy, DEFAULT_GATE_OPTIONS, definedOptions } from "./gate.js";
 import {
   discordant,
   ebhSoloThreshold,
@@ -192,7 +192,7 @@ export function shouldStop(
   baseline: BaselineStat,
   options: StopOptions,
 ): StopDecision {
-  const opts = { ...DEFAULT_STOP_OPTIONS, ...options };
+  const opts = { ...DEFAULT_STOP_OPTIONS, ...definedOptions(options) };
   requireCounts(observed.successes, observed.trials, "shouldStop");
   requireCounts(baseline.successes, baseline.trials, "shouldStop.baseline");
   requireOpenProbability(opts.mde, "mde", "shouldStop");
@@ -375,7 +375,7 @@ export function shouldStopPaired(
   counts: PairedCounts,
   options: PairedStopOptions,
 ): PairedStopDecision {
-  const opts = { ...DEFAULT_STOP_OPTIONS, ...options };
+  const opts = { ...DEFAULT_STOP_OPTIONS, ...definedOptions(options) };
   requirePairedCounts(counts, "shouldStopPaired");
   requireOpenProbability(opts.mde, "mde", "shouldStopPaired");
   requireOpenProbability(opts.fdr, "fdr", "shouldStopPaired");
