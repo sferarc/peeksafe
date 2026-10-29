@@ -193,6 +193,42 @@ export function requireRunCeiling(v: number, where: string): void {
   }
 }
 
+/**
+ * The batch grid a plan prices the gate on: `minTrials` and `batchSize`
+ * positive integers, `maxTrials` an integer at least `minTrials`. A NaN bound
+ * or a zero batch made the typical bill NaN, and a cap under the minimum
+ * priced every case at the cap.
+ */
+export function requireTrialGrid(
+  cfg: { minTrials: number; maxTrials: number; batchSize: number },
+  where: string,
+): void {
+  const { minTrials, maxTrials, batchSize } = cfg;
+  const detail = { minTrials, maxTrials, batchSize, where };
+  for (const [name, v] of [
+    ["minTrials", minTrials],
+    ["batchSize", batchSize],
+  ] as const) {
+    if (!Number.isInteger(v) || v < 1) {
+      throw new PeeksafeError(
+        "PEEKSAFE_E_CONFIG",
+        `${where}: ${name} must be a positive integer, got ${v}`,
+        { detail },
+      );
+    }
+  }
+  if (!Number.isInteger(maxTrials) || maxTrials < minTrials) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: maxTrials must be an integer ≥ minTrials, got ${maxTrials} vs ${minTrials}`,
+      {
+        detail,
+        hint: "the typical bill is clamped to [minTrials, maxTrials]; a cap under the minimum prices a gate that stops before it starts",
+      },
+    );
+  }
+}
+
 /** The four cells of a pair table, each a non-negative integer. */
 export function requirePairedCounts(
   p: { bothPass: number; worse: number; better: number; bothFail: number },

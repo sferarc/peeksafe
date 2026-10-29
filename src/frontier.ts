@@ -63,6 +63,7 @@ import {
   requireOpenProbability,
   requireProbability,
   requireRunCeiling,
+  requireTrialGrid,
 } from "./errors.js";
 import { DEFAULT_PLAN } from "./plan.js";
 import {
@@ -299,6 +300,7 @@ export function typicalObservationsPerCase(
   // 0 for a quantile at or below 0, 1 at or above 1, and about 0 for NaN, so the
   // frontier priced the typical bill against a null rate nobody chose.
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "typicalObservationsPerCase");
+  requireTrialGrid(cfg, "typicalObservationsPerCase");
   const s = Math.round(rate * baselineRuns);
   const p0 = betaQuantile(1 + s, 1 + baselineRuns - s, cfg.nullQuantile);
   const p1 = Math.max(0.005, p0 - mde);
@@ -356,16 +358,7 @@ export function evaluatePoint(
       },
     );
   }
-  if (!Number.isInteger(cfg.maxTrials) || cfg.maxTrials < 1 || cfg.maxTrials < cfg.minTrials) {
-    throw new PeeksafeError(
-      "PEEKSAFE_E_CONFIG",
-      `frontier: maxTrials must be a positive integer ≥ minTrials, got ${cfg.maxTrials} vs ${cfg.minTrials}`,
-      {
-        detail: { maxTrials: cfg.maxTrials, minTrials: cfg.minTrials },
-        hint: "the ceiling bill is priced at this cap; a cap of zero prices a gate that never runs",
-      },
-    );
-  }
+  requireTrialGrid(cfg, "evaluatePoint");
   if (screen !== "none" && (!Number.isInteger(screenRunsPerCase) || screenRunsPerCase < 1)) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",
