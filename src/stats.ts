@@ -25,6 +25,7 @@ import {
   requireCounts,
   requireErrorRates,
   requireOpenProbability,
+  requirePairedCounts,
   requireProbability,
 } from "./errors.js";
 
@@ -1462,7 +1463,10 @@ export interface PairedCounts {
   bothFail: number;
 }
 
-export const discordant = (p: PairedCounts): number => p.worse + p.better;
+export function discordant(p: PairedCounts): number {
+  requirePairedCounts(p, "discordant");
+  return p.worse + p.better;
+}
 
 /**
  * Phi coefficient of the 2×2 pair table, how well the pairing actually
@@ -1472,23 +1476,8 @@ export const discordant = (p: PairedCounts): number => p.worse + p.better;
  * not assumed.
  */
 export function pairPhi(p: PairedCounts): number {
+  requirePairedCounts(p, "pairPhi");
   const { bothPass: a, worse: b, better: cc, bothFail: d } = p;
-  for (const [name, v] of [
-    ["bothPass", a],
-    ["worse", b],
-    ["better", cc],
-    ["bothFail", d],
-  ] as const) {
-    if (!Number.isInteger(v) || v < 0) {
-      throw new PeeksafeError(
-        "PEEKSAFE_E_STAT_DOMAIN",
-        `pairPhi: ${name} must be a non-negative integer, got ${v}`,
-        {
-          detail: { counts: p },
-        },
-      );
-    }
-  }
   const n = a + b + cc + d;
   if (n === 0) return 0;
   const den = Math.sqrt((a + b) * (cc + d) * (a + cc) * (b + d));

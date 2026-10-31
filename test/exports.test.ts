@@ -17,6 +17,7 @@ import {
   DEFAULT_GATE_OPTIONS,
   DEFAULT_PLAN,
   DEFAULT_STOP_OPTIONS,
+  discordant,
   enumerateFrontier,
   erf,
   evaluatePoint,
@@ -103,6 +104,19 @@ describe("statistics", () => {
     expect(() => pairPhi({ bothPass: -1, worse: 0, better: 0, bothFail: 0 })).toThrow(
       PeeksafeError,
     );
+  });
+
+  it("discordant counts the pairs that disagree and refuses a pair table that is not counts", () => {
+    expect(discordant({ bothPass: 60, worse: 20, better: 6, bothFail: 14 })).toBe(26);
+    expect(discordant({ bothPass: 0, worse: 0, better: 0, bothFail: 0 })).toBe(0);
+    for (const bad of [-2, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => discordant({ bothPass: 1, worse: bad, better: 1, bothFail: 3 })).toThrow(
+        PeeksafeError,
+      );
+      expect(() => discordant({ bothPass: bad, worse: 1, better: 1, bothFail: 3 })).toThrow(
+        /discordant: bothPass must be a non-negative integer/,
+      );
+    }
   });
 
   it("pairedDiscordance matches the coupled and independent limits", () => {
