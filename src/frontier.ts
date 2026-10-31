@@ -285,6 +285,18 @@ export const fmtRate = (x: number): string =>
 const graded = (runs: number, cfg: FrontierConfig): number =>
   runs * (cfg.costPerRunUsd + cfg.costPerGradeUsd);
 
+function requireBaselineRuns(v: number, name: string, where: string): void {
+  if (!Number.isInteger(v) || v < 1) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: ${name} must be a positive integer, got ${v}`,
+      {
+        detail: { [name]: v, where },
+      },
+    );
+  }
+}
+
 /**
  * Observations per case on a pull request where nothing moved, clamped onto the
  * gate's own batch grid.
@@ -301,6 +313,10 @@ export function typicalObservationsPerCase(
   // frontier priced the typical bill against a null rate nobody chose.
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "typicalObservationsPerCase");
   requireTrialGrid(cfg, "typicalObservationsPerCase");
+  // Unchecked, an mde of 0 or below priced a bill for an effect nobody can detect, and a bad rate or run count was refused under betaQuantile's name.
+  requireOpenProbability(rate, "rate", "typicalObservationsPerCase");
+  requireOpenProbability(mde, "mde", "typicalObservationsPerCase");
+  requireBaselineRuns(baselineRuns, "baselineRuns", "typicalObservationsPerCase");
   const s = Math.round(rate * baselineRuns);
   const p0 = betaQuantile(1 + s, 1 + baselineRuns - s, cfg.nullQuantile);
   const p1 = Math.max(0.005, p0 - mde);
@@ -349,15 +365,9 @@ export function evaluatePoint(
       },
     );
   }
-  if (!Number.isInteger(baselineRuns) || baselineRuns < 1) {
-    throw new PeeksafeError(
-      "PEEKSAFE_E_CONFIG",
-      `frontier: baselineRuns must be a positive integer, got ${baselineRuns}`,
-      {
-        detail: { baselineRuns },
-      },
-    );
-  }
+  // The paired design prices its baseline from this one, and 0 or 2.5 runs priced a cheaper frontier than any real baseline.
+  requireBaselineRuns(cfg.pairedBaselineRuns, "pairedBaselineRuns", "evaluatePoint");
+  requireBaselineRuns(baselineRuns, "baselineRuns", "evaluatePoint");
   requireTrialGrid(cfg, "evaluatePoint");
   if (screen !== "none" && (!Number.isInteger(screenRunsPerCase) || screenRunsPerCase < 1)) {
     throw new PeeksafeError(
