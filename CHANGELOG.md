@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- The frontier did not check the paired design's baseline. `evaluatePoint` took any
+  `pairedBaselineRuns`, so 0 runs priced the typical bill for 100 cases at an mde of 0.15 over the
+  defaults at $2400 where the default 20 runs price $6420, and 2.5 runs priced a fractional baseline.
+  It now refuses a `pairedBaselineRuns` that is not a positive integer with `PEEKSAFE_E_CONFIG`, and
+  so does `computeFrontier`, by that name. `typicalObservationsPerCase` now refuses a `rate` or `mde`
+  outside (0, 1) and a `baselineRuns` that is not a positive integer: at 80% over a 60-run baseline an
+  `mde` of 0 priced 96 runs and -0.1 priced 52. `evaluatePoint`'s refusal of `baselineRuns` now names
+  `evaluatePoint` rather than `frontier`.
 - `gate`, `shouldStop` and `shouldStopPaired` refused an option passed as `undefined`. They merged
   their defaults with a plain spread, so `{ mde: undefined }`, which the option types accept, replaced
   the default 0.15 with `undefined` and was refused as an `mde` outside (0, 1); the same held for

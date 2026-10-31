@@ -14,6 +14,7 @@ import {
   DEFAULT_FRONTIER,
   DEFAULT_PLAN,
   ebhSoloThreshold,
+  evaluatePoint,
   evidenceCeilingLogE,
   expectedSequentialSamples,
   makePlan,
@@ -445,6 +446,36 @@ describe("the frontier", () => {
         () => typicalObservationsPerCase(0.85, 0.15, cfg, 240),
         `typicalObservationsPerCase q=${bad}`,
       ).toThrow(/nullQuantile/);
+    }
+  });
+
+  it("refuses a paired baseline that is not a whole number of runs", () => {
+    // Unchecked, 0 paired baseline runs priced the typical bill at 2400 where 20 price 6420.
+    const at = (pairedBaselineRuns: number) =>
+      evaluatePoint(100, 0.15, 240, "paired", "none", 0, {
+        ...DEFAULT_FRONTIER,
+        pairedBaselineRuns,
+      });
+    expect(at(DEFAULT_FRONTIER.pairedBaselineRuns).typical.totalUsd).toBe(6420);
+    for (const bad of [0, -10, 2.5, NaN, Infinity]) {
+      expect(() => at(bad), `evaluatePoint ${bad}`).toThrow(/pairedBaselineRuns/);
+      expect(
+        () => computeFrontier({ ...DEFAULT_FRONTIER, pairedBaselineRuns: bad }),
+        `computeFrontier ${bad}`,
+      ).toThrow(/pairedBaselineRuns/);
+    }
+  });
+
+  it("refuses a rate, mde or baseline typicalObservationsPerCase cannot price", () => {
+    // At 80% over 60 baseline runs an mde of 0 priced 96 runs and -0.1 priced 52.
+    const typical = (rate: number, mde: number, runs: number) =>
+      typicalObservationsPerCase(rate, mde, DEFAULT_FRONTIER, runs);
+    for (const bad of [0, 1, -0.1, 1.5, NaN]) {
+      expect(() => typical(bad, 0.15, 240), `rate ${bad}`).toThrow(/rate/);
+      expect(() => typical(0.85, bad, 240), `mde ${bad}`).toThrow(/mde/);
+    }
+    for (const bad of [0, -5, 2.5, NaN, Infinity]) {
+      expect(() => typical(0.85, 0.15, bad), `baselineRuns ${bad}`).toThrow(/baselineRuns/);
     }
   });
 
