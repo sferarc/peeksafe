@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `discordant` did not check its pair table. It summed `worse` and `better` as given, so a `worse`
+  of -2 against a `better` of 1 answered -1 discordant pairs, 0.5 answered 1.5 and `NaN` answered
+  `NaN`, while `pairPhi`, `gate` and `shouldStopPaired` refused the same table. It now refuses a
+  count that is not a non-negative integer with `PEEKSAFE_E_STAT_DOMAIN`, through the same check
+  `pairPhi` now shares, so `pairPhi`'s refusal carries the offending count in `detail` rather than
+  the whole table.
 - The frontier did not check the paired design's baseline. `evaluatePoint` took any
   `pairedBaselineRuns`, so 0 runs priced the typical bill for 100 cases at an mde of 0.15 over the
   defaults at $2400 where the default 20 runs price $6420, and 2.5 runs priced a fractional baseline.
