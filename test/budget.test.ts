@@ -154,6 +154,48 @@ describe("the planner answers before anything is spent", () => {
     ).toHaveLength(4);
   });
 
+  it("refuses through planCase the baseline, error rates and prices makePlan refuses", () => {
+    // planCase is exported on its own and checked none of these. A -5/60 or 5/-3
+    // baseline came back IMPOSSIBLE, as if the case could not drop, and on a 51/60
+    // baseline at m = 10 a costPerRunUsd of -1 priced the paired design at -$152 and a
+    // msPerRun of -5 at -760 ms. makePlan accepted a -5/0 baseline as "no baseline".
+    const ok = { caseId: "a", successes: 51, trials: 60 };
+    const domain = expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" });
+    const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
+    for (const [successes, trials] of [
+      [-5, 60],
+      [5, -3],
+      [-5, 0],
+      [70, 60],
+      [NaN, 60],
+    ] as const) {
+      const b = { caseId: "a", successes, trials };
+      expect(() => planCase({ id: "a" }, b, DEFAULT_PLAN, 10), `${successes}/${trials}`).toThrow(
+        domain,
+      );
+      expect(() => planCase({ id: "a" }, b, DEFAULT_PLAN, 10)).toThrow(/planCase\(a\)\.baseline/);
+    }
+    expect(() =>
+      makePlan([{ id: "a" }], new Map([["a", { caseId: "a", successes: -5, trials: 0 }]])),
+    ).toThrow(domain);
+    for (const bad of [
+      { alpha: 0.6, beta: 0.5 },
+      { alpha: 0.99 },
+      { costPerRunUsd: -1 },
+      { costPerRunUsd: NaN },
+      { msPerRun: -5 },
+      { msPerRun: NaN },
+    ]) {
+      const cfg = { ...DEFAULT_PLAN, ...bad };
+      expect(() => planCase({ id: "a" }, ok, cfg, 10), JSON.stringify(bad)).toThrow(config);
+    }
+    // Inside the range nothing moves: no baseline is still IMPOSSIBLE, and a free run is priced at $0.
+    expect(planCase({ id: "a" }, undefined, DEFAULT_PLAN, 10).detectability).toBe("IMPOSSIBLE");
+    const free = planCase({ id: "a" }, ok, { ...DEFAULT_PLAN, costPerRunUsd: 0 }, 10);
+    expect(free.paired.costUsd).toBe(0);
+    expect(planCase({ id: "a" }, ok, DEFAULT_PLAN, 10).paired.runs).toBe(152);
+  });
+
   it("refuses a run ceiling below one run rather than calling every case undecidable", () => {
     // The planners search up to eight times the ceiling. At NaN or 0 that search
     // never ran, so both designs answered Infinity and every case came back
