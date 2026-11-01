@@ -11,6 +11,7 @@ import {
   type BaselineStat,
   type CaseRef,
   computeFrontier,
+  DEFAULT_AXES,
   DEFAULT_FRONTIER,
   DEFAULT_PLAN,
   ebhSoloThreshold,
@@ -530,6 +531,69 @@ describe("the frontier", () => {
       const cfg = { ...DEFAULT_FRONTIER, basis: basis as never };
       expect(() => evaluatePoint(100, 0.15, 240, "paired", "none", 0, cfg), basis).toThrow(/basis/);
       expect(() => computeFrontier(cfg), basis).toThrow(/basis/);
+    }
+  });
+
+  it("refuses an unknown design or screen and a screen recall outside [0, 1]", () => {
+    // Only a null recall withheld the recommendation, so NaN moved the headline from 35 points ($83) to 25 ($78).
+    const measured = (expensive: number | null) =>
+      computeFrontier({ ...DEFAULT_FRONTIER, screenRecall: { expensive, proxy: null } }).headline;
+    expect(measured(null)).toMatch(/10 cases at 35 points \(\$83\.00, unpaired\)/);
+    expect(measured(0.9)).toMatch(/10 cases at 25 points \(\$78\.00, unpaired\)/);
+    const at = (
+      design: string,
+      screen: string,
+      screenRecall: FrontierConfig["screenRecall"] = { expensive: 0.9, proxy: null },
+    ) =>
+      evaluatePoint(100, 0.15, 240, design as never, screen as never, 4, {
+        ...DEFAULT_FRONTIER,
+        budgetUsd: 1e9,
+        screenRecall,
+      });
+    expect(at("paired", "expensive").recommendable).toBe(true);
+    expect(at("paired", "expensive", { expensive: 0, proxy: null }).recommendable).toBe(true);
+    expect(at("paired", "expensive", { expensive: null, proxy: null }).recommendable).toBe(false);
+    for (const bad of [NaN, -1, 2, Infinity, undefined]) {
+      expect(
+        () => at("paired", "expensive", { expensive: bad as never, proxy: null }),
+        `expensive ${bad}`,
+      ).toThrow(/screenRecall\.expensive/);
+      expect(
+        () => at("paired", "none", { expensive: null, proxy: bad as never }),
+        `proxy ${bad}`,
+      ).toThrow(/screenRecall\.proxy/);
+      expect(
+        () =>
+          computeFrontier({
+            ...DEFAULT_FRONTIER,
+            screenRecall: { expensive: bad as never, proxy: null },
+          }),
+        `computeFrontier ${bad}`,
+      ).toThrow(/screenRecall/);
+    }
+    for (const design of ["bogus", "Paired", "toString"]) {
+      expect(() => at(design, "none"), design).toThrow(
+        expect.objectContaining({
+          code: "PEEKSAFE_E_CONFIG",
+          message: expect.stringMatching(/design/),
+        }),
+      );
+      expect(
+        () => computeFrontier(DEFAULT_FRONTIER, { ...DEFAULT_AXES, designs: [design as never] }),
+        design,
+      ).toThrow(/design/);
+    }
+    for (const screen of ["bogus", "Proxy", "toString"]) {
+      expect(() => at("paired", screen), screen).toThrow(
+        expect.objectContaining({
+          code: "PEEKSAFE_E_CONFIG",
+          message: expect.stringMatching(/screen/),
+        }),
+      );
+      expect(
+        () => computeFrontier(DEFAULT_FRONTIER, { ...DEFAULT_AXES, screens: [screen as never] }),
+        screen,
+      ).toThrow(/screen must be/);
     }
   });
 

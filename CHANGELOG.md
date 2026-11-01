@@ -8,6 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `evaluatePoint` (and so `computeFrontier`) withheld a recommendation only for a screen recall of
+  `null`, so a recall of `NaN`, which is what 0 caught out of 0 planted regressions computes to,
+  counted as measured: on the defaults it moved the frontier headline from 10 cases at 35 points
+  ($83.00) to 10 cases at 25 points ($78.00). A recall outside [0, 1] was accepted the same way. Both
+  are now refused with `PEEKSAFE_E_STAT_DOMAIN`. An unknown `design` fell through to the paired
+  branch and came back feasible on a bill of $Infinity, and an unknown `screen` was priced and
+  recommended as the expensive one; both are now refused with `PEEKSAFE_E_CONFIG`.
 - `makePlan` and `expectedSequentialSamples` accepted a case listed twice, which `gate` refuses.
   `makePlan` priced the case twice and counted it twice in the suite size its bar is set from, and
   `expectedSequentialSamples` added it to `samples` twice while `perCase` kept it once, so the two

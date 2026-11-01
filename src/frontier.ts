@@ -270,6 +270,7 @@ export interface FrontierPoint {
 }
 
 const RUNS_PER_OBS: Record<FrontierDesign, number> = { unpaired: 1, paired: 2 };
+const SCREENS: readonly FrontierScreen[] = ["none", "expensive", "proxy"];
 
 /** $1.00, but $0.0021 rather than $0.00, a per-run price rounds to nothing. */
 export const fmtRate = (x: number): string =>
@@ -414,6 +415,31 @@ export function evaluatePoint(
   requireBaselineRuns(cfg.pairedBaselineRuns, "pairedBaselineRuns", "evaluatePoint");
   requireBaselineRuns(baselineRuns, "baselineRuns", "evaluatePoint");
   requireTrialGrid(cfg, "evaluatePoint");
+  // An unknown design fell through to the paired branch with no runs per observation and came back feasible on an infinite bill.
+  if (!Object.hasOwn(RUNS_PER_OBS, design)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `frontier: design must be one of ${Object.keys(RUNS_PER_OBS).join(", ")}, got "${String(design)}"`,
+      {
+        detail: { design },
+      },
+    );
+  }
+  // An unknown screen was priced and recommended as the expensive one.
+  if (!SCREENS.includes(screen)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `frontier: screen must be one of ${SCREENS.join(", ")}, got "${String(screen)}"`,
+      {
+        detail: { screen },
+      },
+    );
+  }
+  // Only null withholds a recommendation, so a NaN recall (0 of 0 regressions caught) recommended the screen.
+  for (const kind of ["expensive", "proxy"] as const) {
+    const recall = cfg.screenRecall[kind];
+    if (recall !== null) requireProbability(recall, `screenRecall.${kind}`, "evaluatePoint");
+  }
   if (screen !== "none" && (!Number.isInteger(screenRunsPerCase) || screenRunsPerCase < 1)) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",
