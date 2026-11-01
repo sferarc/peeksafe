@@ -14,7 +14,7 @@ Decided 2026-10-05. `ROADMAP.md` item 1, "Pairing in the planner's defaults".
 
 ## Not done here
 
-The expected bill still priced one design for the whole suite. It now prices each case at its own `design` (#90; [[architecture/planner]] has the rule and the figures). The observation count per case is still the unpaired SPRT's under both designs; a paired expected sample number is not modelled.
+The expected bill still priced one design for the whole suite. It now prices each case at its own `design` (#90; [[architecture/planner]] has the rule and the figures). A paired case's observation count is now the pairs `shouldStopPaired` takes to settle it at its coupling (#98), no longer the unpaired SPRT's.
 
 ## Related
 

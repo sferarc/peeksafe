@@ -18,10 +18,12 @@ publishes from a `v*` tag through `release.yml` (`brain/development/release.md`)
 Tracking: [#92](https://github.com/sferarc/peeksafe/issues/92).
 
 Improvements recorded in `brain/` that block nothing:
-[#98](https://github.com/sferarc/peeksafe/issues/98), pricing a paired case's typical bill with a
-paired expected sample number. Done: [#90](https://github.com/sferarc/peeksafe/issues/90), pricing a
-suite that mixes paired and unpaired cases, and [#95](https://github.com/sferarc/peeksafe/issues/95),
-recommending pairing when every case's own design is paired.
+[#100](https://github.com/sferarc/peeksafe/issues/100), pricing the paired typical bill in the
+frontier and the affordability grid the way `makePlan` does. Done:
+[#90](https://github.com/sferarc/peeksafe/issues/90), pricing a suite that mixes paired and unpaired
+cases, [#95](https://github.com/sferarc/peeksafe/issues/95), recommending pairing when every case's
+own design is paired, and [#98](https://github.com/sferarc/peeksafe/issues/98), pricing a paired
+case's typical bill in `makePlan` with the pairs it takes to settle.
 
 ## Not planned
 

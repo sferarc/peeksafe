@@ -403,7 +403,9 @@ describe("README: choosing a design by cost", () => {
       ["checkout/flow", 40],
       ["parsing/nested", 28],
     ]);
-    expect(assumed.totals.typicalRuns).toBe(108);
+    // `checkout/flow` is paired and counted in the 36 pairs it takes to settle at 0.9.
+    expect(assumed.totals.typicalRuns).toBe(36 * 2 + 28);
+    expect(assumed.totals.typicalRuns).toBe(100);
     expect(
       makePlan(cases, toBaselineMap(baselines), { ...DEFAULT_PLAN, design: "unpaired" }).totals
         .typicalRuns,
