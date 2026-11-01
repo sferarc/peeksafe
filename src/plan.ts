@@ -224,7 +224,9 @@ export interface Plan {
   /** cases whose baseline rate is too low to lose `mde` points at all */
   impossible: PlanCase[];
   /**
-   * The design the recommendation names. `expectedCostUsd` prices each case at
+   * The design the recommendation names: paired when more than a quarter of
+   * the suite is `PAIRED_ONLY` or most decidable cases' own `design` is
+   * paired. `expectedCostUsd` prices each case at
    * its own `design` and falls back to this one only for a case with none,
    * unless `config.design` fixes one design for the whole suite.
    */
@@ -545,10 +547,13 @@ export function makePlan(
   );
 
   const pairedOnlyCount = planned.filter((p) => p.detectability === "PAIRED_ONLY").length;
-  // `pairedOnly > 25%` is the same condition the recommendation string uses; they cannot drift apart.
+  const pairedDesignCount = decidableAny.filter((p) => p.design === "paired").length;
+  // The recommendation string reads these same two flags, so it cannot drift from the design it names.
+  const manyPairedOnly = pairedOnlyCount > cases.length * 0.25;
+  const mostlyPaired = pairedDesignCount * 2 > decidableAny.length;
   const recommendedDesign: "unpaired" | "paired" =
     cfg.design ??
-    (decidableAny.length > 0 && pairedOnlyCount > cases.length * 0.25 ? "paired" : "unpaired");
+    (decidableAny.length > 0 && (manyPairedOnly || mostlyPaired) ? "paired" : "unpaired");
   // Per case, like `bestRuns`: one suite-wide design billed a mixed suite as if every case ran it.
   const runsPerObs = (p: PlanCase) =>
     (cfg.design ?? p.design ?? recommendedDesign) === "paired" ? 2 : 1;
@@ -627,7 +632,9 @@ export function makePlan(
     decidableAny.length === 0
       ? `nothing is decidable at ${(cfg.mde * 100).toFixed(0)} points against this baseline, record more baseline runs or raise the MDE`
       : recommendedDesign === "paired"
-        ? `pair the runs: ${pairedOnly.length}/${m} cases have an unpaired evidence ceiling under the bar, so no candidate budget can decide them` +
+        ? (manyPairedOnly
+            ? `pair the runs: ${pairedOnly.length}/${m} cases have an unpaired evidence ceiling under the bar, so no candidate budget can decide them`
+            : `pair the runs: ${pairedDesignCount}/${decidableAny.length} decidable cases are cheaper paired than against the stored baseline`) +
           (cfg.design === undefined
             ? ` (the costs below price each case at its own design, two runs an observation where it is paired)`
             : ` (the costs below are priced at two runs an observation, which is what pairing costs)`)
