@@ -8,6 +8,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `evaluatePoint` did not check the budget, the prices, `screenKeepFraction` or `amortisePrs`, which
+  only `enumerateFrontier` refused. A direct call at a `costPerRunUsd` of -1 recommended a paired
+  point for 100 cases at an mde of 0.15 on a bill of -$6420, a `screenKeepFraction` of 2 kept 200 of
+  the 100 cases, NaN kept NaN of them, and an `amortisePrs` of 0 or 0.5 priced the baseline as one pull
+  request. It now refuses all four by name with `PEEKSAFE_E_CONFIG`, through the check
+  `enumerateFrontier` now shares, which also refuses an infinite cost: against an unlimited budget
+  it recommended a point on a bill of $Infinity. A `basis` inherited from `Object.prototype`, such as `"toString"`, passed the
+  `undefined` check on the bill lookup and priced a `basisCostUsd` of `undefined`; it is now refused,
+  as `costShares` already refused it.
 - `discordant` did not check its pair table. It summed `worse` and `better` as given, so a `worse`
   of -2 against a `better` of 1 answered -1 discordant pairs, 0.5 answered 1.5 and `NaN` answered
   `NaN`, while `pairPhi`, `gate` and `shouldStopPaired` refused the same table. It now refuses a
