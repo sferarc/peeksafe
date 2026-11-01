@@ -20,7 +20,7 @@
  * It is not a fine thing to do by accident, which is why the constants are
  * spelled out here rather than imported.
  */
-import { PeeksafeError } from "./errors.js";
+import { PeeksafeError, requireProbability } from "./errors.js";
 
 export interface Rand {
   (): number;
@@ -91,7 +91,11 @@ export function makeRand(seed: number | string): Rand {
   const base = lcg(s);
   const next = (() => mix32(Math.floor(base() * 0x100000000)) / 0x100000000) as Rand;
 
-  next.bernoulli = (p: number) => next() < p;
+  // `next() < p` is false for every draw at NaN, so a rate that failed to compute simulated a case that never passes.
+  next.bernoulli = (p: number) => {
+    requireProbability(p, "p", "rand.bernoulli");
+    return next() < p;
+  };
 
   next.int = (n: number) => {
     if (!Number.isInteger(n) || n < 1) {

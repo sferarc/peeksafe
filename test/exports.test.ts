@@ -462,6 +462,23 @@ describe("the rest of the statistical core", () => {
     }
     expect(() => makeRand(Number.NaN)).toThrow(/makeRand: a numeric seed must be an integer/);
   });
+
+  it("rand.bernoulli refuses a rate outside [0, 1] and keeps the stream for one inside it", () => {
+    const r = makeRand(7);
+    // A NaN rate drew a failure every time, and 2 or -1 drew all passes or all failures.
+    for (const p of [Number.NaN, Infinity, -1, 2]) {
+      expect(() => r.bernoulli(p)).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+    }
+    expect(() => r.bernoulli(Number.NaN)).toThrow(/rand\.bernoulli: p must be in \[0,1\]/);
+    // A refused rate consumes no draw, and an accepted one is still `next() < p`.
+    const s = makeRand(7);
+    const draws = Array.from({ length: 20 }, () => s());
+    expect(draws.map(() => r.bernoulli(0.5))).toEqual(draws.map((u) => u < 0.5));
+    expect(r.bernoulli(0)).toBe(false);
+    expect(r.bernoulli(1)).toBe(true);
+  });
 });
 
 describe("baselines", () => {

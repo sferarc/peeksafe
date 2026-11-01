@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `rand.bernoulli` did not check its rate. `next() < p` is false for every draw at `NaN`, so a
+  simulation whose rate failed to compute drew a case that never passes, and a rate of 2 or -1 drew
+  all passes or all failures, without an error. It now refuses a rate outside [0, 1] with
+  `PEEKSAFE_E_STAT_DOMAIN`, as `rand.int` refuses a bad bound. A rate inside it draws the same
+  numbers as before.
 - `samplesForEvidence` did not check `logThreshold`. A `NaN` bar failed its ceiling test and it
   answered Infinity, "no number of runs will do", for a case that needs 262 runs at a bar of
   `log(4000)`, and a bar of `-Infinity` answered 1 run, while `mcnemarSamplesForEvidence` refused

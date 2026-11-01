@@ -29,6 +29,8 @@ Any figure in the README, a doc comment or a commit message must be reproducible
 
 A numeric seed must be an integer in [0, 2^32); `makeRand` refuses anything else rather than folding it with `>>> 0`. Seed 0 has its own stream: it used to be remapped to 1, so seeds 0 and 1 drew the same numbers (`test/exports.test.ts`). No test or README figure used seed 0, so no published number moved.
 
+`rand.bernoulli` refuses a rate outside [0, 1], including `NaN`, which used to draw a failure every time. The check runs before the draw, so a valid rate keeps the stream every simulated figure was produced from (`test/exports.test.ts`).
+
 ## Related
 
 - [[architecture/error-control-check]] for the exact computation the error-control tests use
