@@ -145,11 +145,18 @@ describe("the paired design refuses rather than inventing", () => {
   it("refuses a non-finite threshold rather than sizing the study at one pair", () => {
     // A NaN threshold defeated every `<` guarding the search: the doubling loop
     // exited at once and the bisection returned its own starting point, so the
-    // answer came back as 1 pair. Its sibling writes the same guard negated.
-    expect(() => mcnemarSamplesForEvidence(0.9, 0.15, 0.5, NaN)).toThrow(PeeksafeError);
-    expect(() => mcnemarSamplesForEvidence(0.9, 0.15, 0.5, Infinity)).toThrow(PeeksafeError);
-    expect(samplesForEvidence(0.75, 51, 60, 0.15, NaN)).toBe(Infinity);
+    // answer came back as 1 pair. The unpaired search answered Infinity, "no
+    // number of runs will do", for a case that needs 262 at a finite bar.
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      expect(() => mcnemarSamplesForEvidence(0.9, 0.15, 0.5, bad), `bar=${bad}`).toThrow(
+        PeeksafeError,
+      );
+      expect(() => samplesForEvidence(0.75, 216, 240, 0.15, bad), `bar=${bad}`).toThrow(
+        PeeksafeError,
+      );
+    }
     expect(mcnemarSamplesForEvidence(0.9, 0.15, 0.5, Math.log(4000))).toBe(172);
+    expect(samplesForEvidence(0.75, 216, 240, 0.15, Math.log(4000))).toBe(262);
   });
 
   it("refuses a search cap below one run rather than answering that no number of runs will do", () => {
