@@ -40,6 +40,7 @@ import {
   requireProbability,
   requireRunCeiling,
   requireTrialGrid,
+  requireUniqueCaseIds,
 } from "./errors.js";
 import {
   betaQuantile,
@@ -435,6 +436,8 @@ export function expectedSequentialSamples(
     b.trials > 0 ? b.successes / b.trials : 0,
 ): { samples: number; perCase: Map<string, number> } {
   requireTrialGrid(cfg, "expectedSequentialSamples");
+  // A repeated id was added to `samples` once per listing but kept once in `perCase`, so the two disagreed.
+  requireUniqueCaseIds(cases, "expectedSequentialSamples");
   const perCase = new Map<string, number>();
   let total = 0;
   for (const c of cases) {
@@ -495,6 +498,8 @@ export function makePlan(
       hint: "pass at least one case; makePlan prices a suite, not an empty list",
     });
   }
+  // `gate` refuses a repeated id; planned, it was priced twice and counted twice in the suite size the bar is set from.
+  requireUniqueCaseIds(cases, "makePlan");
   if (!(cfg.costPerRunUsd >= 0) || !(cfg.msPerRun >= 0)) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",

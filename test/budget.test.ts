@@ -89,6 +89,22 @@ describe("the planner answers before anything is spent", () => {
     expect(() => makePlan([], new Map(), DEFAULT_PLAN)).toThrow();
   });
 
+  it("refuses a repeated case id, as gate does, rather than pricing the case twice", () => {
+    const { cases, baseline } = suite(1, 0.85, 60);
+    const twice = [cases[0]!, { ...cases[0]! }];
+    for (const call of [
+      () => makePlan(twice, baseline, DEFAULT_PLAN),
+      () => expectedSequentialSamples(twice, baseline, DEFAULT_PLAN),
+    ]) {
+      expect(call).toThrow(expect.objectContaining({ code: "PEEKSAFE_E_CASE_DUPLICATE" }));
+      expect(call).toThrow(/duplicate case id c0/);
+    }
+    // Listed once, the case keeps the figure the duplicate used to add twice to `samples`.
+    const once = expectedSequentialSamples(cases, baseline, DEFAULT_PLAN);
+    expect(once.samples).toBe(once.perCase.get("c0"));
+    expect(makePlan(cases, baseline, DEFAULT_PLAN).cases).toHaveLength(1);
+  });
+
   it("refuses an out-of-range alpha or beta rather than quoting every case at the cap", () => {
     // `sprtExpectedN` answers NaN or Infinity for an error rate outside (0,1),
     // and both of its callers here gate on `Number.isFinite(raw) && raw > 0`

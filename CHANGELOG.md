@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `makePlan` and `expectedSequentialSamples` accepted a case listed twice, which `gate` refuses.
+  `makePlan` priced the case twice and counted it twice in the suite size its bar is set from, and
+  `expectedSequentialSamples` added it to `samples` twice while `perCase` kept it once, so the two
+  disagreed. Both now refuse a repeated id with `PEEKSAFE_E_CASE_DUPLICATE`, the code `gate` and
+  `toBaselineMap` use.
 - `evaluatePoint` did not check the budget, the prices, `screenKeepFraction` or `amortisePrs`, which
   only `enumerateFrontier` refused. A direct call at a `costPerRunUsd` of -1 recommended a paired
   point for 100 cases at an mde of 0.15 on a bill of -$6420, a `screenKeepFraction` of 2 kept 200 of
