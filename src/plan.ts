@@ -35,6 +35,7 @@
 import { type BaselineStat, baselineNullRate, type CaseRef } from "./baseline.js";
 import {
   PeeksafeError,
+  requireCounts,
   requireErrorRates,
   requireOpenProbability,
   requireProbability,
@@ -297,12 +298,28 @@ function baselineRunsToClear(
   return hi;
 }
 
+function requirePrices(cfg: PlanConfig, where: string): void {
+  if (!(cfg.costPerRunUsd >= 0) || !(cfg.msPerRun >= 0)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: costPerRunUsd and msPerRun must be ≥ 0`,
+      {
+        detail: { costPerRunUsd: cfg.costPerRunUsd, msPerRun: cfg.msPerRun },
+      },
+    );
+  }
+}
+
 export function planCase(
   c: CaseRef,
   b: BaselineStat | undefined,
   cfg: PlanConfig,
   m: number,
 ): PlanCase {
+  // Exported on its own, so it refuses what makePlan refuses before calling it: unchecked, a -5/60 baseline was IMPOSSIBLE and a price of -1 billed -$152.
+  if (b) requireCounts(b.successes, b.trials, `planCase(${c.id}).baseline`);
+  requireErrorRates(cfg.alpha, cfg.beta, "planCase");
+  requirePrices(cfg, "planCase");
   const barLogE = Math.log(ebhSoloThreshold(m, cfg.fdr));
   const trials = b?.trials ?? 0;
   const successes = b?.successes ?? 0;
@@ -508,15 +525,7 @@ export function makePlan(
   }
   // `gate` refuses a repeated id; planned, it was priced twice and counted twice in the suite size the bar is set from.
   requireUniqueCaseIds(cases, "makePlan");
-  if (!(cfg.costPerRunUsd >= 0) || !(cfg.msPerRun >= 0)) {
-    throw new PeeksafeError(
-      "PEEKSAFE_E_CONFIG",
-      "makePlan: costPerRunUsd and msPerRun must be ≥ 0",
-      {
-        detail: { costPerRunUsd: cfg.costPerRunUsd, msPerRun: cfg.msPerRun },
-      },
-    );
-  }
+  requirePrices(cfg, "makePlan");
 
   const m = cases.length;
   const planned = cases.map((c) => {

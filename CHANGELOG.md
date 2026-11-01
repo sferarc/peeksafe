@@ -23,6 +23,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `planCase` did not check what `makePlan` checks before calling it. A direct call took a -5/60 or
+  5/-3 baseline as `IMPOSSIBLE`, as if the case could not drop, and on a 51/60 baseline in a suite of
+  10 a `costPerRunUsd` of -1 priced the paired design at -$152 and a `msPerRun` of -5 at -760 ms; a
+  `NaN` price came back as a `NaN` bill, and `alpha + beta >= 1` was accepted. It now refuses the
+  baseline counts with `PEEKSAFE_E_STAT_DOMAIN` and the error rates and prices with
+  `PEEKSAFE_E_CONFIG`. `makePlan` refuses a -5/0 baseline the same way instead of reading it as no
+  baseline.
 - `rand.bernoulli` did not check its rate. `next() < p` is false for every draw at `NaN`, so a
   simulation whose rate failed to compute drew a case that never passes, and a rate of 2 or -1 drew
   all passes or all failures, without an error. It now refuses a rate outside [0, 1] with
