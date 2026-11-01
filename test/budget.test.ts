@@ -17,6 +17,7 @@ import {
   evaluatePoint,
   evidenceCeilingLogE,
   expectedSequentialSamples,
+  type FrontierConfig,
   makePlan,
   pairPhi,
   planCase,
@@ -463,6 +464,56 @@ describe("the frontier", () => {
         () => computeFrontier({ ...DEFAULT_FRONTIER, pairedBaselineRuns: bad }),
         `computeFrontier ${bad}`,
       ).toThrow(/pairedBaselineRuns/);
+    }
+  });
+
+  it("refuses the budget, prices, keep fraction and amortisePrs enumerateFrontier refuses", () => {
+    // Unchecked here, a run cost of -1 recommended a bill of -6420 and a keep fraction of 2 kept 200 of 100 cases.
+    const at = (over: Partial<FrontierConfig>, screen: "none" | "expensive" = "none") =>
+      evaluatePoint(100, 0.15, 240, "paired", screen, screen === "none" ? 0 : 4, {
+        ...DEFAULT_FRONTIER,
+        screenRecall: { expensive: 0.9, proxy: null },
+        ...over,
+      });
+    expect(at({ budgetUsd: 1e9 }).recommendable).toBe(true);
+    expect(at({ budgetUsd: Infinity }).recommendable).toBe(true);
+    expect(at({ amortisePrs: 1 }).typical.totalUsd).toBe(8400);
+    expect(at({}, "expensive").keep).toBe(15);
+    const cases: Array<[Partial<FrontierConfig>, RegExp]> = [
+      ...[-1, NaN].map((budgetUsd): [Partial<FrontierConfig>, RegExp] => [{ budgetUsd }, /budget/]),
+      ...[-1, NaN, Infinity].flatMap(
+        (v): Array<[Partial<FrontierConfig>, RegExp]> => [
+          [{ costPerRunUsd: v }, /costs/],
+          [{ costPerGradeUsd: v }, /costs/],
+        ],
+      ),
+      ...[0, 0.5, 2.5, NaN].map((amortisePrs): [Partial<FrontierConfig>, RegExp] => [
+        { amortisePrs },
+        /amortisePrs/,
+      ]),
+    ];
+    for (const [over, re] of cases) {
+      expect(() => at(over), JSON.stringify(over)).toThrow(re);
+      expect(() => computeFrontier({ ...DEFAULT_FRONTIER, ...over }), JSON.stringify(over)).toThrow(
+        re,
+      );
+    }
+    for (const screenKeepFraction of [0, 2, -0.5, NaN]) {
+      expect(() => at({ screenKeepFraction }, "expensive"), `keep ${screenKeepFraction}`).toThrow(
+        expect.objectContaining({
+          code: "PEEKSAFE_E_CONFIG",
+          message: expect.stringMatching(/screenKeepFraction/),
+        }),
+      );
+    }
+  });
+
+  it("refuses a basis inherited from Object.prototype, as costShares does", () => {
+    // `BILLS.toString` is inherited, so "toString" passed an undefined check and priced no bill.
+    for (const basis of ["toString", "constructor", "hasOwnProperty"]) {
+      const cfg = { ...DEFAULT_FRONTIER, basis: basis as never };
+      expect(() => evaluatePoint(100, 0.15, 240, "paired", "none", 0, cfg), basis).toThrow(/basis/);
+      expect(() => computeFrontier(cfg), basis).toThrow(/basis/);
     }
   });
 

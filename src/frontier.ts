@@ -298,6 +298,50 @@ function requireBaselineRuns(v: number, name: string, where: string): void {
 }
 
 /**
+ * The budget, the prices, the screen's keep fraction and `amortisePrs`.
+ * `enumerateFrontier` checked these and `evaluatePoint` did not, so a direct
+ * call recommended a point at a negative bill and priced a screen that kept
+ * twice the suite.
+ */
+function requirePricing(cfg: FrontierConfig, where: string): void {
+  const finiteCost = (v: number) => Number.isFinite(v) && v >= 0;
+  if (!(cfg.budgetUsd >= 0) || !finiteCost(cfg.costPerRunUsd) || !finiteCost(cfg.costPerGradeUsd)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: budget must be ≥ 0 and costs finite and ≥ 0`,
+      {
+        detail: {
+          budgetUsd: cfg.budgetUsd,
+          costPerRunUsd: cfg.costPerRunUsd,
+          costPerGradeUsd: cfg.costPerGradeUsd,
+          where,
+        },
+        hint: "an infinite cost fits an infinite budget, so the frontier recommended a point on an infinite bill",
+      },
+    );
+  }
+  if (!(cfg.screenKeepFraction > 0) || !(cfg.screenKeepFraction <= 1)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: screenKeepFraction must be in (0,1], got ${cfg.screenKeepFraction}`,
+      {
+        detail: { screenKeepFraction: cfg.screenKeepFraction, where },
+      },
+    );
+  }
+  if (!Number.isInteger(cfg.amortisePrs) || cfg.amortisePrs < 1) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: amortisePrs must be a positive integer, got ${cfg.amortisePrs}`,
+      {
+        detail: { amortisePrs: cfg.amortisePrs, where },
+        hint: 'a baseline spread over "infinity" pull requests is how the baseline cost disappears from a plan',
+      },
+    );
+  }
+}
+
+/**
  * Observations per case on a pull request where nothing moved, clamped onto the
  * gate's own batch grid.
  */
@@ -356,6 +400,7 @@ export function evaluatePoint(
   // makePlan refuses it; unchecked, an fdr of 2 cut the bar and 0 was blamed on the ceiling.
   requireOpenProbability(cfg.fdr, "fdr", "evaluatePoint");
   requireRunCeiling(cfg.runsPerCaseCeiling, "evaluatePoint");
+  requirePricing(cfg, "evaluatePoint");
   if (!Number.isInteger(cases) || cases < 1) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",
@@ -456,7 +501,7 @@ export function evaluatePoint(
 
   // The baseline. Unpaired buys its ceiling here; paired does not.
   const baselineRunsTotal = cases * effectiveBaselineRuns;
-  const baselineRunsAmortised = baselineRunsTotal / Math.max(1, cfg.amortisePrs);
+  const baselineRunsAmortised = baselineRunsTotal / cfg.amortisePrs;
   const baselineUsd = graded(baselineRunsAmortised, cfg);
 
   const costFor = (obsPerCase: number): FrontierCost => {
@@ -502,8 +547,8 @@ export function evaluatePoint(
     "certify-all": certifyAll,
     ceiling,
   };
-  const basisCost = BILLS[cfg.basis];
-  if (basisCost === undefined) {
+  // `hasOwn`, as in `costShares`: `BILLS.toString` is inherited, so "toString" passed an `undefined` check.
+  if (!Object.hasOwn(BILLS, cfg.basis)) {
     throw new PeeksafeError(
       "PEEKSAFE_E_CONFIG",
       `frontier: basis must be one of ${Object.keys(BILLS).join(", ")}, got "${String(cfg.basis)}"`,
@@ -513,6 +558,7 @@ export function evaluatePoint(
       },
     );
   }
+  const basisCost = BILLS[cfg.basis];
   const withinBudget = feasible && basisCost.totalUsd <= cfg.budgetUsd;
 
   // Reportable and recommendable are different. A screen whose recall nobody
@@ -558,38 +604,7 @@ export function enumerateFrontier(
   cfg: FrontierConfig,
   axes: FrontierAxes = DEFAULT_AXES,
 ): FrontierPoint[] {
-  if (!(cfg.budgetUsd >= 0) || !(cfg.costPerRunUsd >= 0) || !(cfg.costPerGradeUsd >= 0)) {
-    throw new PeeksafeError(
-      "PEEKSAFE_E_CONFIG",
-      "frontier: budget and costs must be ≥ 0 and not NaN",
-      {
-        detail: {
-          budgetUsd: cfg.budgetUsd,
-          costPerRunUsd: cfg.costPerRunUsd,
-          costPerGradeUsd: cfg.costPerGradeUsd,
-        },
-      },
-    );
-  }
-  if (!(cfg.screenKeepFraction > 0) || !(cfg.screenKeepFraction <= 1)) {
-    throw new PeeksafeError(
-      "PEEKSAFE_E_CONFIG",
-      `frontier: screenKeepFraction must be in (0,1], got ${cfg.screenKeepFraction}`,
-      {
-        detail: { screenKeepFraction: cfg.screenKeepFraction },
-      },
-    );
-  }
-  if (!Number.isInteger(cfg.amortisePrs) || cfg.amortisePrs < 1) {
-    throw new PeeksafeError(
-      "PEEKSAFE_E_CONFIG",
-      `frontier: amortisePrs must be a positive integer, got ${cfg.amortisePrs}`,
-      {
-        detail: { amortisePrs: cfg.amortisePrs },
-        hint: 'a baseline spread over "infinity" pull requests is how the baseline cost disappears from a plan',
-      },
-    );
-  }
+  requirePricing(cfg, "frontier");
   for (const [name, xs] of Object.entries(axes) as Array<[string, unknown[]]>) {
     if (!Array.isArray(xs) || xs.length === 0) {
       throw new PeeksafeError(
