@@ -27,7 +27,7 @@ The registry steps stay on npm while everything before them uses pnpm. They only
 
 ## The first release is different
 
-npm cannot configure a trusted publisher for a package that does not exist, so the first release (`0.1.0`, 2026-10-21) was a manual publish by the owner. The published manifest still carries unresolved `catalog:` devDependencies, so it was published from the directory and not from a `pnpm pack` tarball; consumers are unaffected because devDependencies are not installed downstream. `0.1.1` must go through `pnpm pack`, and `npm ci` does not work because there is no `package-lock.json`. Later releases go through the tag once the trusted publisher is configured.
+npm cannot configure a trusted publisher for a package that does not exist, so the first release (`0.1.0`, 2026-10-21) was a manual publish by the owner. The published manifest still carries unresolved `catalog:` devDependencies, so it was published from the directory and not from a `pnpm pack` tarball; consumers are unaffected because devDependencies are not installed downstream. `0.1.1` must go through `pnpm pack`, and `npm ci` does not work because there is no `package-lock.json`. Later releases go through the tag; the trusted publisher that allows it was configured on 2026-11-01 (#89).
 
 ### The v0.1.0 tag
 
@@ -35,8 +35,8 @@ The annotated `v0.1.0` tag is on `ff97abc`, the merged release commit, and not o
 
 ### Trusted publisher bootstrap
 
-With `0.1.0` on npm, configure the trusted publisher on npmjs.com (package settings, this repository, workflow `release.yml`). Then 0.1.1 onwards publish from the tag with provenance and no token. The workflow has no token path, so it cannot publish a version by any other route.
+With `0.1.0` on npm, the trusted publisher was configured on npmjs.com on 2026-11-01 (package settings, repository `sferarc/peeksafe`, workflow `release.yml`; #89). From `0.1.1` onwards releases publish from the tag with provenance and no token. The workflow has no token path, so it cannot publish a version by any other route.
 
 ## Current state
 
-As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`) and the annotated `v0.1.0` tag is on `ff97abc`, the #62 merge commit, where `package.json` is `0.1.0` and the files match the published tarball; `main` has moved on with changelog and README edits. The registry also lists a `0.0.0-stage` version created a minute before `0.1.0`, whose purpose is unknown from the repository. The tag's [Release run](https://github.com/sferarc/peeksafe/actions/runs/39630834765) failed at "Version is not already published", before any publish step. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. What is left for the owner is the trusted publisher on npmjs.com; until that is configured the next release cannot go through the tag. See [[decisions/2026-10-02-first-release-pending]].
+As of 2026-10-21 `0.1.0` is published on npm (`npm view peeksafe version` returns `0.1.0`) and the annotated `v0.1.0` tag is on `ff97abc`, the #62 merge commit, where `package.json` is `0.1.0` and the files match the published tarball; `main` has moved on with changelog and README edits. The registry also lists a `0.0.0-stage` version created a minute before `0.1.0`, whose purpose is unknown from the repository. The tag's [Release run](https://github.com/sferarc/peeksafe/actions/runs/39630834765) failed at "Version is not already published", before any publish step. `CHANGELOG.md` carries a dated `## 0.1.0 (2026-10-21)` section under an empty `Unreleased`. The trusted publisher was configured on 2026-11-01 (#89), so the next release takes the normal path above. No tagged release has published through it yet, so the publish step itself is still unexercised. See [[decisions/2026-10-02-first-release-pending]].
