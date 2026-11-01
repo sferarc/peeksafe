@@ -259,3 +259,17 @@ export function requireProbability(p: number, name: string, where: string): void
     );
   }
 }
+
+/** Case ids, each at most once: a repeated id is planned twice and inflates the suite size the bar is set from. */
+export function requireUniqueCaseIds(cases: readonly { id: string }[], where: string): void {
+  const seen = new Set<string>();
+  for (const c of cases) {
+    if (seen.has(c.id)) {
+      throw new PeeksafeError("PEEKSAFE_E_CASE_DUPLICATE", `${where}: duplicate case id ${c.id}`, {
+        detail: { id: c.id, where },
+        hint: "a case listed twice is priced twice and counted twice in the suite size; dedupe the case list before calling",
+      });
+    }
+    seen.add(c.id);
+  }
+}
