@@ -20,6 +20,12 @@ All notable changes to this project are documented here. The format follows
   while `recommendation` said to screen first or run the sequential test, without naming pairing. It
   now also recommends pairing when more than half of the decidable cases have a paired `design`, and
   `recommendation` says how many.
+- `makePlan` counted a paired case's expected bill in the unpaired SPRT's observations, which ignore
+  the coupling, so a paired case was mispriced either way: at 90% and a coupling of 0.6 it priced 28
+  pairs where a simulated `shouldStopPaired` loop spends 42.3 on average. A paired case is now counted
+  in the pairs `shouldStopPaired` takes to settle it on the mean trajectory at its coupling, on the
+  same batch grid: 44 there. The README's two cases cost 100 runs, not 108. Near independence the
+  figure is the `maxTrials` cap and over-states the simulated mean.
 
 ### Fixed
 

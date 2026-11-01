@@ -54,6 +54,7 @@ import {
   samplesForEvidence,
   sprtExpectedN,
 } from "./stats.js";
+import { DEFAULT_STOP_OPTIONS, settleLogE } from "./stop.js";
 
 export interface PlanConfig {
   /** the drop we want to be able to detect, in probability units (0.15 = 15 points) */
@@ -79,7 +80,8 @@ export interface PlanConfig {
   runsPerCaseCeiling: number;
   /**
    * Which design the *expected* bill and the screening pass are priced for. A
-   * paired observation is two runs, so `"paired"` doubles `typicalRuns`.
+   * paired observation is two runs, and a paired case's observation count is
+   * the pairs `shouldStopPaired` takes to settle it at its coupling.
    *
    * `undefined` prices each case at its own `PlanCase.design`, and a case with
    * none at the suite's `recommendedDesign`. Setting it prices every case at
@@ -472,19 +474,41 @@ export function expectedSequentialSamples(
     const p1 = Math.max(0.005, p0 - cfg.mde);
     const p = Math.max(0, Math.min(1, trueRate(c.id, b)));
     const raw = sprtExpectedN(p, p0, p1, cfg.alpha, cfg.beta);
-    const n =
-      Number.isFinite(raw) && raw > 0
-        ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(raw)))
-        : cfg.maxTrials;
-    // The gate only ever adds whole batches past the minimum, so round the
-    // prediction onto the same grid the gate samples on.
-    const batched =
-      cfg.minTrials + Math.ceil(Math.max(0, n - cfg.minTrials) / cfg.batchSize) * cfg.batchSize;
-    const capped = Math.min(cfg.maxTrials, batched);
+    const capped = onBatchGrid(
+      Number.isFinite(raw) && raw > 0 ? Math.ceil(raw) : cfg.maxTrials,
+      cfg,
+    );
     perCase.set(c.id, capped);
     total += capped;
   }
   return { samples: total, perCase };
+}
+
+// The gate only ever adds whole batches past the minimum, so a prediction is rounded onto the grid it samples on.
+function onBatchGrid(n: number, cfg: PlanConfig): number {
+  const clamped = Math.min(cfg.maxTrials, Math.max(cfg.minTrials, n));
+  const batched =
+    cfg.minTrials + Math.ceil(Math.max(0, clamped - cfg.minTrials) / cfg.batchSize) * cfg.batchSize;
+  return Math.min(cfg.maxTrials, batched);
+}
+
+/**
+ * Expected pairs for a paired case that did not move: the first pair count at
+ * which `shouldStopPaired`'s settle e-value, on the mean trajectory at coupling
+ * `rho` and the default `futilityConfidence`, rules out a drop of `mde`, on the
+ * same batch grid as `expectedSequentialSamples`, and `maxTrials` when it never
+ * does. The unpaired SPRT figure knows nothing of this rule or of the
+ * coupling, which sets how often an unmoved pair disagrees.
+ */
+function expectedSettlePairs(rate: number, rho: number, cfg: PlanConfig): number {
+  // Unmoved arms disagree each way only when uncoupled: (1 - rho) p (1 - p).
+  const each = (1 - rho) * rate * (1 - rate);
+  const target = -Math.log(1 - DEFAULT_STOP_OPTIONS.futilityConfidence);
+  for (let n = 1; n <= cfg.maxTrials; n++) {
+    const counts = { bothPass: n * (1 - 2 * each), worse: n * each, better: n * each, bothFail: 0 };
+    if (settleLogE(counts, cfg.mde) >= target) return onBatchGrid(n, cfg);
+  }
+  return cfg.maxTrials;
 }
 
 /**
@@ -589,16 +613,26 @@ export function makePlan(
   // The expected cost of a pull request that changed nothing, which is what a
   // pull request almost always is, and therefore the number a budget should be
   // set from.
-  // `expectedSequentialSamples` counts *observations*. A paired observation is
-  // two runs, the candidate and the reference revision on the same seed, and
-  // so is a paired screening run.
+  // Both counts are *observations*. A paired observation is two runs, the
+  // candidate and the reference revision on the same seed, and so is a paired
+  // screening run. A paired case is counted in pairs to settle, not the
+  // unpaired SPRT's samples, which mispriced it either way depending on coupling.
   const typical = expectedSequentialSamples(cases, baseline, cfg);
-  const typicalRuns = planned.reduce(
-    (a, p) => a + (typical.perCase.get(p.caseId) ?? 0) * runsPerObs(p),
-    0,
-  );
+  const observations = (p: PlanCase) => {
+    const unpaired = typical.perCase.get(p.caseId);
+    if (unpaired === undefined) return 0;
+    return runsPerObs(p) === 2
+      ? expectedSettlePairs(p.baseline.rate, p.pairCoupling, cfg)
+      : unpaired;
+  };
+  const typicalObservations = planned.reduce((a, p) => a + observations(p), 0);
+  const typicalRuns = planned.reduce((a, p) => a + observations(p) * runsPerObs(p), 0);
   const runsPerObservation =
-    typical.samples > 0 ? typicalRuns / typical.samples : recommendedDesign === "paired" ? 2 : 1;
+    typicalObservations > 0
+      ? typicalRuns / typicalObservations
+      : recommendedDesign === "paired"
+        ? 2
+        : 1;
   const meanTypical = typical.perCase.size > 0 ? typicalRuns / typical.perCase.size : 0;
   const typicalScreenedRuns = Math.ceil(
     screenPassRuns + Math.ceil(m * screenContinueFraction) * meanTypical,

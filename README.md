@@ -339,7 +339,7 @@ parsing/nested         75             100   unpaired              (no pilot) 100
 
 At the assumed coupling, `checkout/flow` would pair and spend 118 runs instead of 164. The pilot measures 0.6, pairing would cost 206, and the plan keeps it on the stored baseline. A case only pairing can decide (`PAIRED_ONLY`) is paired whatever the pilot says, because independent pairs are still valid; the coupling only moves its price.
 
-The expected bill, what a pull request in which nothing moved spends, prices each case at its own `design`, and a case with none at the suite's `recommendedDesign`. At the assumed coupling it is 108 runs: 40 observations of `checkout/flow` at two runs each and 28 of `parsing/nested` at one. Set `design` in the config to price every case at one design instead: 68 runs unpaired, 136 paired.
+The expected bill, what a pull request in which nothing moved spends, prices each case at its own `design`, and a case with none at the suite's `recommendedDesign`. A paired case is counted in the pairs `shouldStopPaired` takes to settle it at its coupling, and an unpaired one in the sequential test's expected observations. At the assumed coupling the bill is 100 runs: 36 pairs of `checkout/flow` at two runs each and 28 observations of `parsing/nested` at one. Set `design` in the config to price every case at one design instead: 68 runs unpaired, 136 paired.
 
 ## The paired alternative
 

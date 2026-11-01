@@ -449,7 +449,7 @@ export function shouldStopPaired(
 }
 
 // Mean of prod(1 - lambda (D - mde)) over fixed bets, D = +1 worse, -1 better; a supermartingale whenever E[D] >= mde.
-function settleLogE(c: PairedCounts, mde: number): number {
+export function settleLogE(c: PairedCounts, mde: number): number {
   const terms: number[] = [];
   for (let k = 1; k <= 9; k++) {
     const lambda = k / 10 / (1 - mde);
