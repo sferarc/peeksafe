@@ -177,7 +177,7 @@ describe("the planner answers before anything is spent", () => {
   it("refuses a trial grid the gate cannot sample on, through every planner door", () => {
     // Unchecked, a NaN bound or a zero batch made the typical bill NaN, and a
     // maxTrials of 1 under the default minTrials of 8 priced these four cases
-    // at 4 runs where the defaults price 144.
+    // at 4 runs where the defaults price 144 unpaired.
     const { cases, baseline } = suite(4, 0.85, 240);
     const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
     const bad: Array<Partial<typeof DEFAULT_PLAN>> = [
@@ -202,7 +202,8 @@ describe("the planner answers before anything is spent", () => {
       expect(() => computeFrontier(frontier), `computeFrontier ${label}`).toThrow(config);
       expect(() => typicalObservationsPerCase(0.85, 0.15, frontier, 240), label).toThrow(config);
     }
-    expect(makePlan(cases, baseline, DEFAULT_PLAN).totals.typicalRuns).toBe(144);
+    const unpaired = { ...DEFAULT_PLAN, design: "unpaired" as const };
+    expect(makePlan(cases, baseline, unpaired).totals.typicalRuns).toBe(144);
     expect(makePlan(cases, baseline, { ...DEFAULT_PLAN, minTrials: 96 }).cases).toHaveLength(4);
   });
 
@@ -408,6 +409,55 @@ describe("the design per case, from a measured coupling", () => {
     expect(measured.pairCoupling).toBe(0);
     expect(measured.design).toBe("paired");
     expect(measured.paired.runs).toBeGreaterThan(assumed.paired.runs);
+  });
+
+  it("prices the expected bill and the screening pass per case, at each case's own design", () => {
+    // One suite-wide design priced every case of a mixed suite alike: this one
+    // recommends unpaired, so `flow` and `thin` were billed at one run an
+    // observation although each runs paired, 108 runs where they cost 176.
+    const at = (cfg: typeof DEFAULT_PLAN) => makePlan(cases, toBaselineMap(bl), cfg);
+    const plan = at(DEFAULT_PLAN);
+    const observations = expectedSequentialSamples(cases, toBaselineMap(bl), DEFAULT_PLAN).perCase;
+    expect(plan.recommendedDesign).toBe("unpaired");
+    expect(plan.cases.map((c) => [c.caseId, c.design, observations.get(c.caseId)])).toEqual([
+      ["flow", "paired", 40],
+      ["nested", "unpaired", 28],
+      ["thin", "paired", 28],
+      ["low", null, 12],
+    ]);
+    // `low` has no design and takes the suite's, unpaired here.
+    expect(plan.totals.typicalRuns).toBe(40 * 2 + 28 + 28 * 2 + 12);
+    expect(plan.totals.typicalRuns).toBe(176);
+    expect(plan.totals.runsPerObservation).toBeCloseTo(176 / 108, 12);
+    // Fixing the design still prices every case at it.
+    expect(at({ ...DEFAULT_PLAN, design: "unpaired" }).totals.typicalRuns).toBe(108);
+    expect(at({ ...DEFAULT_PLAN, design: "paired" }).totals.typicalRuns).toBe(216);
+    // One more screening observation per case costs each case its own design's runs, in both screened totals.
+    const dearer = at({ ...DEFAULT_PLAN, screenRuns: DEFAULT_PLAN.screenRuns + 1 });
+    expect(dearer.totals.screenedRuns - plan.totals.screenedRuns).toBe(2 + 1 + 2 + 1);
+    expect(dearer.totals.typicalScreenedRuns - plan.totals.typicalScreenedRuns).toBe(2 + 1 + 2 + 1);
+  });
+
+  it("prices a case with no design at the suite's design, and an unpaired case at one run", () => {
+    // Two of five cases are PAIRED_ONLY, so the suite recommends pairing and
+    // the bill used to price `nested` paired too: 264 runs where it costs 236.
+    const five = [...bl, { caseId: "rerank", successes: 57, trials: 60 }];
+    const plan = makePlan(
+      five.map((b) => ({ id: b.caseId })),
+      toBaselineMap(five),
+      DEFAULT_PLAN,
+    );
+    expect(plan.recommendedDesign).toBe("paired");
+    expect(plan.cases.map((c) => c.design)).toEqual([
+      "paired",
+      "unpaired",
+      "paired",
+      null,
+      "paired",
+    ]);
+    expect(plan.totals.typicalRuns).toBe(40 * 2 + 28 + 28 * 2 + 12 * 2 + 24 * 2);
+    expect(plan.totals.typicalRuns).toBe(236);
+    expect(plan.recommendation).toMatch(/each case at its own design/);
   });
 
   it("floors a negative pilot phi at 0, ignores an empty pilot, and refuses a malformed one", () => {
