@@ -853,6 +853,24 @@ function requireSearchCap(cap: number, name: string, where: string): void {
   }
 }
 
+/**
+ * The log e-value bar a sample-size search sizes a study to. A NaN bar loses
+ * every comparison the searches make, so one answered a single pair and the
+ * other Infinity, "no number of runs will do", for the same mistake.
+ */
+function requireLogThreshold(logThreshold: number, where: string): void {
+  if (!Number.isFinite(logThreshold)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: logThreshold must be finite, got ${logThreshold}`,
+      {
+        detail: { logThreshold },
+        hint: "this is a log e-value bar, such as Math.log(ebhSoloThreshold(m, fdr))",
+      },
+    );
+  }
+}
+
 // Below 1 a shape piles alternative mass onto 0 or 1, which pushed type I error past alpha for thin baselines.
 const ALT_SHAPE_FLOOR = 1;
 
@@ -1320,6 +1338,7 @@ export function samplesForEvidence(
   altConcentration = 8,
 ): number {
   requireSearchCap(maxN, "maxN", "samplesForEvidence");
+  requireLogThreshold(logThreshold, "samplesForEvidence");
   const ceiling = evidenceCeilingLogE(
     pTrue,
     baselineSuccesses,
@@ -1567,21 +1586,7 @@ export function mcnemarSamplesForEvidence(
 ): number {
   requireConcentration(concentration, "concentration", "mcnemarSamplesForEvidence");
   requireSearchCap(maxPairs, "maxPairs", "mcnemarSamplesForEvidence");
-  // Every comparison below is a `<` against `logThreshold`, and a NaN loses all
-  // of them: the doubling loop exited on its first test, the Infinity guard did
-  // not fire, and the bisection returned its own starting point. The answer
-  // came back as one pair, where the same design at a real 15pt effect needs
-  // 172. `samplesForEvidence` writes its guard negated and so refuses instead.
-  if (!Number.isFinite(logThreshold)) {
-    throw new PeeksafeError(
-      "PEEKSAFE_E_STAT_DOMAIN",
-      `mcnemarSamplesForEvidence: logThreshold must be finite, got ${logThreshold}`,
-      {
-        detail: { logThreshold },
-        hint: "this is a log e-value bar, such as Math.log(ebhSoloThreshold(m, fdr))",
-      },
-    );
-  }
+  requireLogThreshold(logThreshold, "mcnemarSamplesForEvidence");
   const { rate, theta } = pairedDiscordance(pBaseline, mde, rho);
   if (rate <= 0 || theta <= 0.5) return Infinity;
   const a1 = Math.max(0.35, concentration * theta);

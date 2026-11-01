@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `samplesForEvidence` did not check `logThreshold`. A `NaN` bar failed its ceiling test and it
+  answered Infinity, "no number of runs will do", for a case that needs 262 runs at a bar of
+  `log(4000)`, and a bar of `-Infinity` answered 1 run, while `mcnemarSamplesForEvidence` refused
+  both. It now refuses a bar that is not finite with `PEEKSAFE_E_STAT_DOMAIN`, through the check the
+  paired search now shares.
 - `evaluatePoint` (and so `computeFrontier`) withheld a recommendation only for a screen recall of
   `null`, so a recall of `NaN`, which is what 0 caught out of 0 planted regressions computes to,
   counted as measured: on the defaults it moved the frontier headline from 10 cases at 35 points
