@@ -15,6 +15,11 @@ All notable changes to this project are documented here. The format follows
   now priced at its own design, and a case with none at `recommendedDesign`; `config.design` still
   prices every case at one design. `totals.runsPerObservation` is now the average over the expected
   bill, between 1 and 2 on a mixed suite.
+- `makePlan`'s `recommendedDesign` flipped to paired only when more than a quarter of the suite was
+  `PAIRED_ONLY`, so four cases at 85% on a 240-run baseline, each cheaper paired, were billed paired
+  while `recommendation` said to screen first or run the sequential test, without naming pairing. It
+  now also recommends pairing when more than half of the decidable cases have a paired `design`, and
+  `recommendation` says how many.
 
 ### Fixed
 
