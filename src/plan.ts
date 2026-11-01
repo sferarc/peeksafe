@@ -77,14 +77,12 @@ export interface PlanConfig {
   /** beyond this many runs for one case we stop calling it "affordable" */
   runsPerCaseCeiling: number;
   /**
-   * Which design the *expected* bill is priced for. A paired observation is two
-   * runs, so this doubles `typicalRuns`.
+   * Which design the *expected* bill and the screening pass are priced for. A
+   * paired observation is two runs, so `"paired"` doubles `typicalRuns`.
    *
-   * `undefined` means "price the design this plan recommends", which is the
-   * only self-consistent answer: `makePlan` recommends pairing whenever more
-   * than a quarter of the suite has an unpaired evidence ceiling under the bar,
-   * and quoting the *unpaired* bill underneath that recommendation would price
-   * a design nobody runs.
+   * `undefined` prices each case at its own `PlanCase.design`, and a case with
+   * none at the suite's `recommendedDesign`. Setting it prices every case at
+   * that one design.
    */
   design?: "unpaired" | "paired";
 
@@ -200,7 +198,11 @@ export interface PlanTotals {
    * over-predicts what the gate actually spends by 5 to 8×, and the numbers below
    * predict it to within about 10% when checked against real runs.
    */
-  /** 1 unpaired, 2 paired, what one observation costs in runs */
+  /**
+   * What one observation of the expected bill costs in runs, averaged over its
+   * cases: 1 when every case runs unpaired, 2 when every case is paired, and in
+   * between for a suite that mixes the two.
+   */
   runsPerObservation: number;
   /** expected *runs* (not observations) for a pull request in which nothing moved */
   typicalRuns: number;
@@ -221,7 +223,11 @@ export interface Plan {
   pairedOnly: PlanCase[];
   /** cases whose baseline rate is too low to lose `mde` points at all */
   impossible: PlanCase[];
-  /** the design the recommendation names, and the one `expectedCostUsd` prices */
+  /**
+   * The design the recommendation names. `expectedCostUsd` prices each case at
+   * its own `design` and falls back to this one only for a case with none,
+   * unless `config.design` fixes one design for the whole suite.
+   */
   recommendedDesign: "unpaired" | "paired";
   /** the cheapest design that decides every decidable case */
   recommendation: string;
@@ -539,13 +545,15 @@ export function makePlan(
   );
 
   const pairedOnlyCount = planned.filter((p) => p.detectability === "PAIRED_ONLY").length;
-  // The design the recommendation will name, computed here because the
-  // *expected* bill has to be priced for it. `pairedOnly > 25%` is the same
-  // condition the recommendation string uses; they cannot drift apart.
+  // `pairedOnly > 25%` is the same condition the recommendation string uses; they cannot drift apart.
   const recommendedDesign: "unpaired" | "paired" =
     cfg.design ??
     (decidableAny.length > 0 && pairedOnlyCount > cases.length * 0.25 ? "paired" : "unpaired");
-  const runsPerObservation = recommendedDesign === "paired" ? 2 : 1;
+  // Per case, like `bestRuns`: one suite-wide design billed a mixed suite as if every case ran it.
+  const runsPerObs = (p: PlanCase) =>
+    (cfg.design ?? p.design ?? recommendedDesign) === "paired" ? 2 : 1;
+  // `screenRuns` counts observations, so each case's pass costs its own design's runs.
+  const screenPassRuns = planned.reduce((a, p) => a + cfg.screenRuns * runsPerObs(p), 0);
 
   // Screening: everything gets `screenRuns`; only the cases the screen ranks as
   // plausibly moved go on to the sequential test. A clean PR moves nothing, so
@@ -560,7 +568,7 @@ export function makePlan(
   // which is `pairs * 2`. The expected total below reads `screenRuns` the same
   // way, and when this one did not, the two screened figures in `totals`
   // disagreed about the price of the same pass.
-  const screenedRuns = m * cfg.screenRuns * runsPerObservation + screenSelected * meanBest;
+  const screenedRuns = screenPassRuns + screenSelected * meanBest;
 
   const fixedNRuns = planned.reduce((a, p) => a + finite(p.fixedNPerArm), 0);
 
@@ -571,10 +579,15 @@ export function makePlan(
   // two runs, the candidate and the reference revision on the same seed, and
   // so is a paired screening run.
   const typical = expectedSequentialSamples(cases, baseline, cfg);
-  const typicalRuns = typical.samples * runsPerObservation;
-  const meanTypical = typical.perCase.size > 0 ? typical.samples / typical.perCase.size : 0;
+  const typicalRuns = planned.reduce(
+    (a, p) => a + (typical.perCase.get(p.caseId) ?? 0) * runsPerObs(p),
+    0,
+  );
+  const runsPerObservation =
+    typical.samples > 0 ? typicalRuns / typical.samples : recommendedDesign === "paired" ? 2 : 1;
+  const meanTypical = typical.perCase.size > 0 ? typicalRuns / typical.perCase.size : 0;
   const typicalScreenedRuns = Math.ceil(
-    (m * cfg.screenRuns + Math.ceil(m * screenContinueFraction) * meanTypical) * runsPerObservation,
+    screenPassRuns + Math.ceil(m * screenContinueFraction) * meanTypical,
   );
 
   const totals: PlanTotals = {
@@ -615,7 +628,9 @@ export function makePlan(
       ? `nothing is decidable at ${(cfg.mde * 100).toFixed(0)} points against this baseline, record more baseline runs or raise the MDE`
       : recommendedDesign === "paired"
         ? `pair the runs: ${pairedOnly.length}/${m} cases have an unpaired evidence ceiling under the bar, so no candidate budget can decide them` +
-          ` (the costs below are priced at two runs an observation, which is what pairing costs)`
+          (cfg.design === undefined
+            ? ` (the costs below price each case at its own design, two runs an observation where it is paired)`
+            : ` (the costs below are priced at two runs an observation, which is what pairing costs)`)
         : totals.screenedCostUsd < totals.bestCostUsd
           ? `screen first, then run the sequential test on what the screen keeps ` +
             `($${totals.screenedCostUsd.toFixed(2)} vs $${totals.bestCostUsd.toFixed(2)})`

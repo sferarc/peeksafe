@@ -28,6 +28,7 @@ import {
   ebhSoloThreshold,
   evidenceCeilingLogE,
   evidenceCeilingSlope,
+  expectedSequentialSamples,
   gate,
   makePlan,
   makeRand,
@@ -393,6 +394,24 @@ describe("README: choosing a design by cost", () => {
       "unpaired",
     ]);
     expect([nestedM!.paired.runs, nestedM!.design]).toEqual([100, "unpaired"]);
+  });
+
+  it("prices the expected bill per case", () => {
+    expect(assumed.recommendedDesign).toBe("unpaired");
+    const observations = expectedSequentialSamples(cases, toBaselineMap(baselines), DEFAULT_PLAN);
+    expect([...observations.perCase]).toEqual([
+      ["checkout/flow", 40],
+      ["parsing/nested", 28],
+    ]);
+    expect(assumed.totals.typicalRuns).toBe(108);
+    expect(
+      makePlan(cases, toBaselineMap(baselines), { ...DEFAULT_PLAN, design: "unpaired" }).totals
+        .typicalRuns,
+    ).toBe(68);
+    expect(
+      makePlan(cases, toBaselineMap(baselines), { ...DEFAULT_PLAN, design: "paired" }).totals
+        .typicalRuns,
+    ).toBe(136);
   });
 });
 

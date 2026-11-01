@@ -19,9 +19,9 @@ owner's manual step (`brain/development/release.md`).
 
 Tracking: [#92](https://github.com/sferarc/peeksafe/issues/92).
 
-Improvements recorded in `brain/` that block nothing:
+Improvements recorded in `brain/` that block nothing. None is open:
 [#90](https://github.com/sferarc/peeksafe/issues/90), pricing a suite that mixes paired and unpaired
-cases.
+cases, is done.
 
 ## Not planned
 

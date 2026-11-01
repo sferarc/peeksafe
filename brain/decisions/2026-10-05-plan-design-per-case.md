@@ -12,9 +12,9 @@ Decided 2026-10-05. `ROADMAP.md` item 1, "Pairing in the planner's defaults".
 - `makePlan(cases, baseline, cfg, pilots)`: an optional `Map` of pilot pair tables. A case with a non-empty one is priced at `max(0, pairPhi(pilot))`. With equal marginals, as on a pilot with both arms on the same revision, phi equals the mixing weight `rho` that `pairedDiscordance` and `pairedCertifyProbability` call coupling, so the two quantities line up exactly there. A negative phi is floored because the mixture model has no negative coupling.
 - `DEFAULT_PLAN.pairCoupling` stays 0.9. Changing it would move every planning figure in the README, and with pilots available the default only matters for cases nobody measured. The README section tells users to measure.
 
-## Not done
+## Not done here
 
-The suite-level `recommendedDesign` and the expected bill still price one design for the whole suite. Pricing a mixed suite (some cases paired, some not) would need `expectedSequentialSamples` per design; nothing in `test/` measures that yet.
+The expected bill still priced one design for the whole suite. It now prices each case at its own `design` (#90; [[architecture/planner]] has the rule and the figures). The observation count per case is still the unpaired SPRT's under both designs; a paired expected sample number is not modelled.
 
 ## Related
 

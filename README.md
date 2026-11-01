@@ -339,6 +339,8 @@ parsing/nested         75             100   unpaired              (no pilot) 100
 
 At the assumed coupling, `checkout/flow` would pair and spend 118 runs instead of 164. The pilot measures 0.6, pairing would cost 206, and the plan keeps it on the stored baseline. A case only pairing can decide (`PAIRED_ONLY`) is paired whatever the pilot says, because independent pairs are still valid; the coupling only moves its price.
 
+The expected bill, what a pull request in which nothing moved spends, prices each case at its own `design`, and a case with none at the suite's `recommendedDesign`. At the assumed coupling it is 108 runs: 40 observations of `checkout/flow` at two runs each and 28 of `parsing/nested` at one. Set `design` in the config to price every case at one design instead: 68 runs unpaired, 136 paired.
+
 ## The paired alternative
 
 Re-run the baseline alongside the candidate on the same seed and the null becomes an exact point mass at one half: under "nothing changed", a discordant pair points either way with probability exactly 0.5, and under "the candidate improved" it points the worse way less often than that. The alternative only bets on the worse direction, so the paired e-value is valid against both. Nothing is estimated, so nothing caps the evidence, and the paired e-value grows linearly in discordant pairs.

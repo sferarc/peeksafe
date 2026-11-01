@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+
+- `makePlan` priced the expected bill (`typicalRuns`, `typicalScreenedRuns`, `expectedCostUsd`) and
+  the screening passes at one design for the whole suite, while each `PlanCase.design` already chose
+  paired or unpaired per case. A mixed suite was billed as if every case ran the suite's design: the
+  README's two cases, one paired and one unpaired, priced at 68 runs where they cost 108. Each case is
+  now priced at its own design, and a case with none at `recommendedDesign`; `config.design` still
+  prices every case at one design. `totals.runsPerObservation` is now the average over the expected
+  bill, between 1 and 2 on a mixed suite.
+
 ### Fixed
 
 - `rand.bernoulli` did not check its rate. `next() < p` is false for every draw at `NaN`, so a
@@ -63,7 +73,7 @@ All notable changes to this project are documented here. The format follows
   `expectedSequentialSamples` and `affordabilityGrid` took any `minTrials`, `maxTrials` and
   `batchSize`: a `NaN` bound or a `batchSize` of 0 made the typical bill `NaN`, and a `maxTrials` of 1,
   under the default `minTrials` of 8, priced four cases at 85% over a 240-run baseline at 4 typical
-  runs where the defaults price 144. `evaluatePoint` checked `maxTrials` only, so `computeFrontier`
+  unpaired runs where the defaults price 144. `evaluatePoint` checked `maxTrials` only, so `computeFrontier`
   and `typicalObservationsPerCase` took a `NaN` `minTrials` or a zero batch. All five now refuse,
   with `PEEKSAFE_E_CONFIG`, a `minTrials` or `batchSize` that is not a positive integer and a
   `maxTrials` that is not an integer at least `minTrials`.
