@@ -16,6 +16,13 @@ All notable changes to this project are documented here. The format follows
   there expects 188 runs, not 152. On the frontier's defaults nothing fits the $100 typical budget
   any more; the cheapest certifiable point is 10 cases at 35 points on a 30-run baseline, $163.
   `typicalObservationsPerCase` is still Wald's figure.
+- A paired case's typical bill in `makePlan`, `evaluatePoint` (so `computeFrontier`) and
+  `affordabilityGrid` was the first pair count at which the settle e-value on the mean trajectory
+  ruled out a drop of `mde`, which ignores the variance. Near independence that was far off: at 85%
+  and a coupling of 0 a case stops after 65.6 pairs on average, where the plan quoted the 96-pair
+  cap. It is now the exact expected number of pairs `shouldStopPaired` takes, at the suite size and
+  `futilityConfidence`: 66 there, 37 at 75% and a coupling of 0.9 (36 before), and the README's two
+  cases cost 140 runs, not 138.
 
 ## 0.2.0 (2026-11-02)
 

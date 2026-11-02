@@ -472,15 +472,15 @@ describe("the design per case, from a measured coupling", () => {
       ["low", null, 12],
     ]);
     // `low` has no design and takes the suite's, paired here. A paired case is
-    // counted in pairs to settle at its coupling, 36 for `flow` and 32 for the
+    // counted in the pairs `shouldStopPaired` takes at its coupling, 37 for `flow` and 34 for the
     // others, and `nested` in the 62 runs `shouldStop` takes, where Wald said 28.
-    expect(plan.totals.typicalRuns).toBe(36 * 2 + 62 + 32 * 2 + 32 * 2);
-    expect(plan.totals.typicalRuns).toBe(262);
-    expect(plan.totals.runsPerObservation).toBeCloseTo(262 / 162, 12);
+    expect(plan.totals.typicalRuns).toBe(37 * 2 + 62 + 34 * 2 + 34 * 2);
+    expect(plan.totals.typicalRuns).toBe(272);
+    expect(plan.totals.runsPerObservation).toBeCloseTo(272 / 167, 12);
     // Fixing the design still prices every case at it.
     expect(at({ ...DEFAULT_PLAN, design: "unpaired" }).totals.typicalRuns).toBe(152);
     expect(at({ ...DEFAULT_PLAN, design: "paired" }).totals.typicalRuns).toBe(
-      (36 + 32 + 32 + 32) * 2,
+      (37 + 34 + 34 + 34) * 2,
     );
     // One more screening observation per case costs each case its own design's runs, in both screened totals.
     const dearer = at({ ...DEFAULT_PLAN, screenRuns: DEFAULT_PLAN.screenRuns + 1 });
@@ -535,8 +535,8 @@ describe("the design per case, from a measured coupling", () => {
       null,
       "paired",
     ]);
-    expect(plan.totals.typicalRuns).toBe(36 * 2 + 62 + 32 * 2 + 32 * 2 + 32 * 2);
-    expect(plan.totals.typicalRuns).toBe(326);
+    expect(plan.totals.typicalRuns).toBe(37 * 2 + 62 + 34 * 2 + 34 * 2 + 33 * 2);
+    expect(plan.totals.typicalRuns).toBe(338);
     expect(plan.recommendation).toMatch(/each case at its own design/);
   });
 
@@ -598,18 +598,17 @@ describe("the design per case, from a measured coupling", () => {
     const coupled = planned(180, 0.9);
     const loose = planned(216, 0.6);
     const independent = planned(204, 0);
-    expect([coupled.pairs, coupled.sprt]).toEqual([36, 40]);
-    expect([loose.pairs, loose.sprt]).toEqual([44, 28]);
-    // Past the cap on the mean trajectory, so priced at maxTrials.
-    expect([independent.pairs, independent.sprt]).toEqual([96, 36]);
+    expect([coupled.pairs, coupled.sprt]).toEqual([37, 40]);
+    expect([loose.pairs, loose.sprt]).toEqual([43, 28]);
+    // The mean trajectory never settled this one before the cap, so it was priced at 96 pairs.
+    expect([independent.pairs, independent.sprt]).toEqual([66, 36]);
     const sims = [simulated(0.75, 0.9), simulated(0.9, 0.6), simulated(0.85, 0)];
     console.log(`paired settle, simulated mean pairs: ${sims.map((s) => s.toFixed(1)).join(", ")}`);
     expect(Math.abs(coupled.pairs - sims[0]!) / sims[0]!).toBeLessThan(0.05);
     expect(Math.abs(loose.pairs - sims[1]!) / sims[1]!).toBeLessThan(0.05);
+    expect(Math.abs(independent.pairs - sims[2]!) / sims[2]!).toBeLessThan(0.05);
     expect(Math.abs(loose.sprt - sims[1]!) / sims[1]!).toBeGreaterThan(0.3);
-    // Variance stops some runs well short of the cap, so near independence the figure is conservative.
-    expect(sims[2]!).toBeLessThan(80);
-    expect(sims[2]!).toBeGreaterThan(independent.sprt);
+    expect((96 - sims[2]!) / sims[2]!).toBeGreaterThan(0.3);
   });
 
   it("prices an unpaired case's typical bill at the runs shouldStop takes to stop it", () => {
@@ -703,15 +702,15 @@ describe("the design per case, from a measured coupling", () => {
     };
     expect(planned(180, 0.9, undefined)).toBe(planned(180, 0.9, 0.95));
     expect([planned(180, 0.9, 0.8), planned(180, 0.9), planned(180, 0.9, 0.99)]).toEqual([
-      20, 36, 52,
+      23, 37, 53,
     ]);
-    expect(planned(216, 0.6, 0.99)).toBe(64);
+    expect(planned(216, 0.6, 0.99)).toBe(60);
     const sims = [simulated(0.75, 0.9, 0.99), simulated(0.9, 0.6, 0.99)];
     console.log(
       `paired settle at 0.99, simulated mean pairs: ${sims.map((s) => s.toFixed(1)).join(", ")}`,
     );
-    expect(Math.abs(52 - sims[0]!) / sims[0]!).toBeLessThan(0.05);
-    expect(Math.abs(64 - sims[1]!) / sims[1]!).toBeLessThan(0.07);
+    expect(Math.abs(53 - sims[0]!) / sims[0]!).toBeLessThan(0.05);
+    expect(Math.abs(60 - sims[1]!) / sims[1]!).toBeLessThan(0.05);
     // The default-level figure is what the plan quoted for this rule before.
     expect(Math.abs(36 - sims[0]!) / sims[0]!).toBeGreaterThan(0.3);
 
@@ -721,8 +720,8 @@ describe("the design per case, from a measured coupling", () => {
         ...DEFAULT_FRONTIER,
         futilityConfidence,
       });
-    expect([point().typicalObservations, point(0.99).typicalObservations]).toEqual([36, 48]);
-    expect(point(0.99).typical.totalUsd).toBe(100 * 48 * 2 + 20);
+    expect([point().typicalObservations, point(0.99).typicalObservations]).toEqual([35, 50]);
+    expect(point(0.99).typical.totalUsd).toBe(100 * 50 * 2 + 20);
     const cell = (futilityConfidence?: number) =>
       affordabilityGrid(
         0.85,
@@ -732,7 +731,7 @@ describe("the design per case, from a measured coupling", () => {
         [50],
         [0.15],
       )[0]!.typicalRuns;
-    expect([cell(), cell(0.99)]).toEqual([880, 1120]);
+    expect([cell(), cell(0.99)]).toEqual([880, 1070]);
     const one = toBaselineMap([{ caseId: "c", successes: 180, trials: 240 }]);
     for (const bad of [0, 1, -0.5, 1.5, NaN]) {
       expect(
@@ -771,10 +770,10 @@ describe("the frontier", () => {
         sprt: typicalObservationsPerCase(baselineRate, 0.15, cfg, cfg.pairedBaselineRuns),
       };
     };
-    expect(frontier(0.85, 0.9)).toEqual({ paired: 36, sprt: 32 });
-    expect(planPairs(204, 240, 0.9)).toBe(36);
-    expect(frontier(0.9, 0.6)).toEqual({ paired: 44, sprt: 28 });
-    expect(planPairs(216, 240, 0.6)).toBe(44);
+    expect(frontier(0.85, 0.9)).toEqual({ paired: 35, sprt: 32 });
+    expect(planPairs(204, 240, 0.9)).toBe(35);
+    expect(frontier(0.9, 0.6)).toEqual({ paired: 43, sprt: 28 });
+    expect(planPairs(216, 240, 0.6)).toBe(43);
     // At 85% over 60 runs and coupling 0.6, every case count at 15 points is paired.
     const grid = affordabilityGrid(
       0.85,
@@ -869,13 +868,13 @@ describe("the frontier", () => {
   });
 
   it("refuses a paired baseline that is not a whole number of runs", () => {
-    // Unchecked, 0 paired baseline runs priced the typical bill at 2400; 20 price 7220, 36 pairs a case to settle.
+    // Unchecked, 0 paired baseline runs priced the typical bill at 2400; 20 price 7020, 35 pairs a case to settle.
     const at = (pairedBaselineRuns: number) =>
       evaluatePoint(100, 0.15, 240, "paired", "none", 0, {
         ...DEFAULT_FRONTIER,
         pairedBaselineRuns,
       });
-    expect(at(DEFAULT_FRONTIER.pairedBaselineRuns).typical.totalUsd).toBe(100 * 36 * 2 + 20);
+    expect(at(DEFAULT_FRONTIER.pairedBaselineRuns).typical.totalUsd).toBe(100 * 35 * 2 + 20);
     for (const bad of [0, -10, 2.5, NaN, Infinity]) {
       expect(() => at(bad), `evaluatePoint ${bad}`).toThrow(/pairedBaselineRuns/);
       expect(
@@ -895,7 +894,7 @@ describe("the frontier", () => {
       });
     expect(at({ budgetUsd: 1e9 }).recommendable).toBe(true);
     expect(at({ budgetUsd: Infinity }).recommendable).toBe(true);
-    expect(at({ amortisePrs: 1 }).typical.totalUsd).toBe(100 * 36 * 2 + 100 * 20);
+    expect(at({ amortisePrs: 1 }).typical.totalUsd).toBe(100 * 35 * 2 + 100 * 20);
     expect(at({}, "expensive").keep).toBe(15);
     const cases: Array<[Partial<FrontierConfig>, RegExp]> = [
       ...[-1, NaN].map((budgetUsd): [Partial<FrontierConfig>, RegExp] => [{ budgetUsd }, /budget/]),

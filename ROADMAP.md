@@ -27,6 +27,8 @@ affordability grid, [#103](https://github.com/sferarc/peeksafe/issues/103), pric
 caller's `futilityConfidence`, and pricing an unpaired case's typical bill at the runs `shouldStop`
 takes ([#105](https://github.com/sferarc/peeksafe/issues/105) for `makePlan`,
 [#106](https://github.com/sferarc/peeksafe/issues/106) for the frontier and the grid).
+[#111](https://github.com/sferarc/peeksafe/issues/111) made the paired figure the exact expected pairs
+`shouldStopPaired` takes, where the mean trajectory overstated it near independence.
 
 ## Not planned
 
