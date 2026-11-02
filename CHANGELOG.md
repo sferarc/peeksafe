@@ -11,12 +11,18 @@ All notable changes to this project are documented here. The format follows
 - Each `PlanCase` carries `typicalRuns`, the runs that case costs in the expected bill at the design
   the bill prices it at. The plan summed these into `totals.typicalRuns` and kept nothing per case,
   so the only per-case figure a caller could read was `expectedSequentialSamples`, which is Wald's:
-  on the README suite it says 40 and 28 where the plan bills 74 and 66. `planCase` called on its own
+  on the README suite it said 40 and 28 where the plan bills 74 and 66. `planCase` called on its own
   prices a case with no `design` unpaired, since it cannot see the suite, and now refuses the trial
   grid and `futilityConfidence` that `makePlan` refuses.
 
 ### Changed
 
+- `expectedSequentialSamples` still answered Wald's expected sample number for the SPRT after the plan
+  stopped billing from it, so on the README suite it said 40 and 28 runs where the plan bills 74 and
+  66. It now counts each case in the runs `shouldStop` takes to stop it, at its `trueRate` and the
+  suite size `cases.length`, at `mde`, `fdr` and `futilityConfidence`: 61 and 66 runs there, and at
+  the default rate each case equals its unpaired `typicalRuns`. It refuses an `mde`, `fdr` or
+  `futilityConfidence` that `makePlan` refuses, and a `trueRate` of `NaN`.
 - `evaluatePoint` (so `computeFrontier`) and `affordabilityGrid` still priced an unpaired typical
   bill with Wald's expected sample number after `makePlan` moved off it in 0.2.0, so they disagreed
   with the plan about the same case. They now count the runs `shouldStop` takes to stop it, at the

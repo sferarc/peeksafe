@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   affordabilityGrid,
   type BaselineStat,
+  baselineNullRate,
   type CaseRef,
   computeFrontier,
   DEFAULT_AXES,
@@ -26,6 +27,7 @@ import {
   sampleSizeTwoProportion,
   shouldStop,
   shouldStopPaired,
+  sprtExpectedN,
   toBaselineMap,
   typicalObservationsPerCase,
 } from "../src/index.js";
@@ -43,6 +45,16 @@ const suite = (
     cases.map((c) => ({ caseId: c.id, successes: Math.round(rate * nb), trials: nb })),
   );
   return { cases, baseline };
+};
+
+// Wald's SPRT expected sample number for an unmoved case on the batch grid, what `expectedSequentialSamples` answered before #115.
+const wald = (successes: number, trials: number, cfg = DEFAULT_PLAN): number => {
+  const p0 = baselineNullRate({ caseId: "c", successes, trials }, cfg.nullQuantile);
+  const p1 = Math.max(0.005, p0 - cfg.mde);
+  const n = Math.ceil(sprtExpectedN(successes / trials, p0, p1, cfg.alpha, cfg.beta));
+  const clamped = Math.min(cfg.maxTrials, Math.max(cfg.minTrials, n));
+  const batches = Math.ceil((clamped - cfg.minTrials) / cfg.batchSize);
+  return Math.min(cfg.maxTrials, cfg.minTrials + batches * cfg.batchSize);
 };
 
 describe("the planner answers before anything is spent", () => {
@@ -464,14 +476,18 @@ describe("the design per case, from a measured coupling", () => {
     // are paired, so it now recommends pairing, and only `nested` stays at one run.
     const at = (cfg: typeof DEFAULT_PLAN) => makePlan(cases, toBaselineMap(bl), cfg);
     const plan = at(DEFAULT_PLAN);
-    const observations = expectedSequentialSamples(cases, toBaselineMap(bl), DEFAULT_PLAN).perCase;
     expect(plan.recommendedDesign).toBe("paired");
-    expect(plan.cases.map((c) => [c.caseId, c.design, observations.get(c.caseId)])).toEqual([
+    expect(
+      plan.cases.map((c) => [c.caseId, c.design, wald(c.baseline.successes, c.baseline.trials)]),
+    ).toEqual([
       ["flow", "paired", 40],
       ["nested", "unpaired", 28],
       ["thin", "paired", 28],
       ["low", null, 12],
     ]);
+    // The unpaired figure is the one the plan bills `nested` at.
+    const observations = expectedSequentialSamples(cases, toBaselineMap(bl), DEFAULT_PLAN).perCase;
+    expect(observations.get("nested")).toBe(62);
     // `low` has no design and takes the suite's, paired here. A paired case is
     // counted in the pairs `shouldStopPaired` takes at its coupling, 37 for `flow` and 34 for the
     // others, and `nested` in the 62 runs `shouldStop` takes, where Wald said 28.
@@ -584,8 +600,7 @@ describe("the design per case, from a measured coupling", () => {
       const one = [{ caseId: "c", successes, trials: 240 }];
       const cfg = { ...DEFAULT_PLAN, pairCoupling: rho, design: "paired" as const };
       const plan = makePlan([{ id: "c" }], toBaselineMap(one), cfg);
-      const sprt = expectedSequentialSamples([{ id: "c" }], toBaselineMap(one), cfg).samples;
-      return { pairs: plan.totals.typicalRuns / 2, sprt };
+      return { pairs: plan.totals.typicalRuns / 2, sprt: wald(successes, 240, cfg) };
     };
     // One unmoved case at rate p and coupling rho, checked on the plan's batch grid until it stops.
     const simulated = (p: number, rho: number) => {
@@ -638,8 +653,9 @@ describe("the design per case, from a measured coupling", () => {
       const cfg = { ...DEFAULT_PLAN, design: "unpaired" as const, futilityConfidence };
       const ids = many.map((b) => ({ id: b.caseId }));
       const plan = makePlan(ids, toBaselineMap(many), cfg);
-      const sprt = expectedSequentialSamples(ids.slice(0, 1), toBaselineMap(many), cfg).samples;
-      return { runs: plan.totals.typicalRuns / m, sprt };
+      const exported = expectedSequentialSamples(ids, toBaselineMap(many), cfg).samples;
+      expect(exported).toBe(plan.totals.typicalRuns);
+      return { runs: plan.totals.typicalRuns / m, sprt: wald(successes, trials, cfg) };
     };
     // One unmoved case at its baseline rate, checked on the plan's batch grid until it stops.
     const simulated = (successes: number, trials: number, m: number) => {
@@ -678,6 +694,47 @@ describe("the design per case, from a measured coupling", () => {
     // A stricter futility level stops later, and the plan takes the same option.
     expect(planned(204, 240, 4, 0.95).runs).toBe(58);
     expect(planned(204, 240, 4, 0.99).runs).toBe(82);
+  });
+
+  it("counts expectedSequentialSamples at a candidate rate in the runs shouldStop takes", () => {
+    // It answered Wald's figure for the SPRT, which ignores the suite size and the rule the gate runs (#115).
+    const baseline = { caseId: "c", successes: 204, trials: 240 };
+    const ids = Array.from({ length: 4 }, (_, i) => ({ id: `c${i}` }));
+    const map = toBaselineMap(ids.map((c) => ({ ...baseline, caseId: c.id })));
+    const at = (rate: number) =>
+      expectedSequentialSamples(ids.slice(0, 1), map, DEFAULT_PLAN, () => rate).perCase.get("c0")!;
+    const moved = expectedSequentialSamples(ids, map, DEFAULT_PLAN, () => 0.7).perCase.get("c0")!;
+    const simulated = (rate: number) => {
+      const rand = makeRand(`moved-${rate}`);
+      const reps = 2000;
+      let total = 0;
+      for (let i = 0; i < reps; i++) {
+        const s = { successes: 0, trials: 0 };
+        for (;;) {
+          const batch = s.trials === 0 ? DEFAULT_PLAN.minTrials : DEFAULT_PLAN.batchSize;
+          for (let j = 0; j < batch; j++) {
+            s.trials++;
+            if (rand() < rate) s.successes++;
+          }
+          const opts = { suiteSize: 4, maxTrials: DEFAULT_PLAN.maxTrials };
+          if (shouldStop(s, baseline, opts).stop) break;
+        }
+        total += s.trials;
+      }
+      return total / reps;
+    };
+    const sim = simulated(0.7);
+    console.log(`moved candidate, simulated mean runs: ${sim.toFixed(1)}`);
+    expect(Math.abs(moved - sim) / sim).toBeLessThan(0.05);
+    // The suite size sets the bar, so the same case alone stops sooner.
+    expect([moved, at(0.7)]).toEqual([75, 62]);
+    const stat = expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" });
+    expect(() => expectedSequentialSamples(ids, map, DEFAULT_PLAN, () => NaN)).toThrow(stat);
+    for (const bad of [{ mde: 0 }, { fdr: 1 }, { futilityConfidence: 1 }]) {
+      expect(() => expectedSequentialSamples(ids, map, { ...DEFAULT_PLAN, ...bad })).toThrow(
+        /expectedSequentialSamples/,
+      );
+    }
   });
 
   it("prices a paired case's typical bill at the caller's futilityConfidence", () => {

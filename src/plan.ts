@@ -32,7 +32,7 @@
  * it.
  */
 
-import { type BaselineStat, baselineNullRate, type CaseRef } from "./baseline.js";
+import type { BaselineStat, CaseRef } from "./baseline.js";
 import {
   PeeksafeError,
   requireCounts,
@@ -51,7 +51,6 @@ import {
   pairPhi,
   sampleSizeTwoProportion,
   samplesForEvidence,
-  sprtExpectedN,
 } from "./stats.js";
 import { shouldStop, shouldStopPaired } from "./stop.js";
 
@@ -477,20 +476,20 @@ function typicalCaseRuns(
 }
 
 /**
- * Expected total samples for the sequential design, priced under Wald's
- * expected sample number at a supplied "true" rate per case, and clamped into
- * the gate's own [minTrials, maxTrials] batch grid.
+ * Expected total samples for the sequential design: per case, the exact
+ * expected runs `shouldStop` takes to stop it when its candidate passes at
+ * `trueRate`, in a suite of `cases.length`, on the gate's own batch grid
+ * (`expectedStopRuns`). At the default rate this is the figure the plan bills
+ * an unpaired case at, `PlanCase.typicalRuns`.
  *
- * `makePlan` no longer bills from it: an unpaired case there is counted in
- * the runs `shouldStop` takes, which this figure misses either way (#105);
- * `PlanCase.typicalRuns` is the per-case figure the plan bills.
  * `samplesForEvidence`, the one behind `PlanCase.unpaired.runs`, answers a
  * different question: how many runs it takes to *certify a regression*. A case
- * that did not regress never gets there; it hits the H₀ wall in a few batches
- * and stops. Pricing every case at the certification cost over-predicts the
+ * that did not regress never gets there; it stops as futile or settled in a
+ * few batches. Pricing every case at the certification cost over-predicts the
  * bill.
  *
- * `trueRate` defaults to the case's own baseline rate, i.e. "nothing moved", * which is what almost every pull request looks like.
+ * `trueRate` defaults to the case's own baseline rate, i.e. "nothing moved",
+ * which is what almost every pull request looks like.
  */
 export function expectedSequentialSamples(
   cases: Array<CaseRef>,
@@ -500,6 +499,10 @@ export function expectedSequentialSamples(
     b.trials > 0 ? b.successes / b.trials : 0,
 ): { samples: number; perCase: Map<string, number> } {
   requireTrialGrid(cfg, "expectedSequentialSamples");
+  // Checked here so a bad value is refused under this name, not under the stopping rule's.
+  requireOpenProbability(cfg.mde, "mde", "expectedSequentialSamples");
+  requireOpenProbability(cfg.fdr, "fdr", "expectedSequentialSamples");
+  requireSettleConfidence(cfg, "expectedSequentialSamples");
   // A repeated id was added to `samples` once per listing but kept once in `perCase`, so the two disagreed.
   requireUniqueCaseIds(cases, "expectedSequentialSamples");
   const perCase = new Map<string, number>();
@@ -507,16 +510,12 @@ export function expectedSequentialSamples(
   for (const c of cases) {
     const b = baseline.get(c.id);
     if (!b || b.trials === 0) continue;
-    const p0 = baselineNullRate(b, cfg.nullQuantile);
-    const p1 = Math.max(0.005, p0 - cfg.mde);
     const p = Math.max(0, Math.min(1, trueRate(c.id, b)));
-    const raw = sprtExpectedN(p, p0, p1, cfg.alpha, cfg.beta);
-    const capped = onBatchGrid(
-      Number.isFinite(raw) && raw > 0 ? Math.ceil(raw) : cfg.maxTrials,
-      cfg,
-    );
-    perCase.set(c.id, capped);
-    total += capped;
+    // Wald's figure fell back to the cap on a NaN rate; the dynamic program would answer NaN.
+    requireProbability(p, "trueRate", "expectedSequentialSamples");
+    const runs = expectedStopRuns(b, p, cases.length, cfg);
+    perCase.set(c.id, runs);
+    total += runs;
   }
   return { samples: total, perCase };
 }
@@ -531,14 +530,6 @@ export function requireSettleConfidence(
   if (cfg.futilityConfidence !== undefined) {
     requireOpenProbability(cfg.futilityConfidence, "futilityConfidence", where);
   }
-}
-
-// The gate only ever adds whole batches past the minimum, so a prediction is rounded onto the grid it samples on.
-function onBatchGrid(n: number, cfg: TrialGrid): number {
-  const clamped = Math.min(cfg.maxTrials, Math.max(cfg.minTrials, n));
-  const batched =
-    cfg.minTrials + Math.ceil(Math.max(0, clamped - cfg.minTrials) / cfg.batchSize) * cfg.batchSize;
-  return Math.min(cfg.maxTrials, batched);
 }
 
 // The frontier prices the same paired cell once per baseline and screen, so a sweep would rerun one program dozens of times.
