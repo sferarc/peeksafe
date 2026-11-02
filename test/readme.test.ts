@@ -398,13 +398,14 @@ describe("README: choosing a design by cost", () => {
 
   it("prices the expected bill per case", () => {
     expect(assumed.recommendedDesign).toBe("unpaired");
+    // The unpaired figure for every case, which the plan bills `parsing/nested` at.
     const observations = expectedSequentialSamples(cases, toBaselineMap(baselines), DEFAULT_PLAN);
     expect([...observations.perCase]).toEqual([
-      ["checkout/flow", 40],
-      ["parsing/nested", 28],
+      ["checkout/flow", 61],
+      ["parsing/nested", 66],
     ]);
     // `checkout/flow` is paired and counted in the 37 pairs `shouldStopPaired` takes at 0.9,
-    // `parsing/nested` in the 66 runs `shouldStop` takes to stop it, not Wald's 28.
+    // `parsing/nested` in the 66 runs `shouldStop` takes to stop it.
     expect(assumed.totals.typicalRuns).toBe(37 * 2 + 66);
     expect(assumed.cases.map((c) => [c.caseId, c.typicalRuns])).toEqual([
       ["checkout/flow", 74],
@@ -415,6 +416,7 @@ describe("README: choosing a design by cost", () => {
       makePlan(cases, toBaselineMap(baselines), { ...DEFAULT_PLAN, design: "unpaired" }).totals
         .typicalRuns,
     ).toBe(127);
+    expect(observations.samples).toBe(127);
     expect(
       makePlan(cases, toBaselineMap(baselines), { ...DEFAULT_PLAN, design: "paired" }).totals
         .typicalRuns,

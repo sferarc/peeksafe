@@ -402,16 +402,22 @@ describe("the rest of the statistical core", () => {
     }
   });
 
-  it("expectedSequentialSamples does not price a low-rate baseline at the cap", () => {
+  it("sprtExpectedN does not price a low-rate baseline at the cap", () => {
     // 9/30 puts the posterior median *above* the observed rate, so "nothing
     // moved" lands strictly between the two hypotheses, which is the corridor
     // the operating characteristic used to get backwards. The fallback for a
     // non-positive answer is `maxTrials`, so the symptom was a case priced at
     // the per-case cap rather than at the runs the SPRT actually spends. 32 is
-    // the figure the doc comment on `sprtExpectedN` quotes.
+    // the figure the doc comment on `sprtExpectedN` quotes, on the batch grid.
+    const { nullQuantile, mde, alpha, beta, minTrials, batchSize } = DEFAULT_PLAN;
+    const p0 = baselineNullRate({ caseId: "a", successes: 9, trials: 30 }, nullQuantile);
+    const raw = sprtExpectedN(0.3, p0, p0 - mde, alpha, beta);
+    expect(raw).toBeGreaterThan(0);
+    expect(minTrials + Math.ceil((Math.ceil(raw) - minTrials) / batchSize) * batchSize).toBe(32);
+    // `expectedSequentialSamples` counts the runs `shouldStop` takes instead (#115).
     const baseline = toBaselineMap([{ caseId: "a", successes: 9, trials: 30 }]);
     const res = expectedSequentialSamples([{ id: "a" }], baseline, DEFAULT_PLAN);
-    expect(res.samples).toBe(32);
+    expect(res.samples).toBe(19);
     expect(res.samples).toBeLessThan(DEFAULT_PLAN.maxTrials);
   });
 
