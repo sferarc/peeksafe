@@ -609,6 +609,89 @@ describe("the design per case, from a measured coupling", () => {
     expect(sims[2]!).toBeLessThan(80);
     expect(sims[2]!).toBeGreaterThan(independent.sprt);
   });
+
+  it("prices a paired case's typical bill at the caller's futilityConfidence", () => {
+    // The settle bar was fixed at the default 0.95, so a stricter stopping rule was billed short.
+    const planned = (successes: number, rho: number, futilityConfidence?: number) => {
+      const one = [{ caseId: "c", successes, trials: 240 }];
+      const cfg = {
+        ...DEFAULT_PLAN,
+        pairCoupling: rho,
+        design: "paired" as const,
+        futilityConfidence,
+      };
+      return makePlan([{ id: "c" }], toBaselineMap(one), cfg).totals.typicalRuns / 2;
+    };
+    const simulated = (p: number, rho: number, futilityConfidence: number) => {
+      const rand = makeRand(`settle-${p}-${rho}-${futilityConfidence}`);
+      const reps = 2000;
+      let total = 0;
+      for (let i = 0; i < reps; i++) {
+        const c = { bothPass: 0, worse: 0, better: 0, bothFail: 0 };
+        for (let n = 0; ; ) {
+          const batch = n === 0 ? DEFAULT_PLAN.minTrials : DEFAULT_PLAN.batchSize;
+          for (let j = 0; j < batch; j++) {
+            const u = rand();
+            const coupled = rand() < rho;
+            const base = u < p;
+            const cand = coupled ? base : rand() < p;
+            if (base && cand) c.bothPass++;
+            else if (base) c.worse++;
+            else if (cand) c.better++;
+            else c.bothFail++;
+          }
+          n += batch;
+          const opts = { suiteSize: 1, maxPairs: DEFAULT_PLAN.maxTrials, futilityConfidence };
+          if (shouldStopPaired(c, opts).stop) {
+            total += n;
+            break;
+          }
+        }
+      }
+      return total / reps;
+    };
+    expect(planned(180, 0.9, undefined)).toBe(planned(180, 0.9, 0.95));
+    expect([planned(180, 0.9, 0.8), planned(180, 0.9), planned(180, 0.9, 0.99)]).toEqual([
+      20, 36, 52,
+    ]);
+    expect(planned(216, 0.6, 0.99)).toBe(64);
+    const sims = [simulated(0.75, 0.9, 0.99), simulated(0.9, 0.6, 0.99)];
+    console.log(
+      `paired settle at 0.99, simulated mean pairs: ${sims.map((s) => s.toFixed(1)).join(", ")}`,
+    );
+    expect(Math.abs(52 - sims[0]!) / sims[0]!).toBeLessThan(0.05);
+    expect(Math.abs(64 - sims[1]!) / sims[1]!).toBeLessThan(0.07);
+    // The default-level figure is what the plan quoted for this rule before.
+    expect(Math.abs(36 - sims[0]!) / sims[0]!).toBeGreaterThan(0.3);
+
+    // The frontier and the grid price the same level, and all three refuse one outside (0, 1).
+    const point = (futilityConfidence?: number) =>
+      evaluatePoint(100, 0.15, 240, "paired", "none", 0, {
+        ...DEFAULT_FRONTIER,
+        futilityConfidence,
+      });
+    expect([point().typicalObservations, point(0.99).typicalObservations]).toEqual([36, 48]);
+    expect(point(0.99).typical.totalUsd).toBe(100 * 48 * 2 + 20);
+    const cell = (futilityConfidence?: number) =>
+      affordabilityGrid(
+        0.85,
+        60,
+        { ...DEFAULT_PLAN, pairCoupling: 0.6, futilityConfidence },
+        500,
+        [50],
+        [0.15],
+      )[0]!.typicalRuns;
+    expect([cell(), cell(0.99)]).toEqual([880, 1120]);
+    const one = toBaselineMap([{ caseId: "c", successes: 180, trials: 240 }]);
+    for (const bad of [0, 1, -0.5, 1.5, NaN]) {
+      expect(
+        () => makePlan([{ id: "c" }], one, { ...DEFAULT_PLAN, futilityConfidence: bad }),
+        `makePlan ${bad}`,
+      ).toThrow(/futilityConfidence/);
+      expect(() => point(bad), `evaluatePoint ${bad}`).toThrow(/futilityConfidence/);
+      expect(() => cell(bad), `affordabilityGrid ${bad}`).toThrow(/futilityConfidence/);
+    }
+  });
 });
 
 describe("the frontier", () => {

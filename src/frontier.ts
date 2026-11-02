@@ -65,7 +65,7 @@ import {
   requireRunCeiling,
   requireTrialGrid,
 } from "./errors.js";
-import { DEFAULT_PLAN, expectedSettlePairs } from "./plan.js";
+import { DEFAULT_PLAN, expectedSettlePairs, requireSettleConfidence } from "./plan.js";
 import {
   betaQuantile,
   ebhSoloThreshold,
@@ -187,6 +187,8 @@ export interface FrontierConfig {
   maxTrials: number;
   batchSize: number;
   nullQuantile: number;
+  /** the `futilityConfidence` `shouldStopPaired` runs at; unset takes its default */
+  futilityConfidence?: number;
 }
 
 export const DEFAULT_FRONTIER: FrontierConfig = {
@@ -398,6 +400,7 @@ export function evaluatePoint(
   requireErrorRates(cfg.alpha, cfg.beta, "evaluatePoint");
   requireProbability(cfg.pairCoupling, "pairCoupling", "evaluatePoint");
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "evaluatePoint");
+  requireSettleConfidence(cfg, "evaluatePoint");
   // makePlan refuses it; unchecked, an fdr of 2 cut the bar and 0 was blamed on the ceiling.
   requireOpenProbability(cfg.fdr, "fdr", "evaluatePoint");
   requireRunCeiling(cfg.runsPerCaseCeiling, "evaluatePoint");

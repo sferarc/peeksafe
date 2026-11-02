@@ -100,6 +100,12 @@ export interface PlanConfig {
   maxTrials: number;
   batchSize: number;
   nullQuantile: number;
+  /**
+   * The `futilityConfidence` you run `shouldStopPaired` at. A paired case's
+   * expected pairs are the pairs it takes to settle at this level, so a higher
+   * one prices more. `undefined` takes the stopping rule's own default.
+   */
+  futilityConfidence?: number;
 }
 
 export const DEFAULT_PLAN: PlanConfig = {
@@ -486,6 +492,16 @@ export function expectedSequentialSamples(
 
 type TrialGrid = Pick<PlanConfig, "minTrials" | "maxTrials" | "batchSize">;
 
+/** Refuses a set `futilityConfidence` outside (0, 1), where the settle bar is 0 or Infinity. */
+export function requireSettleConfidence(
+  cfg: Pick<PlanConfig, "futilityConfidence">,
+  where: string,
+): void {
+  if (cfg.futilityConfidence !== undefined) {
+    requireOpenProbability(cfg.futilityConfidence, "futilityConfidence", where);
+  }
+}
+
 // The gate only ever adds whole batches past the minimum, so a prediction is rounded onto the grid it samples on.
 function onBatchGrid(n: number, cfg: TrialGrid): number {
   const clamped = Math.min(cfg.maxTrials, Math.max(cfg.minTrials, n));
@@ -497,20 +513,22 @@ function onBatchGrid(n: number, cfg: TrialGrid): number {
 /**
  * Expected pairs for a paired case that did not move: the first pair count at
  * which `shouldStopPaired`'s settle e-value, on the mean trajectory at coupling
- * `rho` and the default `futilityConfidence`, rules out a drop of `mde`, on the
- * same batch grid as `expectedSequentialSamples`, and `maxTrials` when it never
- * does. The unpaired SPRT figure knows nothing of this rule or of the
- * coupling, which sets how often an unmoved pair disagrees.
+ * `rho` and `cfg.futilityConfidence` (the stopping rule's default when unset),
+ * rules out a drop of `mde`, on the same batch grid as
+ * `expectedSequentialSamples`, and `maxTrials` when it never does. The
+ * unpaired SPRT figure knows nothing of this rule or of the coupling, which
+ * sets how often an unmoved pair disagrees.
  */
 export function expectedSettlePairs(
   rate: number,
   rho: number,
   mde: number,
-  cfg: TrialGrid,
+  cfg: TrialGrid & Pick<PlanConfig, "futilityConfidence">,
 ): number {
   // Unmoved arms disagree each way only when uncoupled: (1 - rho) p (1 - p).
   const each = (1 - rho) * rate * (1 - rate);
-  const target = -Math.log(1 - DEFAULT_STOP_OPTIONS.futilityConfidence);
+  const confidence = cfg.futilityConfidence ?? DEFAULT_STOP_OPTIONS.futilityConfidence;
+  const target = -Math.log(1 - confidence);
   for (let n = 1; n <= cfg.maxTrials; n++) {
     const counts = { bothPass: n * (1 - 2 * each), worse: n * each, better: n * each, bothFail: 0 };
     if (settleLogE(counts, mde) >= target) return onBatchGrid(n, cfg);
@@ -547,6 +565,7 @@ export function makePlan(
   // reaches it, and under that function's name for it, `q`. Checked here so
   // every planner entry point refuses it the same way and names it.
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "makePlan");
+  requireSettleConfidence(cfg, "makePlan");
   requireRunCeiling(cfg.runsPerCaseCeiling, "makePlan");
   requireTrialGrid(cfg, "makePlan");
   if (cases.length === 0) {
@@ -787,6 +806,7 @@ export function affordabilityGrid(
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "affordabilityGrid");
   // makePlan refuses both; unchecked, an fdr of 2 priced a grid cheaper than one at 0.05.
   requireOpenProbability(cfg.fdr, "fdr", "affordabilityGrid");
+  requireSettleConfidence(cfg, "affordabilityGrid");
   requireTrialGrid(cfg, "affordabilityGrid");
   if (!(cfg.costPerRunUsd >= 0)) {
     throw new PeeksafeError(
