@@ -65,7 +65,12 @@ import {
   requireRunCeiling,
   requireTrialGrid,
 } from "./errors.js";
-import { DEFAULT_PLAN, expectedSettlePairs, requireSettleConfidence } from "./plan.js";
+import {
+  DEFAULT_PLAN,
+  expectedSettlePairs,
+  expectedStopRuns,
+  requireSettleConfidence,
+} from "./plan.js";
 import {
   betaQuantile,
   ebhSoloThreshold,
@@ -187,7 +192,7 @@ export interface FrontierConfig {
   maxTrials: number;
   batchSize: number;
   nullQuantile: number;
-  /** the `futilityConfidence` `shouldStopPaired` runs at; unset takes its default */
+  /** the `futilityConfidence` `shouldStop` and `shouldStopPaired` run at; unset takes their default */
   futilityConfidence?: number;
 }
 
@@ -345,8 +350,10 @@ function requirePricing(cfg: FrontierConfig, where: string): void {
 }
 
 /**
- * Observations per case on a pull request where nothing moved, clamped onto the
- * gate's own batch grid.
+ * Wald's SPRT expected sample number for a case where nothing moved, clamped
+ * onto the gate's own batch grid. `evaluatePoint` no longer bills from it: an
+ * unpaired point there is counted in the runs `shouldStop` takes, which this
+ * figure misses either way because it ignores the suite size (#106).
  */
 export function typicalObservationsPerCase(
   rate: number,
@@ -393,10 +400,7 @@ export function evaluatePoint(
   requireOpenProbability(mde, "mde", "evaluatePoint");
   requireOpenProbability(cfg.baselineRate, "baselineRate", "evaluatePoint");
   // `makePlan` refuses these two and this did not, so one options object was a
-  // refusal through the planner and a priced frontier through here. Both end up
-  // in `sprtExpectedN`, which answers NaN or Infinity outside (0,1), and
-  // `typicalObservationsPerCase` reads either as "cannot price this" and falls
-  // back to the run ceiling.
+  // refusal through the planner and a priced frontier through here.
   requireErrorRates(cfg.alpha, cfg.beta, "evaluatePoint");
   requireProbability(cfg.pairCoupling, "pairCoupling", "evaluatePoint");
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "evaluatePoint");
@@ -509,11 +513,16 @@ export function evaluatePoint(
   }
   const feasible = infeasibleBecause === null;
 
-  // A paired case counts the pairs `shouldStopPaired` takes to settle, as `makePlan` does; the SPRT figure ignores the coupling.
+  // Each design is counted under the rule that stops it, as `makePlan` does; Wald's SPRT figure ignores the coupling and the suite size.
   const typicalObservations =
     design === "paired"
       ? expectedSettlePairs(rate, cfg.pairCoupling, mde, cfg)
-      : typicalObservationsPerCase(rate, mde, cfg, effectiveBaselineRuns);
+      : expectedStopRuns(
+          { caseId: "typical", successes: s, trials: effectiveBaselineRuns },
+          rate,
+          cases,
+          { ...cfg, mde },
+        );
   const keep = screen === "none" ? cases : Math.max(1, Math.ceil(cases * cfg.screenKeepFraction));
 
   // Screening runs are graded by whichever grader the screen uses. A proxy

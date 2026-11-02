@@ -44,7 +44,6 @@ import {
   requireUniqueCaseIds,
 } from "./errors.js";
 import {
-  betaQuantile,
   ebhSoloThreshold,
   evidenceCeilingLogE,
   mcnemarSamplesForEvidence,
@@ -547,7 +546,7 @@ export function expectedSettlePairs(
  * program carries the distribution of the success count from one check to the
  * next. Rounded up to a whole run; an expectation is not a grid point.
  */
-function expectedStopRuns(
+export function expectedStopRuns(
   baseline: BaselineStat,
   rate: number,
   suiteSize: number,
@@ -862,9 +861,7 @@ export function affordabilityGrid(
 ): AffordabilityCell[] {
   requireProbability(baselineRate, "baselineRate", "affordabilityGrid");
   requireErrorRates(cfg.alpha, cfg.beta, "affordabilityGrid");
-  // The typical bill below takes this quantile of the baseline posterior
-  // straight from `betaQuantile`, which answers 0 or 1 for a quantile outside
-  // (0,1) and about 0 for NaN instead of refusing. `makePlan` refuses it.
+  // `makePlan` refuses it, so one options object must not price here and fail there.
   requireOpenProbability(cfg.nullQuantile, "nullQuantile", "affordabilityGrid");
   // makePlan refuses both; unchecked, an fdr of 2 priced a grid cheaper than one at 0.05.
   requireOpenProbability(cfg.fdr, "fdr", "affordabilityGrid");
@@ -936,16 +933,16 @@ export function affordabilityGrid(
       // The ceiling above prices a pull request in which every case regressed.
       // This prices one in which nothing did, which is what a pull request
       // almost always is.
-      const p0 = betaQuantile(1 + s, 1 + baselineTrials - s, cfg.nullQuantile);
-      const p1 = Math.max(0.005, p0 - mde);
-      const rawN = sprtExpectedN(baselineRate, p0, p1, cfg.alpha, cfg.beta);
-      // A paired cell counts the pairs `shouldStopPaired` takes to settle, as `makePlan` does; the SPRT figure ignores the coupling.
+      // Each design is counted under the rule that stops it, as `makePlan` does; Wald's SPRT figure ignores the coupling and the suite size.
       const perCaseTypical =
         runsPerObs === 2
           ? expectedSettlePairs(baselineRate, cfg.pairCoupling, mde, cfg)
-          : Number.isFinite(rawN) && rawN > 0
-            ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(rawN)))
-            : cfg.maxTrials;
+          : expectedStopRuns(
+              { caseId: "typical", successes: s, trials: baselineTrials },
+              baselineRate,
+              m,
+              { ...cfg, mde },
+            );
       // Priced for the same design as the ceiling above (`runsPerObs`), or the
       // cell quotes an unpaired price for a plan only pairing can execute.
       const typicalRuns = Math.ceil(
