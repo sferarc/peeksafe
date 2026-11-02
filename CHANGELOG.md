@@ -41,6 +41,14 @@ All notable changes to this project are documented here. The format follows
   85% and 15 points cost $7220 on the frontier's defaults, not $6420, and at 90% and a coupling of 0.6
   a case takes 44 pairs, not 28. A paired grid cell at 50 cases, 85% over 60 runs and a coupling of
   0.6 expects 880 runs, not 720.
+- `makePlan` counted an unpaired case's expected bill in Wald's expected sample number for the SPRT,
+  a different stopping rule that also ignores the suite size, so the bill was off either way: four
+  cases at 85% over 240 baseline runs stop after 58.3 runs each in a simulated `shouldStop` loop where
+  the plan quoted 36, and 50 cases at 90% over 60 stop after 17.1 where it quoted 28. An unpaired case
+  is now counted in the runs `shouldStop` takes to stop it on the plan's batch grid, computed exactly:
+  58 and 18 there. The README's two cases cost 138 runs, not 100, and `config.futilityConfidence` now
+  sets the level for both stopping rules. `expectedSequentialSamples` is still Wald's figure, and
+  `evaluatePoint` and `affordabilityGrid` still use it (#106).
 
 ### Fixed
 

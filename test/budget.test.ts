@@ -24,6 +24,7 @@ import {
   pairPhi,
   planCase,
   sampleSizeTwoProportion,
+  shouldStop,
   shouldStopPaired,
   toBaselineMap,
   typicalObservationsPerCase,
@@ -221,7 +222,7 @@ describe("the planner answers before anything is spent", () => {
   it("refuses a trial grid the gate cannot sample on, through every planner door", () => {
     // Unchecked, a NaN bound or a zero batch made the typical bill NaN, and a
     // maxTrials of 1 under the default minTrials of 8 priced these four cases
-    // at 4 runs where the defaults price 144 unpaired.
+    // at 4 runs where the defaults price 232 unpaired (144 under Wald's figure, before #105).
     const { cases, baseline } = suite(4, 0.85, 240);
     const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
     const bad: Array<Partial<typeof DEFAULT_PLAN>> = [
@@ -247,7 +248,7 @@ describe("the planner answers before anything is spent", () => {
       expect(() => typicalObservationsPerCase(0.85, 0.15, frontier, 240), label).toThrow(config);
     }
     const unpaired = { ...DEFAULT_PLAN, design: "unpaired" as const };
-    expect(makePlan(cases, baseline, unpaired).totals.typicalRuns).toBe(144);
+    expect(makePlan(cases, baseline, unpaired).totals.typicalRuns).toBe(232);
     expect(makePlan(cases, baseline, { ...DEFAULT_PLAN, minTrials: 96 }).cases).toHaveLength(4);
   });
 
@@ -471,12 +472,13 @@ describe("the design per case, from a measured coupling", () => {
       ["low", null, 12],
     ]);
     // `low` has no design and takes the suite's, paired here. A paired case is
-    // counted in pairs to settle at its coupling, 36 for `flow` and 32 for the others.
-    expect(plan.totals.typicalRuns).toBe(36 * 2 + 28 + 32 * 2 + 32 * 2);
-    expect(plan.totals.typicalRuns).toBe(228);
-    expect(plan.totals.runsPerObservation).toBeCloseTo(228 / 128, 12);
+    // counted in pairs to settle at its coupling, 36 for `flow` and 32 for the
+    // others, and `nested` in the 62 runs `shouldStop` takes, where Wald said 28.
+    expect(plan.totals.typicalRuns).toBe(36 * 2 + 62 + 32 * 2 + 32 * 2);
+    expect(plan.totals.typicalRuns).toBe(262);
+    expect(plan.totals.runsPerObservation).toBeCloseTo(262 / 162, 12);
     // Fixing the design still prices every case at it.
-    expect(at({ ...DEFAULT_PLAN, design: "unpaired" }).totals.typicalRuns).toBe(108);
+    expect(at({ ...DEFAULT_PLAN, design: "unpaired" }).totals.typicalRuns).toBe(152);
     expect(at({ ...DEFAULT_PLAN, design: "paired" }).totals.typicalRuns).toBe(
       (36 + 32 + 32 + 32) * 2,
     );
@@ -533,8 +535,8 @@ describe("the design per case, from a measured coupling", () => {
       null,
       "paired",
     ]);
-    expect(plan.totals.typicalRuns).toBe(36 * 2 + 28 + 32 * 2 + 32 * 2 + 32 * 2);
-    expect(plan.totals.typicalRuns).toBe(292);
+    expect(plan.totals.typicalRuns).toBe(36 * 2 + 62 + 32 * 2 + 32 * 2 + 32 * 2);
+    expect(plan.totals.typicalRuns).toBe(326);
     expect(plan.recommendation).toMatch(/each case at its own design/);
   });
 
@@ -608,6 +610,55 @@ describe("the design per case, from a measured coupling", () => {
     // Variance stops some runs well short of the cap, so near independence the figure is conservative.
     expect(sims[2]!).toBeLessThan(80);
     expect(sims[2]!).toBeGreaterThan(independent.sprt);
+  });
+
+  it("prices an unpaired case's typical bill at the runs shouldStop takes to stop it", () => {
+    // The unpaired bill was Wald's SPRT figure, a different rule that ignores the suite size.
+    const planned = (successes: number, trials: number, m: number, futilityConfidence?: number) => {
+      const many = Array.from({ length: m }, (_, i) => ({ caseId: `c${i}`, successes, trials }));
+      const cfg = { ...DEFAULT_PLAN, design: "unpaired" as const, futilityConfidence };
+      const ids = many.map((b) => ({ id: b.caseId }));
+      const plan = makePlan(ids, toBaselineMap(many), cfg);
+      const sprt = expectedSequentialSamples(ids.slice(0, 1), toBaselineMap(many), cfg).samples;
+      return { runs: plan.totals.typicalRuns / m, sprt };
+    };
+    // One unmoved case at its baseline rate, checked on the plan's batch grid until it stops.
+    const simulated = (successes: number, trials: number, m: number) => {
+      const rand = makeRand(`stop-${successes}-${trials}-${m}`);
+      const baseline = { caseId: "c", successes, trials };
+      const reps = 2000;
+      let total = 0;
+      for (let i = 0; i < reps; i++) {
+        const s = { successes: 0, trials: 0 };
+        for (;;) {
+          const batch = s.trials === 0 ? DEFAULT_PLAN.minTrials : DEFAULT_PLAN.batchSize;
+          for (let j = 0; j < batch; j++) {
+            s.trials++;
+            if (rand() < successes / trials) s.successes++;
+          }
+          const opts = { suiteSize: m, maxTrials: DEFAULT_PLAN.maxTrials };
+          if (shouldStop(s, baseline, opts).stop) {
+            total += s.trials;
+            break;
+          }
+        }
+      }
+      return total / reps;
+    };
+    const strong = planned(204, 240, 4);
+    const wide = planned(54, 60, 50);
+    expect([strong.runs, strong.sprt]).toEqual([58, 36]);
+    expect([wide.runs, wide.sprt]).toEqual([18, 28]);
+    const sims = [simulated(204, 240, 4), simulated(54, 60, 50)];
+    console.log(`unpaired stop, simulated mean runs: ${sims.map((s) => s.toFixed(1)).join(", ")}`);
+    expect(Math.abs(strong.runs - sims[0]!) / sims[0]!).toBeLessThan(0.05);
+    expect(Math.abs(wide.runs - sims[1]!) / sims[1]!).toBeLessThan(0.1);
+    // Wald's figure was short on one and long on the other.
+    expect((sims[0]! - strong.sprt) / sims[0]!).toBeGreaterThan(0.3);
+    expect((wide.sprt - sims[1]!) / sims[1]!).toBeGreaterThan(0.3);
+    // A stricter futility level stops later, and the plan takes the same option.
+    expect(planned(204, 240, 4, 0.95).runs).toBe(58);
+    expect(planned(204, 240, 4, 0.99).runs).toBe(82);
   });
 
   it("prices a paired case's typical bill at the caller's futilityConfidence", () => {
