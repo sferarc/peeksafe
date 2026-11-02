@@ -26,6 +26,12 @@ All notable changes to this project are documented here. The format follows
   in the pairs `shouldStopPaired` takes to settle it on the mean trajectory at its coupling, on the
   same batch grid: 44 there. The README's two cases cost 100 runs, not 108. Near independence the
   figure is the `maxTrials` cap and over-states the simulated mean.
+- `evaluatePoint` (and so `computeFrontier`) and `affordabilityGrid` still counted a paired typical
+  bill in the unpaired SPRT's observations, so they disagreed with `makePlan` about the price of the
+  same paired case. Both now count it in the pairs to settle that `makePlan` uses: 100 paired cases at
+  85% and 15 points cost $7220 on the frontier's defaults, not $6420, and at 90% and a coupling of 0.6
+  a case takes 44 pairs, not 28. A paired grid cell at 50 cases, 85% over 60 runs and a coupling of
+  0.6 expects 880 runs, not 720.
 
 ### Fixed
 

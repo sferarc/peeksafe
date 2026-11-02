@@ -65,7 +65,7 @@ import {
   requireRunCeiling,
   requireTrialGrid,
 } from "./errors.js";
-import { DEFAULT_PLAN } from "./plan.js";
+import { DEFAULT_PLAN, expectedSettlePairs } from "./plan.js";
 import {
   betaQuantile,
   ebhSoloThreshold,
@@ -163,9 +163,9 @@ export interface FrontierConfig {
   /**
    * Baseline runs per case the *paired* design needs. The paired e-value's null
    * is a point mass, so the stored baseline is not part of its validity and
-   * does not set a ceiling, it only feeds the SPRT stopping rule and the
-   * screen. A short one is enough, and that asymmetry is most of why the paired
-   * design wins at these prices.
+   * does not set a ceiling; here it is only the baseline bill, since a paired
+   * typical bill is priced in pairs to settle. A short one is enough, and that
+   * asymmetry is most of why the paired design wins at these prices.
    */
   pairedBaselineRuns: number;
   /** fraction of cases a screen carries through to the expensive test */
@@ -506,7 +506,11 @@ export function evaluatePoint(
   }
   const feasible = infeasibleBecause === null;
 
-  const typicalObservations = typicalObservationsPerCase(rate, mde, cfg, effectiveBaselineRuns);
+  // A paired case counts the pairs `shouldStopPaired` takes to settle, as `makePlan` does; the SPRT figure ignores the coupling.
+  const typicalObservations =
+    design === "paired"
+      ? expectedSettlePairs(rate, cfg.pairCoupling, mde, cfg)
+      : typicalObservationsPerCase(rate, mde, cfg, effectiveBaselineRuns);
   const keep = screen === "none" ? cases : Math.max(1, Math.ceil(cases * cfg.screenKeepFraction));
 
   // Screening runs are graded by whichever grader the screen uses. A proxy

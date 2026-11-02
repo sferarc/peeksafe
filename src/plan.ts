@@ -484,8 +484,10 @@ export function expectedSequentialSamples(
   return { samples: total, perCase };
 }
 
+type TrialGrid = Pick<PlanConfig, "minTrials" | "maxTrials" | "batchSize">;
+
 // The gate only ever adds whole batches past the minimum, so a prediction is rounded onto the grid it samples on.
-function onBatchGrid(n: number, cfg: PlanConfig): number {
+function onBatchGrid(n: number, cfg: TrialGrid): number {
   const clamped = Math.min(cfg.maxTrials, Math.max(cfg.minTrials, n));
   const batched =
     cfg.minTrials + Math.ceil(Math.max(0, clamped - cfg.minTrials) / cfg.batchSize) * cfg.batchSize;
@@ -500,13 +502,18 @@ function onBatchGrid(n: number, cfg: PlanConfig): number {
  * does. The unpaired SPRT figure knows nothing of this rule or of the
  * coupling, which sets how often an unmoved pair disagrees.
  */
-function expectedSettlePairs(rate: number, rho: number, cfg: PlanConfig): number {
+export function expectedSettlePairs(
+  rate: number,
+  rho: number,
+  mde: number,
+  cfg: TrialGrid,
+): number {
   // Unmoved arms disagree each way only when uncoupled: (1 - rho) p (1 - p).
   const each = (1 - rho) * rate * (1 - rate);
   const target = -Math.log(1 - DEFAULT_STOP_OPTIONS.futilityConfidence);
   for (let n = 1; n <= cfg.maxTrials; n++) {
     const counts = { bothPass: n * (1 - 2 * each), worse: n * each, better: n * each, bothFail: 0 };
-    if (settleLogE(counts, cfg.mde) >= target) return onBatchGrid(n, cfg);
+    if (settleLogE(counts, mde) >= target) return onBatchGrid(n, cfg);
   }
   return cfg.maxTrials;
 }
@@ -622,7 +629,7 @@ export function makePlan(
     const unpaired = typical.perCase.get(p.caseId);
     if (unpaired === undefined) return 0;
     return runsPerObs(p) === 2
-      ? expectedSettlePairs(p.baseline.rate, p.pairCoupling, cfg)
+      ? expectedSettlePairs(p.baseline.rate, p.pairCoupling, cfg.mde, cfg)
       : unpaired;
   };
   const typicalObservations = planned.reduce((a, p) => a + observations(p), 0);
@@ -850,10 +857,13 @@ export function affordabilityGrid(
       const p0 = betaQuantile(1 + s, 1 + baselineTrials - s, cfg.nullQuantile);
       const p1 = Math.max(0.005, p0 - mde);
       const rawN = sprtExpectedN(baselineRate, p0, p1, cfg.alpha, cfg.beta);
+      // A paired cell counts the pairs `shouldStopPaired` takes to settle, as `makePlan` does; the SPRT figure ignores the coupling.
       const perCaseTypical =
-        Number.isFinite(rawN) && rawN > 0
-          ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(rawN)))
-          : cfg.maxTrials;
+        runsPerObs === 2
+          ? expectedSettlePairs(baselineRate, cfg.pairCoupling, mde, cfg)
+          : Number.isFinite(rawN) && rawN > 0
+            ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(rawN)))
+            : cfg.maxTrials;
       // Priced for the same design as the ceiling above (`runsPerObs`), or the
       // cell quotes an unpaired price for a plan only pairing can execute.
       const typicalRuns = Math.ceil(
