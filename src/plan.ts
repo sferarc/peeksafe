@@ -54,7 +54,7 @@ import {
   samplesForEvidence,
   sprtExpectedN,
 } from "./stats.js";
-import { DEFAULT_STOP_OPTIONS, settleLogE } from "./stop.js";
+import { DEFAULT_STOP_OPTIONS, settleLogE, shouldStop } from "./stop.js";
 
 export interface PlanConfig {
   /** the drop we want to be able to detect, in probability units (0.15 = 15 points) */
@@ -81,7 +81,8 @@ export interface PlanConfig {
   /**
    * Which design the *expected* bill and the screening pass are priced for. A
    * paired observation is two runs, and a paired case's observation count is
-   * the pairs `shouldStopPaired` takes to settle it at its coupling.
+   * the pairs `shouldStopPaired` takes to settle it at its coupling; an
+   * unpaired case's is the runs `shouldStop` takes to stop it.
    *
    * `undefined` prices each case at its own `PlanCase.design`, and a case with
    * none at the suite's `recommendedDesign`. Setting it prices every case at
@@ -101,9 +102,10 @@ export interface PlanConfig {
   batchSize: number;
   nullQuantile: number;
   /**
-   * The `futilityConfidence` you run `shouldStopPaired` at. A paired case's
-   * expected pairs are the pairs it takes to settle at this level, so a higher
-   * one prices more. `undefined` takes the stopping rule's own default.
+   * The `futilityConfidence` you run `shouldStop` and `shouldStopPaired` at.
+   * The expected bill counts the runs or pairs a case takes to stop at this
+   * level, so a higher one prices more. `undefined` takes the stopping rules'
+   * own default.
    */
   futilityConfidence?: number;
 }
@@ -452,7 +454,8 @@ export function planCase(
  * expected sample number at a supplied "true" rate per case, and clamped into
  * the gate's own [minTrials, maxTrials] batch grid.
  *
- * This is the number that predicts what the gate will actually spend.
+ * `makePlan` no longer bills from it: an unpaired case there is counted in
+ * the runs `shouldStop` takes, which this figure misses either way (#105).
  * `samplesForEvidence`, the one behind `PlanCase.unpaired.runs`, answers a
  * different question: how many runs it takes to *certify a regression*. A case
  * that did not regress never gets there; it hits the H₀ wall in a few batches
@@ -534,6 +537,56 @@ export function expectedSettlePairs(
     if (settleLogE(counts, mde) >= target) return onBatchGrid(n, cfg);
   }
   return cfg.maxTrials;
+}
+
+/**
+ * Expected runs `shouldStop` takes to stop an unpaired case whose candidate
+ * passes at `rate`, checked at `minTrials` and then every `batchSize` runs up
+ * to `maxTrials`, in a suite of `suiteSize`. Exact rather than simulated:
+ * the decision depends on the candidate only through its counts, so a dynamic
+ * program carries the distribution of the success count from one check to the
+ * next. Rounded up to a whole run; an expectation is not a grid point.
+ */
+function expectedStopRuns(
+  baseline: BaselineStat,
+  rate: number,
+  suiteSize: number,
+  cfg: TrialGrid & Pick<PlanConfig, "mde" | "fdr" | "futilityConfidence">,
+): number {
+  const options = {
+    suiteSize,
+    mde: cfg.mde,
+    fdr: cfg.fdr,
+    futilityConfidence: cfg.futilityConfidence,
+  };
+  // live[k]: probability of k successes in n runs with the case still running.
+  let live = new Float64Array([1]);
+  let n = 0;
+  let expected = 0;
+  for (let step = cfg.minTrials; ; step = Math.min(cfg.batchSize, cfg.maxTrials - n)) {
+    for (let i = 0; i < step; i++) {
+      const next = new Float64Array(live.length + 1);
+      for (let k = 0; k < live.length; k++) {
+        next[k]! += live[k]! * (1 - rate);
+        next[k + 1]! += live[k]! * rate;
+      }
+      live = next;
+    }
+    n += step;
+    let running = 0;
+    for (let k = 0; k <= n; k++) {
+      if (live[k] === 0) continue;
+      if (n >= cfg.maxTrials || shouldStop({ successes: k, trials: n }, baseline, options).stop) {
+        expected += live[k]! * n;
+        live[k] = 0;
+      } else {
+        running += live[k]!;
+      }
+    }
+    if (running === 0) break;
+  }
+  // Float residue must not push an exact whole number up a run.
+  return Math.ceil(expected - 1e-9);
 }
 
 /**
@@ -641,16 +694,25 @@ export function makePlan(
   // set from.
   // Both counts are *observations*. A paired observation is two runs, the
   // candidate and the reference revision on the same seed, and so is a paired
-  // screening run. A paired case is counted in pairs to settle, not the
-  // unpaired SPRT's samples, which mispriced it either way depending on coupling.
-  const typical = expectedSequentialSamples(cases, baseline, cfg);
+  // screening run. Each case is counted under the rule that stops it: a paired
+  // one in pairs to settle, an unpaired one in the runs `shouldStop` takes.
+  // Wald's SPRT figure, used for both before, runs a different rule, ignores
+  // the coupling and the suite size, and mispriced cases either way.
+  const stopRuns = new Map<string, number>();
   const observations = (p: PlanCase) => {
-    const unpaired = typical.perCase.get(p.caseId);
-    if (unpaired === undefined) return 0;
-    return runsPerObs(p) === 2
-      ? expectedSettlePairs(p.baseline.rate, p.pairCoupling, cfg.mde, cfg)
-      : unpaired;
+    const b = baseline.get(p.caseId);
+    if (!b || b.trials === 0) return 0;
+    if (runsPerObs(p) === 2) {
+      return expectedSettlePairs(p.baseline.rate, p.pairCoupling, cfg.mde, cfg);
+    }
+    const key = `${b.successes}/${b.trials}`;
+    const known = stopRuns.get(key);
+    if (known !== undefined) return known;
+    const runs = expectedStopRuns(b, b.successes / b.trials, m, cfg);
+    stopRuns.set(key, runs);
+    return runs;
   };
+  const priced = planned.filter((p) => (baseline.get(p.caseId)?.trials ?? 0) > 0).length;
   const typicalObservations = planned.reduce((a, p) => a + observations(p), 0);
   const typicalRuns = planned.reduce((a, p) => a + observations(p) * runsPerObs(p), 0);
   const runsPerObservation =
@@ -659,7 +721,7 @@ export function makePlan(
       : recommendedDesign === "paired"
         ? 2
         : 1;
-  const meanTypical = typical.perCase.size > 0 ? typicalRuns / typical.perCase.size : 0;
+  const meanTypical = priced > 0 ? typicalRuns / priced : 0;
   const typicalScreenedRuns = Math.ceil(
     screenPassRuns + Math.ceil(m * screenContinueFraction) * meanTypical,
   );

@@ -17,7 +17,9 @@ publishes from a `v*` tag through `release.yml` (`brain/development/release.md`)
 
 Tracking: [#92](https://github.com/sferarc/peeksafe/issues/92).
 
-Improvements recorded in `brain/` that block nothing: none open. Done:
+Improvements recorded in `brain/` that block nothing. Open: pricing an unpaired case's typical bill at the runs
+`shouldStop` takes ([#105](https://github.com/sferarc/peeksafe/issues/105) for `makePlan`,
+[#106](https://github.com/sferarc/peeksafe/issues/106) for the frontier and the grid). Done:
 [#90](https://github.com/sferarc/peeksafe/issues/90), pricing a suite that mixes paired and unpaired
 cases, [#95](https://github.com/sferarc/peeksafe/issues/95), recommending pairing when every case's
 own design is paired, [#98](https://github.com/sferarc/peeksafe/issues/98), pricing a paired case's
