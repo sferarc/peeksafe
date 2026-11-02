@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- Each `PlanCase` carries `typicalRuns`, the runs that case costs in the expected bill at the design
+  the bill prices it at. The plan summed these into `totals.typicalRuns` and kept nothing per case,
+  so the only per-case figure a caller could read was `expectedSequentialSamples`, which is Wald's:
+  on the README suite it says 40 and 28 where the plan bills 74 and 66. `planCase` called on its own
+  prices a case with no `design` unpaired, since it cannot see the suite, and now refuses the trial
+  grid and `futilityConfidence` that `makePlan` refuses.
+
 ### Changed
 
 - `evaluatePoint` (so `computeFrontier`) and `affordabilityGrid` still priced an unpaired typical

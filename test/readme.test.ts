@@ -406,6 +406,10 @@ describe("README: choosing a design by cost", () => {
     // `checkout/flow` is paired and counted in the 37 pairs `shouldStopPaired` takes at 0.9,
     // `parsing/nested` in the 66 runs `shouldStop` takes to stop it, not Wald's 28.
     expect(assumed.totals.typicalRuns).toBe(37 * 2 + 66);
+    expect(assumed.cases.map((c) => [c.caseId, c.typicalRuns])).toEqual([
+      ["checkout/flow", 74],
+      ["parsing/nested", 66],
+    ]);
     expect(assumed.totals.typicalRuns).toBe(140);
     expect(
       makePlan(cases, toBaselineMap(baselines), { ...DEFAULT_PLAN, design: "unpaired" }).totals
