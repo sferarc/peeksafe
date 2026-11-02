@@ -168,6 +168,13 @@ export interface PlanCase {
    * "undetectable" verdict.
    */
   baselineRunsNeeded: number | null;
+  /**
+   * Expected runs this case costs in a pull request in which nothing moved, at
+   * the design the expected bill prices it at: `config.design`, else `design`,
+   * else the suite's `recommendedDesign` (unpaired when `planCase` is called on
+   * its own). The cases of a plan sum to `totals.typicalRuns`; 0 with no baseline.
+   */
+  typicalRuns: number;
   /** what a fixed-N two-proportion design would spend per arm, for comparison */
   fixedNPerArm: number;
   reason: string;
@@ -329,6 +336,9 @@ export function planCase(
   if (b) requireCounts(b.successes, b.trials, `planCase(${c.id}).baseline`);
   requireErrorRates(cfg.alpha, cfg.beta, "planCase");
   requirePrices(cfg, "planCase");
+  // The expected bill walks the batch grid at the stopping rule's level; a zero batch never ends.
+  requireTrialGrid(cfg, "planCase");
+  requireSettleConfidence(cfg, "planCase");
   const barLogE = Math.log(ebhSoloThreshold(m, cfg.fdr));
   const trials = b?.trials ?? 0;
   const successes = b?.successes ?? 0;
@@ -356,6 +366,7 @@ export function planCase(
       detectability: "IMPOSSIBLE",
       design: null,
       baselineRunsNeeded: null,
+      typicalRuns: 0,
       reason: "no baseline: nothing to compare against, record one first",
     };
   }
@@ -369,6 +380,8 @@ export function planCase(
       detectability: "IMPOSSIBLE",
       design: null,
       baselineRunsNeeded: null,
+      // Undecidable, but the gate still runs it until it stops, so the expected bill pays for it.
+      typicalRuns: typicalCaseRuns(b, cfg.design ?? "unpaired", cfg, m),
       reason:
         `baseline rate ${(rate * 100).toFixed(0)}% cannot lose ${(cfg.mde * 100).toFixed(0)} points, ` +
         `the effect is arithmetically impossible, not merely expensive`,
@@ -444,8 +457,23 @@ export function planCase(
     detectability,
     design,
     baselineRunsNeeded,
+    typicalRuns: typicalCaseRuns(b, cfg.design ?? design ?? "unpaired", cfg, m),
     reason,
   };
+}
+
+// Each design is counted under the rule that stops it: an unpaired case in the runs `shouldStop` takes, a paired one in the pairs `shouldStopPaired` takes.
+function typicalCaseRuns(
+  b: BaselineStat | undefined,
+  design: "unpaired" | "paired",
+  cfg: PlanConfig,
+  m: number,
+): number {
+  if (!b || b.trials === 0) return 0;
+  const rate = b.successes / b.trials;
+  return design === "paired"
+    ? 2 * expectedSettlePairs(rate, cfg.pairCoupling, cfg.mde, m, cfg)
+    : expectedStopRuns(b, rate, m, cfg);
 }
 
 /**
@@ -454,7 +482,8 @@ export function planCase(
  * the gate's own [minTrials, maxTrials] batch grid.
  *
  * `makePlan` no longer bills from it: an unpaired case there is counted in
- * the runs `shouldStop` takes, which this figure misses either way (#105).
+ * the runs `shouldStop` takes, which this figure misses either way (#105);
+ * `PlanCase.typicalRuns` is the per-case figure the plan bills.
  * `samplesForEvidence`, the one behind `PlanCase.unpaired.runs`, answers a
  * different question: how many runs it takes to *certify a regression*. A case
  * that did not regress never gets there; it hits the H₀ wall in a few batches
@@ -514,6 +543,8 @@ function onBatchGrid(n: number, cfg: TrialGrid): number {
 
 // The frontier prices the same paired cell once per baseline and screen, so a sweep would rerun one program dozens of times.
 const settlePairsMemo = new Map<string, number>();
+// Every case of a suite that shares a baseline, and every planCase call makePlan makes, runs the same program.
+const stopRunsMemo = new Map<string, number>();
 
 /**
  * Expected pairs `shouldStopPaired` takes to stop a paired case that did not
@@ -621,6 +652,20 @@ export function expectedStopRuns(
   suiteSize: number,
   cfg: TrialGrid & Pick<PlanConfig, "mde" | "fdr" | "futilityConfidence">,
 ): number {
+  const key = [
+    baseline.successes,
+    baseline.trials,
+    rate,
+    suiteSize,
+    cfg.mde,
+    cfg.fdr,
+    cfg.futilityConfidence,
+    cfg.minTrials,
+    cfg.maxTrials,
+    cfg.batchSize,
+  ].join("|");
+  const known = stopRunsMemo.get(key);
+  if (known !== undefined) return known;
   const options = {
     suiteSize,
     mde: cfg.mde,
@@ -654,7 +699,10 @@ export function expectedStopRuns(
     if (running === 0) break;
   }
   // Float residue must not push an exact whole number up a run.
-  return Math.ceil(expected - 1e-9);
+  const runs = Math.ceil(expected - 1e-9);
+  if (stopRunsMemo.size >= 1024) stopRunsMemo.clear();
+  stopRunsMemo.set(key, runs);
+  return runs;
 }
 
 /**
@@ -737,6 +785,13 @@ export function makePlan(
   // Per case, like `bestRuns`: one suite-wide design billed a mixed suite as if every case ran it.
   const runsPerObs = (p: PlanCase) =>
     (cfg.design ?? p.design ?? recommendedDesign) === "paired" ? 2 : 1;
+  // `planCase` cannot see the suite, so a case with no design was priced unpaired there.
+  for (const p of planned) {
+    if (p.design === null && runsPerObs(p) === 2) {
+      const b = baseline.get(p.caseId);
+      p.typicalRuns = typicalCaseRuns(b, "paired", { ...cfg, pairCoupling: p.pairCoupling }, m);
+    }
+  }
   // `screenRuns` counts observations, so each case's pass costs its own design's runs.
   const screenPassRuns = planned.reduce((a, p) => a + cfg.screenRuns * runsPerObs(p), 0);
 
@@ -762,27 +817,14 @@ export function makePlan(
   // set from.
   // Both counts are *observations*. A paired observation is two runs, the
   // candidate and the reference revision on the same seed, and so is a paired
-  // screening run. Each case is counted under the rule that stops it: a paired
-  // one in pairs to settle, an unpaired one in the runs `shouldStop` takes.
-  // Wald's SPRT figure, used for both before, runs a different rule, ignores
-  // the coupling and the suite size, and mispriced cases either way.
-  const stopRuns = new Map<string, number>();
-  const observations = (p: PlanCase) => {
-    const b = baseline.get(p.caseId);
-    if (!b || b.trials === 0) return 0;
-    if (runsPerObs(p) === 2) {
-      return expectedSettlePairs(p.baseline.rate, p.pairCoupling, cfg.mde, m, cfg);
-    }
-    const key = `${b.successes}/${b.trials}`;
-    const known = stopRuns.get(key);
-    if (known !== undefined) return known;
-    const runs = expectedStopRuns(b, b.successes / b.trials, m, cfg);
-    stopRuns.set(key, runs);
-    return runs;
-  };
+  // screening run. Each case is counted under the rule that stops it
+  // (`PlanCase.typicalRuns`): a paired one in pairs to settle, an unpaired one
+  // in the runs `shouldStop` takes. Wald's SPRT figure, used for both before,
+  // runs a different rule, ignores the coupling and the suite size, and
+  // mispriced cases either way.
   const priced = planned.filter((p) => (baseline.get(p.caseId)?.trials ?? 0) > 0).length;
-  const typicalObservations = planned.reduce((a, p) => a + observations(p), 0);
-  const typicalRuns = planned.reduce((a, p) => a + observations(p) * runsPerObs(p), 0);
+  const typicalObservations = planned.reduce((a, p) => a + p.typicalRuns / runsPerObs(p), 0);
+  const typicalRuns = planned.reduce((a, p) => a + p.typicalRuns, 0);
   const runsPerObservation =
     typicalObservations > 0
       ? typicalRuns / typicalObservations

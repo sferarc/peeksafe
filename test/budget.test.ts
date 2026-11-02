@@ -246,6 +246,7 @@ describe("the planner answers before anything is spent", () => {
       expect(() => affordabilityGrid(0.85, 240, plan, 10), `grid ${label}`).toThrow(config);
       expect(() => computeFrontier(frontier), `computeFrontier ${label}`).toThrow(config);
       expect(() => typicalObservationsPerCase(0.85, 0.15, frontier, 240), label).toThrow(config);
+      expect(() => planCase({ id: "c0" }, baseline.get("c0"), plan, 4), label).toThrow(config);
     }
     const unpaired = { ...DEFAULT_PLAN, design: "unpaired" as const };
     expect(makePlan(cases, baseline, unpaired).totals.typicalRuns).toBe(232);
@@ -486,6 +487,25 @@ describe("the design per case, from a measured coupling", () => {
     const dearer = at({ ...DEFAULT_PLAN, screenRuns: DEFAULT_PLAN.screenRuns + 1 });
     expect(dearer.totals.screenedRuns - plan.totals.screenedRuns).toBe(2 + 1 + 2 + 2);
     expect(dearer.totals.typicalScreenedRuns - plan.totals.typicalScreenedRuns).toBe(2 + 1 + 2 + 2);
+  });
+
+  it("reports each case's expected bill, and the cases sum to the plan's", () => {
+    // The plan summed the per-case figures away, so the only one a caller could read was Wald's (#113).
+    const at = (cfg: typeof DEFAULT_PLAN) => makePlan(cases, toBaselineMap(bl), cfg);
+    const plan = at(DEFAULT_PLAN);
+    expect(plan.cases.map((c) => [c.caseId, c.typicalRuns])).toEqual([
+      ["flow", 37 * 2],
+      ["nested", 62],
+      ["thin", 34 * 2],
+      ["low", 34 * 2],
+    ]);
+    expect(plan.cases.reduce((a, c) => a + c.typicalRuns, 0)).toBe(plan.totals.typicalRuns);
+    const unpaired = at({ ...DEFAULT_PLAN, design: "unpaired" });
+    expect(unpaired.cases.reduce((a, c) => a + c.typicalRuns, 0)).toBe(152);
+    // planCase cannot see the suite, so `low`, with no design, is priced unpaired there.
+    const alone = bl.map((b) => planCase({ id: b.caseId }, b, DEFAULT_PLAN, bl.length).typicalRuns);
+    expect(alone).toEqual([37 * 2, 62, 34 * 2, unpaired.cases[3]!.typicalRuns]);
+    expect(planCase({ id: "none" }, undefined, DEFAULT_PLAN, 4).typicalRuns).toBe(0);
   });
 
   it("recommends pairing when every decidable case is cheaper paired, with none PAIRED_ONLY", () => {
@@ -740,6 +760,10 @@ describe("the design per case, from a measured coupling", () => {
       ).toThrow(/futilityConfidence/);
       expect(() => point(bad), `evaluatePoint ${bad}`).toThrow(/futilityConfidence/);
       expect(() => cell(bad), `affordabilityGrid ${bad}`).toThrow(/futilityConfidence/);
+      expect(
+        () => planCase({ id: "c" }, one.get("c"), { ...DEFAULT_PLAN, futilityConfidence: bad }, 1),
+        `planCase ${bad}`,
+      ).toThrow(/futilityConfidence/);
     }
   });
 });
