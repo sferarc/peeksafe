@@ -53,7 +53,7 @@ import {
   samplesForEvidence,
   sprtExpectedN,
 } from "./stats.js";
-import { DEFAULT_STOP_OPTIONS, settleLogE, shouldStop } from "./stop.js";
+import { shouldStop, shouldStopPaired } from "./stop.js";
 
 export interface PlanConfig {
   /** the drop we want to be able to detect, in probability units (0.15 = 15 points) */
@@ -512,30 +512,99 @@ function onBatchGrid(n: number, cfg: TrialGrid): number {
   return Math.min(cfg.maxTrials, batched);
 }
 
+// The frontier prices the same paired cell once per baseline and screen, so a sweep would rerun one program dozens of times.
+const settlePairsMemo = new Map<string, number>();
+
 /**
- * Expected pairs for a paired case that did not move: the first pair count at
- * which `shouldStopPaired`'s settle e-value, on the mean trajectory at coupling
- * `rho` and `cfg.futilityConfidence` (the stopping rule's default when unset),
- * rules out a drop of `mde`, on the same batch grid as
- * `expectedSequentialSamples`, and `maxTrials` when it never does. The
- * unpaired SPRT figure knows nothing of this rule or of the coupling, which
- * sets how often an unmoved pair disagrees.
+ * Expected pairs `shouldStopPaired` takes to stop a paired case that did not
+ * move, at coupling `rho`, checked at `minTrials` and then every `batchSize`
+ * pairs up to `maxTrials`, in a suite of `suiteSize`. Exact, as
+ * `expectedStopRuns` is: the decision depends only on the worse and better
+ * counts at a given pair count, so a dynamic program carries their joint
+ * distribution from one check to the next. Rounded up to a whole pair.
  */
 export function expectedSettlePairs(
   rate: number,
   rho: number,
   mde: number,
-  cfg: TrialGrid & Pick<PlanConfig, "futilityConfidence">,
+  suiteSize: number,
+  cfg: TrialGrid & Pick<PlanConfig, "fdr" | "futilityConfidence">,
 ): number {
+  const key = [
+    rate,
+    rho,
+    mde,
+    suiteSize,
+    cfg.fdr,
+    cfg.futilityConfidence,
+    cfg.minTrials,
+    cfg.maxTrials,
+    cfg.batchSize,
+  ].join("|");
+  const known = settlePairsMemo.get(key);
+  if (known !== undefined) return known;
+  const options = {
+    suiteSize,
+    mde,
+    fdr: cfg.fdr,
+    futilityConfidence: cfg.futilityConfidence,
+  };
   // Unmoved arms disagree each way only when uncoupled: (1 - rho) p (1 - p).
   const each = (1 - rho) * rate * (1 - rate);
-  const confidence = cfg.futilityConfidence ?? DEFAULT_STOP_OPTIONS.futilityConfidence;
-  const target = -Math.log(1 - confidence);
-  for (let n = 1; n <= cfg.maxTrials; n++) {
-    const counts = { bothPass: n * (1 - 2 * each), worse: n * each, better: n * each, bothFail: 0 };
-    if (settleLogE(counts, mde) >= target) return onBatchGrid(n, cfg);
+  const same = 1 - 2 * each;
+  // live[w * (top + 1) + b]: probability of w worse and b better pairs with the case still running.
+  let live = new Float64Array([1]);
+  // Mass under 1e-18 is dropped so the square stays as small as the spread of the counts; it cannot move the rounded answer.
+  let top = 0;
+  let n = 0;
+  let expected = 0;
+  for (let step = cfg.minTrials; ; step = Math.min(cfg.batchSize, cfg.maxTrials - n)) {
+    for (let i = 0; i < step; i++) {
+      const side = top + 2;
+      const next = new Float64Array(side * side);
+      for (let w = 0; w <= top; w++) {
+        for (let b = 0; b <= top; b++) {
+          const q = live[w * (top + 1) + b]!;
+          if (q === 0) continue;
+          next[w * side + b]! += q * same;
+          next[(w + 1) * side + b]! += q * each;
+          next[w * side + b + 1]! += q * each;
+        }
+      }
+      let reach = 0;
+      for (let at = 0; at < next.length; at++) {
+        if (next[at]! < 1e-18) next[at] = 0;
+        else reach = Math.max(reach, Math.floor(at / side), at % side);
+      }
+      live = new Float64Array((reach + 1) * (reach + 1));
+      for (let w = 0; w <= reach; w++) {
+        for (let b = 0; b <= reach; b++) live[w * (reach + 1) + b] = next[w * side + b]!;
+      }
+      top = reach;
+      n++;
+    }
+    let running = 0;
+    for (let w = 0; w <= top; w++) {
+      for (let b = 0; b <= top; b++) {
+        const at = w * (top + 1) + b;
+        const q = live[at]!;
+        if (q === 0) continue;
+        const counts = { bothPass: n - w - b, worse: w, better: b, bothFail: 0 };
+        if (n >= cfg.maxTrials || shouldStopPaired(counts, options).stop) {
+          expected += q * n;
+          live[at] = 0;
+        } else {
+          running += q;
+        }
+      }
+    }
+    if (running === 0) break;
   }
-  return cfg.maxTrials;
+  // Float residue must not push an exact whole number up a pair.
+  const pairs = Math.ceil(expected - 1e-9);
+  if (settlePairsMemo.size >= 1024) settlePairsMemo.clear();
+  settlePairsMemo.set(key, pairs);
+  return pairs;
 }
 
 /**
@@ -702,7 +771,7 @@ export function makePlan(
     const b = baseline.get(p.caseId);
     if (!b || b.trials === 0) return 0;
     if (runsPerObs(p) === 2) {
-      return expectedSettlePairs(p.baseline.rate, p.pairCoupling, cfg.mde, cfg);
+      return expectedSettlePairs(p.baseline.rate, p.pairCoupling, cfg.mde, m, cfg);
     }
     const key = `${b.successes}/${b.trials}`;
     const known = stopRuns.get(key);
@@ -936,7 +1005,7 @@ export function affordabilityGrid(
       // Each design is counted under the rule that stops it, as `makePlan` does; Wald's SPRT figure ignores the coupling and the suite size.
       const perCaseTypical =
         runsPerObs === 2
-          ? expectedSettlePairs(baselineRate, cfg.pairCoupling, mde, cfg)
+          ? expectedSettlePairs(baselineRate, cfg.pairCoupling, mde, m, cfg)
           : expectedStopRuns(
               { caseId: "typical", successes: s, trials: baselineTrials },
               baselineRate,

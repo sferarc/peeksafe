@@ -403,10 +403,10 @@ describe("README: choosing a design by cost", () => {
       ["checkout/flow", 40],
       ["parsing/nested", 28],
     ]);
-    // `checkout/flow` is paired and counted in the 36 pairs it takes to settle at 0.9,
+    // `checkout/flow` is paired and counted in the 37 pairs `shouldStopPaired` takes at 0.9,
     // `parsing/nested` in the 66 runs `shouldStop` takes to stop it, not Wald's 28.
-    expect(assumed.totals.typicalRuns).toBe(36 * 2 + 66);
-    expect(assumed.totals.typicalRuns).toBe(138);
+    expect(assumed.totals.typicalRuns).toBe(37 * 2 + 66);
+    expect(assumed.totals.typicalRuns).toBe(140);
     expect(
       makePlan(cases, toBaselineMap(baselines), { ...DEFAULT_PLAN, design: "unpaired" }).totals
         .typicalRuns,
@@ -414,7 +414,7 @@ describe("README: choosing a design by cost", () => {
     expect(
       makePlan(cases, toBaselineMap(baselines), { ...DEFAULT_PLAN, design: "paired" }).totals
         .typicalRuns,
-    ).toBe(136);
+    ).toBe(142);
   });
 });
 

@@ -516,7 +516,7 @@ export function evaluatePoint(
   // Each design is counted under the rule that stops it, as `makePlan` does; Wald's SPRT figure ignores the coupling and the suite size.
   const typicalObservations =
     design === "paired"
-      ? expectedSettlePairs(rate, cfg.pairCoupling, mde, cfg)
+      ? expectedSettlePairs(rate, cfg.pairCoupling, mde, cases, cfg)
       : expectedStopRuns(
           { caseId: "typical", successes: s, trials: effectiveBaselineRuns },
           rate,
