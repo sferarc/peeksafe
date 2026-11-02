@@ -623,6 +623,45 @@ describe("the frontier", () => {
     expect(typicalObservationsPerCase(0.85, 0.15, DEFAULT_FRONTIER, 240)).toBeGreaterThan(0);
   });
 
+  it("prices a paired typical bill at the pairs to settle, as makePlan does", () => {
+    // The frontier and the grid counted a paired case in the unpaired SPRT's observations.
+    const planPairs = (successes: number, trials: number, rho: number) => {
+      const one = [{ caseId: "c", successes, trials }];
+      const cfg = { ...DEFAULT_PLAN, pairCoupling: rho, design: "paired" as const };
+      return makePlan([{ id: "c" }], toBaselineMap(one), cfg).totals.typicalRuns / 2;
+    };
+    const frontier = (baselineRate: number, pairCoupling: number) => {
+      const cfg = { ...DEFAULT_FRONTIER, baselineRate, pairCoupling };
+      return {
+        paired: evaluatePoint(100, 0.15, 240, "paired", "none", 0, cfg).typicalObservations,
+        sprt: typicalObservationsPerCase(baselineRate, 0.15, cfg, cfg.pairedBaselineRuns),
+        unpairedMatchesSprt:
+          evaluatePoint(100, 0.15, 240, "unpaired", "none", 0, cfg).typicalObservations ===
+          typicalObservationsPerCase(baselineRate, 0.15, cfg, 240),
+      };
+    };
+    expect(frontier(0.85, 0.9)).toEqual({ paired: 36, sprt: 32, unpairedMatchesSprt: true });
+    expect(planPairs(204, 240, 0.9)).toBe(36);
+    expect(frontier(0.9, 0.6)).toEqual({ paired: 44, sprt: 28, unpairedMatchesSprt: true });
+    expect(planPairs(216, 240, 0.6)).toBe(44);
+    // At 85% over 60 runs and coupling 0.6, every case count at 15 points is paired.
+    const grid = affordabilityGrid(
+      0.85,
+      60,
+      { ...DEFAULT_PLAN, pairCoupling: 0.6 },
+      500,
+      [50],
+      [0.15],
+    );
+    const pairs = planPairs(51, 60, 0.6);
+    expect(pairs).toBe(48);
+    const screen = 50 * DEFAULT_PLAN.screenRuns;
+    expect(grid[0]!.typicalRuns).toBe((screen + 5 * pairs) * 2);
+    expect(grid[0]!.typicalRuns).toBe(880);
+    // The SPRT figure was 32 observations a case, 720 runs.
+    expect(grid[0]!.runs).toBe(1920);
+  });
+
   it("refuses an out-of-range alpha or beta, the same as makePlan", () => {
     // `evaluatePoint` checks mde, baselineRate, pairCoupling, cases,
     // baselineRuns and maxTrials, and skipped the two error rates it hands to
@@ -650,13 +689,13 @@ describe("the frontier", () => {
   });
 
   it("refuses a paired baseline that is not a whole number of runs", () => {
-    // Unchecked, 0 paired baseline runs priced the typical bill at 2400 where 20 price 6420.
+    // Unchecked, 0 paired baseline runs priced the typical bill at 2400; 20 price 7220, 36 pairs a case to settle.
     const at = (pairedBaselineRuns: number) =>
       evaluatePoint(100, 0.15, 240, "paired", "none", 0, {
         ...DEFAULT_FRONTIER,
         pairedBaselineRuns,
       });
-    expect(at(DEFAULT_FRONTIER.pairedBaselineRuns).typical.totalUsd).toBe(6420);
+    expect(at(DEFAULT_FRONTIER.pairedBaselineRuns).typical.totalUsd).toBe(100 * 36 * 2 + 20);
     for (const bad of [0, -10, 2.5, NaN, Infinity]) {
       expect(() => at(bad), `evaluatePoint ${bad}`).toThrow(/pairedBaselineRuns/);
       expect(
@@ -667,7 +706,7 @@ describe("the frontier", () => {
   });
 
   it("refuses the budget, prices, keep fraction and amortisePrs enumerateFrontier refuses", () => {
-    // Unchecked here, a run cost of -1 recommended a bill of -6420 and a keep fraction of 2 kept 200 of 100 cases.
+    // Unchecked here, a run cost of -1 recommended a negative bill and a keep fraction of 2 kept 200 of 100 cases.
     const at = (over: Partial<FrontierConfig>, screen: "none" | "expensive" = "none") =>
       evaluatePoint(100, 0.15, 240, "paired", screen, screen === "none" ? 0 : 4, {
         ...DEFAULT_FRONTIER,
@@ -676,7 +715,7 @@ describe("the frontier", () => {
       });
     expect(at({ budgetUsd: 1e9 }).recommendable).toBe(true);
     expect(at({ budgetUsd: Infinity }).recommendable).toBe(true);
-    expect(at({ amortisePrs: 1 }).typical.totalUsd).toBe(8400);
+    expect(at({ amortisePrs: 1 }).typical.totalUsd).toBe(100 * 36 * 2 + 100 * 20);
     expect(at({}, "expensive").keep).toBe(15);
     const cases: Array<[Partial<FrontierConfig>, RegExp]> = [
       ...[-1, NaN].map((budgetUsd): [Partial<FrontierConfig>, RegExp] => [{ budgetUsd }, /budget/]),
