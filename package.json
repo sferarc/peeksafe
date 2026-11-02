@@ -1,6 +1,6 @@
 {
   "name": "peeksafe",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Statistically valid gates for non-deterministic eval suites. Stop early without losing error control.",
   "keywords": [
     "evals",
