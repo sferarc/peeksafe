@@ -769,14 +769,11 @@ describe("the frontier", () => {
       return {
         paired: evaluatePoint(100, 0.15, 240, "paired", "none", 0, cfg).typicalObservations,
         sprt: typicalObservationsPerCase(baselineRate, 0.15, cfg, cfg.pairedBaselineRuns),
-        unpairedMatchesSprt:
-          evaluatePoint(100, 0.15, 240, "unpaired", "none", 0, cfg).typicalObservations ===
-          typicalObservationsPerCase(baselineRate, 0.15, cfg, 240),
       };
     };
-    expect(frontier(0.85, 0.9)).toEqual({ paired: 36, sprt: 32, unpairedMatchesSprt: true });
+    expect(frontier(0.85, 0.9)).toEqual({ paired: 36, sprt: 32 });
     expect(planPairs(204, 240, 0.9)).toBe(36);
-    expect(frontier(0.9, 0.6)).toEqual({ paired: 44, sprt: 28, unpairedMatchesSprt: true });
+    expect(frontier(0.9, 0.6)).toEqual({ paired: 44, sprt: 28 });
     expect(planPairs(216, 240, 0.6)).toBe(44);
     // At 85% over 60 runs and coupling 0.6, every case count at 15 points is paired.
     const grid = affordabilityGrid(
@@ -794,6 +791,55 @@ describe("the frontier", () => {
     expect(grid[0]!.typicalRuns).toBe(880);
     // The SPRT figure was 32 observations a case, 720 runs.
     expect(grid[0]!.runs).toBe(1920);
+  });
+
+  it("prices an unpaired typical bill at the runs shouldStop takes, as makePlan does", () => {
+    // The frontier and the grid kept Wald's SPRT figure after makePlan moved off it (#105).
+    const planRuns = (
+      successes: number,
+      trials: number,
+      m: number,
+      futilityConfidence?: number,
+    ) => {
+      const many = Array.from({ length: m }, (_, i) => ({ caseId: `c${i}`, successes, trials }));
+      const cfg = { ...DEFAULT_PLAN, design: "unpaired" as const, futilityConfidence };
+      const ids = many.map((b) => ({ id: b.caseId }));
+      return makePlan(ids, toBaselineMap(many), cfg).totals.typicalRuns / m;
+    };
+    const point = (m: number, runs: number, baselineRate: number, futilityConfidence?: number) => {
+      const cfg = { ...DEFAULT_FRONTIER, baselineRate, futilityConfidence };
+      return {
+        runs: evaluatePoint(m, 0.15, runs, "unpaired", "none", 0, cfg).typicalObservations,
+        sprt: typicalObservationsPerCase(baselineRate, 0.15, cfg, runs),
+      };
+    };
+    // The two cases #105 checked against a simulated shouldStop loop (58.3 and 17.1 runs).
+    expect(point(4, 240, 0.85)).toEqual({ runs: 58, sprt: 36 });
+    expect(planRuns(204, 240, 4)).toBe(58);
+    expect(point(50, 60, 0.9)).toEqual({ runs: 18, sprt: 28 });
+    expect(planRuns(54, 60, 50)).toBe(18);
+    // The suite size sets the e-BH bar shouldStop stops at, which the SPRT figure ignored.
+    expect(point(100, 240, 0.85).runs).toBe(planRuns(204, 240, 100));
+    expect(point(100, 240, 0.85).runs).toBe(49);
+    // A stricter futility level stops later here too.
+    expect(point(4, 240, 0.85, 0.99).runs).toBe(planRuns(204, 240, 4, 0.99));
+    expect(point(4, 240, 0.85, 0.99).runs).toBe(82);
+    // An unpaired grid cell: 20 cases at 85% over 240 runs and 15 points, arms uncoupled.
+    const grid = affordabilityGrid(
+      0.85,
+      240,
+      { ...DEFAULT_PLAN, pairCoupling: 0 },
+      500,
+      [20],
+      [0.15],
+    );
+    const runs = planRuns(204, 240, 20);
+    expect(runs).toBe(54);
+    const screen = 20 * DEFAULT_PLAN.screenRuns;
+    expect(grid[0]!.typicalRuns).toBe(screen + 2 * runs);
+    expect(grid[0]!.typicalRuns).toBe(188);
+    // Wald's figure was 36 runs a case, 152 runs.
+    expect(grid[0]!.runs).toBe(518);
   });
 
   it("refuses an out-of-range alpha or beta, the same as makePlan", () => {
@@ -890,11 +936,11 @@ describe("the frontier", () => {
   });
 
   it("refuses an unknown design or screen and a screen recall outside [0, 1]", () => {
-    // Only a null recall withheld the recommendation, so NaN moved the headline from 35 points ($83) to 25 ($78).
+    // Only a null recall withheld the recommendation, so NaN recommended the screened 25-point point.
     const measured = (expensive: number | null) =>
       computeFrontier({ ...DEFAULT_FRONTIER, screenRecall: { expensive, proxy: null } }).headline;
-    expect(measured(null)).toMatch(/10 cases at 35 points \(\$83\.00, unpaired\)/);
-    expect(measured(0.9)).toMatch(/10 cases at 25 points \(\$78\.00, unpaired\)/);
+    expect(measured(null)).toMatch(/^nothing fits .* \$163\.00 .* 10 cases at 35 points, unpaired/);
+    expect(measured(0.9)).toMatch(/10 cases at 25 points \(\$86\.00, unpaired\)/);
     const at = (
       design: string,
       screen: string,

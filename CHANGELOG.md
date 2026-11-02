@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+
+- `evaluatePoint` (so `computeFrontier`) and `affordabilityGrid` still priced an unpaired typical
+  bill with Wald's expected sample number after `makePlan` moved off it in 0.2.0, so they disagreed
+  with the plan about the same case. They now count the runs `shouldStop` takes to stop it, at the
+  point's or cell's suite size, `mde` and baseline and at `futilityConfidence`: 100 cases at 85% over
+  240 baseline runs and 15 points take 49 runs a case, not 36, and an unpaired grid cell of 20 cases
+  there expects 188 runs, not 152. On the frontier's defaults nothing fits the $100 typical budget
+  any more; the cheapest certifiable point is 10 cases at 35 points on a 30-run baseline, $163.
+  `typicalObservationsPerCase` is still Wald's figure.
+
 ## 0.2.0 (2026-11-02)
 
 ### Added
