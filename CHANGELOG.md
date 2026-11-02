@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- `PlanConfig` and `FrontierConfig` take an optional `futilityConfidence`, the level you run
+  `shouldStopPaired` at. A paired case's typical bill in `makePlan`, `evaluatePoint` (so
+  `computeFrontier`) and `affordabilityGrid` was always the pairs it takes to settle at the default
+  0.95, so a stricter rule was billed short: at 75% on a 240-run baseline and a coupling of 0.9 a case
+  settles after 52.1 pairs on average at 0.99, where the plan quoted 36. It now prices 52. Unset, it
+  keeps the default; outside (0, 1) it is refused with `PEEKSAFE_E_STAT_DOMAIN`.
+
 ### Changed
 
 - `makePlan` priced the expected bill (`typicalRuns`, `typicalScreenedRuns`, `expectedCostUsd`) and
