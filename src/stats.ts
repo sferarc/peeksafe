@@ -115,13 +115,30 @@ export function gammaP(a: number, x: number): number {
  * approximation is visible in a p-value and we compare p-values to thresholds.
  */
 export function erf(x: number): number {
+  requireNumber(x, "x", "erf");
   if (x === 0) return 0;
   const p = gammaP(0.5, x * x);
   return x > 0 ? p : -p;
 }
 
 /** Φ(x): standard normal CDF. */
-export const normalCdf = (x: number): number => 0.5 * (1 + erf(x / Math.SQRT2));
+export function normalCdf(x: number): number {
+  requireNumber(x, "x", "normalCdf");
+  return 0.5 * (1 + erf(x / Math.SQRT2));
+}
+
+/** Refuses NaN only: erf and normalCdf answer the infinities as their limits. */
+function requireNumber(x: number, name: string, where: string): void {
+  if (Number.isNaN(x)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: ${name} must be a number, got NaN`,
+      {
+        detail: { [name]: x },
+      },
+    );
+  }
+}
 
 /** Φ⁻¹(p): Acklam's inverse normal CDF, refined by one Halley step. */
 export function normalQuantile(p: number): number {
@@ -1076,6 +1093,8 @@ export function bernoulliEntropy(p: number): number {
 /** log of the Beta(a,b) density at p. */
 export function logBetaPdf(p: number, a: number, b: number): number {
   requireProbability(p, "p", "logBetaPdf");
+  requireConcentration(a, "a", "logBetaPdf");
+  requireConcentration(b, "b", "logBetaPdf");
   if (p <= 0 || p >= 1) {
     // density is 0 or ∞ at the boundary depending on the shape; the planner
     // only ever evaluates strictly inside, so clamp rather than return ±∞.
@@ -1151,6 +1170,9 @@ export function evidenceCeilingLogE(
   altConcentration = 8,
 ): number {
   requireProbability(pTrue, "pTrue", "evidenceCeilingLogE");
+  requireCounts(baselineSuccesses, baselineTrials, "evidenceCeilingLogE");
+  requireConcentration(altConcentration, "altConcentration", "evidenceCeilingLogE");
+  requireOpenProbability(mde, "mde", "evidenceCeilingLogE");
   const { nullPrior, altPrior } = twoSamplePriors(
     baselineSuccesses,
     baselineTrials,
@@ -1218,6 +1240,8 @@ export function evidenceCeilingAsymptotic(
 ): number {
   requireCounts(baselineSuccesses, baselineTrials, "evidenceCeilingAsymptotic");
   requireProbability(pTrue, "pTrue", "evidenceCeilingAsymptotic");
+  requireConcentration(altConcentration, "altConcentration", "evidenceCeilingAsymptotic");
+  requireOpenProbability(mde, "mde", "evidenceCeilingAsymptotic");
   if (baselineTrials === 0) {
     throw new PeeksafeError(
       "PEEKSAFE_E_STAT_DOMAIN",
@@ -1412,6 +1436,8 @@ export function universalTwoSampleLogE(
 ): number {
   requireCounts(candidateSuccesses, candidateTrials, "universalTwoSampleLogE(candidate)");
   requireCounts(baselineSuccesses, baselineTrials, "universalTwoSampleLogE(baseline)");
+  requireConcentration(altConcentration, "altConcentration", "universalTwoSampleLogE");
+  requireOpenProbability(mde, "mde", "universalTwoSampleLogE");
   if (baselineTrials === 0) {
     throw new PeeksafeError(
       "PEEKSAFE_E_STAT_DOMAIN",
