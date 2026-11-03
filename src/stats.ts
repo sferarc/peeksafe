@@ -729,8 +729,8 @@ export function sprtExpectedN(p: number, p0: number, p1: number, alpha = 0.05, b
  * outside the two hypotheses, so the two powers are evaluated relative to
  * whichever of them is largest. Written as plain `exp`, a tilt of −662, which is
  * p = 0.0025 against p₀ = 0.999 and p₁ = 0.99, overflows `B^h` to Infinity and
- * the ratio comes back NaN; `typicalObservationsPerCase` tests the result for
- * `> 0`, so a NaN there silently prices the case at `maxTrials`.
+ * the ratio comes back NaN, which a caller testing the result for `> 0` reads
+ * as no estimate at all.
  */
 function sprtAcceptH1(h: number, A: number, B: number, drift: number): number {
   // No tilt exists at p = 0 or p = 1: one outcome is impossible, so the drift
