@@ -21,6 +21,9 @@ All notable changes to this project are documented here. The format follows
   checks its own arguments first and names itself in the refusal.
 - `expectedLogE` refused a bad baseline count, `mde` or `altConcentration` as `twoSamplePriors`. It now
   checks them first and names itself in the refusal.
+- `expectedLogEExact` refused a bad baseline count, `mde` or `altConcentration` as `twoSampleLogE`, and
+  `samplesForEvidence` refused a bad `pTrue`, baseline count, `mde` or `altConcentration` as
+  `evidenceCeilingLogE`. Both now check them first and name themselves in the refusal.
 
 ## 0.3.0 (2026-11-03)
 

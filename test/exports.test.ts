@@ -226,7 +226,7 @@ describe("the rest of the statistical core", () => {
   });
 
   it("refuses in the name of the function called, not the helper it calls", () => {
-    // Each of these refused as gammaP, twoSamplePriors or logGamma.
+    // Each of these refused as gammaP, twoSamplePriors, logGamma, twoSampleLogE or evidenceCeilingLogE.
     for (const [where, call] of [
       ["erf", () => erf(NaN)],
       ["normalCdf", () => normalCdf(NaN)],
@@ -242,6 +242,13 @@ describe("the rest of the statistical core", () => {
       ["expectedLogE", () => expectedLogE(0.7, 50, 85, 100, NaN)],
       ["expectedLogE", () => expectedLogE(0.7, 50, 85, 100, 0.15, NaN)],
       ["expectedLogE", () => expectedLogE(0.7, 50, 101, 100, 0.15)],
+      ["expectedLogEExact", () => expectedLogEExact(0.7, 5, 85, 100, NaN)],
+      ["expectedLogEExact", () => expectedLogEExact(0.7, 5, 85, 100, 0.15, NaN)],
+      ["expectedLogEExact", () => expectedLogEExact(0.7, 5, 101, 100, 0.15)],
+      ["samplesForEvidence", () => samplesForEvidence(NaN, 85, 100, 0.15, 3)],
+      ["samplesForEvidence", () => samplesForEvidence(0.7, 85, 100, NaN, 3)],
+      ["samplesForEvidence", () => samplesForEvidence(0.7, 85, 100, 0.15, 3, 1000, NaN)],
+      ["samplesForEvidence", () => samplesForEvidence(0.7, 101, 100, 0.15, 3)],
     ] as const) {
       expect(call, where).toThrow(
         expect.objectContaining({
