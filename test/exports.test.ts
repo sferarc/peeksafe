@@ -239,6 +239,9 @@ describe("the rest of the statistical core", () => {
       ["evidenceCeilingAsymptotic", () => evidenceCeilingAsymptotic(85, 100, 0.7, 0.15, NaN)],
       ["universalTwoSampleLogE", () => universalTwoSampleLogE(14, 20, 85, 100, NaN)],
       ["universalTwoSampleLogE", () => universalTwoSampleLogE(14, 20, 85, 100, 0.15, NaN)],
+      ["expectedLogE", () => expectedLogE(0.7, 50, 85, 100, NaN)],
+      ["expectedLogE", () => expectedLogE(0.7, 50, 85, 100, 0.15, NaN)],
+      ["expectedLogE", () => expectedLogE(0.7, 50, 101, 100, 0.15)],
     ] as const) {
       expect(call, where).toThrow(
         expect.objectContaining({
