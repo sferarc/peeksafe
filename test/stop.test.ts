@@ -27,6 +27,8 @@ import {
 
 const FAT: BaselineStat = { caseId: "c", successes: 216, trials: 240 };
 const THIN: BaselineStat = { caseId: "c", successes: 54, trials: 60 };
+// gate refuses a baseline whose caseId is not the case's id.
+const of = (id: string, b: BaselineStat): BaselineStat => ({ ...b, caseId: id });
 const opts = { suiteSize: 3, mde: 0.15, fdr: 0.05 };
 
 const at = (rate: number, n: number, baseline: BaselineStat, extra = {}) =>
@@ -269,8 +271,8 @@ describe("an option passed as undefined takes its default", () => {
 
   it("gate answers what it answers with the option left out", () => {
     const cases = [
-      { id: "moved", successes: 30, trials: 60, baseline: FAT },
-      { id: "held", successes: 54, trials: 60, baseline: FAT },
+      { id: "moved", successes: 30, trials: 60, baseline: of("moved", FAT) },
+      { id: "held", successes: 54, trials: 60, baseline: of("held", FAT) },
     ];
     const result = gate(cases, unset);
     expect(result).toEqual(gate(cases));
@@ -400,9 +402,9 @@ describe("the loop it is meant to be used in", () => {
   it("finishes every case, and spends less than running all of them to the cap", () => {
     const truth: Record<string, number> = { good: 0.9, broken: 0.6, alsoGood: 0.91 };
     const baseline: Record<string, BaselineStat> = {
-      good: FAT,
-      broken: FAT,
-      alsoGood: FAT,
+      good: of("good", FAT),
+      broken: of("broken", FAT),
+      alsoGood: of("alsoGood", FAT),
     };
     const rand = makeRand(3);
     const ids = Object.keys(truth);
@@ -449,8 +451,8 @@ describe("the loop it is meant to be used in", () => {
 describe("GateResult.headline", () => {
   it("says PASS without hiding what was not checked", () => {
     const r = gate([
-      { id: "a", successes: 216, trials: 240, baseline: FAT },
-      { id: "thin", successes: 45, trials: 60, baseline: THIN },
+      { id: "a", successes: 216, trials: 240, baseline: of("a", FAT) },
+      { id: "thin", successes: 45, trials: 60, baseline: of("thin", THIN) },
       { id: "new", successes: 30, trials: 96 },
     ]);
     expect(r.verdict).toBe("PASS");
@@ -462,13 +464,13 @@ describe("GateResult.headline", () => {
   });
 
   it("names the regressed cases on a FAIL", () => {
-    const r = gate([{ id: "broken", successes: 20, trials: 96, baseline: FAT }]);
+    const r = gate([{ id: "broken", successes: 20, trials: 96, baseline: of("broken", FAT) }]);
     expect(r.headline).toMatch(/^FAIL/);
     expect(r.headline).toContain("broken");
   });
 
   it("is plain when there is nothing to caveat", () => {
-    const r = gate([{ id: "a", successes: 216, trials: 240, baseline: FAT }]);
+    const r = gate([{ id: "a", successes: 216, trials: 240, baseline: of("a", FAT) }]);
     expect(r.headline).toMatch(/^PASS/);
     expect(r.headline).not.toContain("Read with care");
   });

@@ -12,6 +12,9 @@ All notable changes to this project are documented here. The format follows
   `{ alpha: Infinity, beta: 1 }` came back with `NaN` for `mean`, `mode`, `variance` and `sd`, and an
   infinite `beta` with a mean of 0. It now refuses a prior shape that is not finite and positive with
   `PEEKSAFE_E_STAT_DOMAIN`, as `betaQuantile` and `ibeta` already did.
+- `gate` read only the counts of a case's `baseline` and never compared `baseline.caseId` with the
+  case's `id`, so a baseline joined to the wrong case was gated against without a word. It now refuses a
+  case whose baseline names another case with `PEEKSAFE_E_CONFIG`.
 
 ## 0.3.0 (2026-11-03)
 
