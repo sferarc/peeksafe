@@ -21,6 +21,8 @@ import {
   enumerateFrontier,
   erf,
   evaluatePoint,
+  evidenceCeilingAsymptotic,
+  evidenceCeilingLogE,
   expectedLogE,
   expectedLogEExact,
   expectedSequentialSamples,
@@ -28,6 +30,7 @@ import {
   gammaP,
   gate,
   hash32,
+  logBetaPdf,
   MIN_TRUSTWORTHY_CLUSTERS,
   makeRand,
   mcnemarSamplesForEvidence,
@@ -41,6 +44,7 @@ import {
   sprtExpectedN,
   streamFor,
   toBaselineMap,
+  universalTwoSampleLogE,
 } from "../src/index.js";
 
 describe("every runtime export", () => {
@@ -219,6 +223,30 @@ describe("the rest of the statistical core", () => {
     expect(normalCdf(Infinity)).toBe(1);
     expect(normalCdf(-Infinity)).toBe(0);
     expect(gammaP(3, -Infinity)).toBe(0);
+  });
+
+  it("refuses in the name of the function called, not the helper it calls", () => {
+    // Each of these refused as gammaP, twoSamplePriors or logGamma.
+    for (const [where, call] of [
+      ["erf", () => erf(NaN)],
+      ["normalCdf", () => normalCdf(NaN)],
+      ["logBetaPdf", () => logBetaPdf(0.5, 0, 2)],
+      ["logBetaPdf", () => logBetaPdf(0.5, 2, NaN)],
+      ["evidenceCeilingLogE", () => evidenceCeilingLogE(0.7, 85, 100, NaN)],
+      ["evidenceCeilingLogE", () => evidenceCeilingLogE(0.7, 85, 100, 0.15, NaN)],
+      ["evidenceCeilingLogE", () => evidenceCeilingLogE(0.7, 101, 100, 0.15)],
+      ["evidenceCeilingAsymptotic", () => evidenceCeilingAsymptotic(85, 100, 0.7, NaN)],
+      ["evidenceCeilingAsymptotic", () => evidenceCeilingAsymptotic(85, 100, 0.7, 0.15, NaN)],
+      ["universalTwoSampleLogE", () => universalTwoSampleLogE(14, 20, 85, 100, NaN)],
+      ["universalTwoSampleLogE", () => universalTwoSampleLogE(14, 20, 85, 100, 0.15, NaN)],
+    ] as const) {
+      expect(call, where).toThrow(
+        expect.objectContaining({
+          code: "PEEKSAFE_E_STAT_DOMAIN",
+          message: expect.stringMatching(new RegExp(`^${where}: `)),
+        }),
+      );
+    }
   });
 
   it("sprtExpectedN is Wald's approximation at both hypotheses", () => {

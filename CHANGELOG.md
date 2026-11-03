@@ -15,6 +15,10 @@ All notable changes to this project are documented here. The format follows
 - `gate` read only the counts of a case's `baseline` and never compared `baseline.caseId` with the
   case's `id`, so a baseline joined to the wrong case was gated against without a word. It now refuses a
   case whose baseline names another case with `PEEKSAFE_E_CONFIG`.
+- `erf`, `normalCdf`, `logBetaPdf`, `evidenceCeilingLogE`, `evidenceCeilingAsymptotic` and
+  `universalTwoSampleLogE` refused a bad argument in the name of the helper they call (`gammaP`,
+  `logGamma`, `twoSamplePriors`), so the message pointed at a call the caller never made. Each now
+  checks its own arguments first and names itself in the refusal.
 
 ## 0.3.0 (2026-11-03)
 
