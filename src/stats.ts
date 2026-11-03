@@ -1339,6 +1339,9 @@ export function expectedLogEExact(
       { detail: { n } },
     );
   }
+  requireCounts(baselineSuccesses, baselineTrials, "expectedLogEExact");
+  requireConcentration(altConcentration, "altConcentration", "expectedLogEExact");
+  requireOpenProbability(mde, "mde", "expectedLogEExact");
   let acc = 0;
   for (let s = 0; s <= n; s++) {
     const logW =
@@ -1371,6 +1374,10 @@ export function samplesForEvidence(
 ): number {
   requireSearchCap(maxN, "maxN", "samplesForEvidence");
   requireLogThreshold(logThreshold, "samplesForEvidence");
+  requireProbability(pTrue, "pTrue", "samplesForEvidence");
+  requireCounts(baselineSuccesses, baselineTrials, "samplesForEvidence");
+  requireConcentration(altConcentration, "altConcentration", "samplesForEvidence");
+  requireOpenProbability(mde, "mde", "samplesForEvidence");
   const ceiling = evidenceCeilingLogE(
     pTrue,
     baselineSuccesses,
