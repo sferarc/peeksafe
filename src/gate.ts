@@ -220,8 +220,19 @@ export function gate(
       continue;
     }
     requireCounts(c.successes, c.trials, `gate(${c.id})`);
-    if (c.baseline)
-      requireCounts(c.baseline.successes, c.baseline.trials, `gate(${c.id}).baseline`);
+    if (!c.baseline) continue;
+    // Only the counts are read, so a baseline joined to the wrong case was gated against without a word.
+    if (c.baseline.caseId !== c.id) {
+      throw new PeeksafeError(
+        "PEEKSAFE_E_CONFIG",
+        `gate: case ${c.id} carries the baseline of case ${c.baseline.caseId}`,
+        {
+          detail: { id: c.id, baselineCaseId: c.baseline.caseId },
+          hint: "join baselines to cases by id, e.g. toBaselineMap(baselines).get(c.id)",
+        },
+      );
+    }
+    requireCounts(c.baseline.successes, c.baseline.trials, `gate(${c.id}).baseline`);
   }
 
   const hasBaseline = (c: GateCase | PairedGateCase): boolean =>

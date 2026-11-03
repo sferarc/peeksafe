@@ -103,6 +103,19 @@ describe("the gate refuses rather than inventing", () => {
     expect(() => gate(dup)).toThrow(/duplicate case id/);
   });
 
+  it("refuses a case whose baseline belongs to another case rather than gating against it", () => {
+    const swapped: GateCase[] = [
+      { id: "a", successes: 5, trials: 10, baseline: baselineOf("b", 50, 60) },
+    ];
+    expect(() => gate(swapped)).toThrow(expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" }));
+    expect(() => gate(swapped)).toThrow(/case a carries the baseline of case b/);
+    const empty: GateCase[] = [
+      { id: "a", successes: 5, trials: 10, baseline: baselineOf("a", 50, 60) },
+      { id: "c", successes: 5, trials: 10, baseline: baselineOf("d", 0, 0) },
+    ];
+    expect(() => gate(empty)).toThrow(/case c carries the baseline of case d/);
+  });
+
   it("rejects an out-of-range mde or fdr rather than producing a verdict from it", () => {
     const one: GateCase[] = [
       { id: "a", successes: 50, trials: 60, baseline: baselineOf("a", 51, 60) },
