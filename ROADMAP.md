@@ -13,11 +13,11 @@ Tracking: [#91](https://github.com/sferarc/peeksafe/issues/91), closed.
 configured on 2026-11-01 ([#89](https://github.com/sferarc/peeksafe/issues/89)), so the next release
 publishes from a `v*` tag through `release.yml` (`brain/development/release.md`).
 
-## 2. Later
+## 2. Later (done)
 
-Tracking: [#92](https://github.com/sferarc/peeksafe/issues/92).
+Tracking: [#92](https://github.com/sferarc/peeksafe/issues/92), closed.
 
-Improvements recorded in `brain/` that block nothing. Done:
+Improvements recorded in `brain/` that blocked nothing. Done:
 [#90](https://github.com/sferarc/peeksafe/issues/90), pricing a suite that mixes paired and unpaired
 cases, [#95](https://github.com/sferarc/peeksafe/issues/95), recommending pairing when every case's
 own design is paired, [#98](https://github.com/sferarc/peeksafe/issues/98), pricing a paired case's
@@ -29,6 +29,10 @@ takes ([#105](https://github.com/sferarc/peeksafe/issues/105) for `makePlan`,
 [#106](https://github.com/sferarc/peeksafe/issues/106) for the frontier and the grid).
 [#111](https://github.com/sferarc/peeksafe/issues/111) made the paired figure the exact expected pairs
 `shouldStopPaired` takes, where the mean trajectory overstated it near independence.
+[#113](https://github.com/sferarc/peeksafe/issues/113) reports each case's expected bill on
+`PlanCase` as `typicalRuns`, and the two exported expected sample figures count the runs `shouldStop`
+takes, as the bill does, instead of Wald's SPRT number: `expectedSequentialSamples` ([#115](https://github.com/sferarc/peeksafe/issues/115))
+and `typicalObservationsPerCase` ([#116](https://github.com/sferarc/peeksafe/issues/116)).
 
 ## Not planned
 
