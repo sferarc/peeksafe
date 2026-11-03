@@ -72,12 +72,10 @@ import {
   requireSettleConfidence,
 } from "./plan.js";
 import {
-  betaQuantile,
   ebhSoloThreshold,
   evidenceCeilingLogE,
   mcnemarSamplesForEvidence,
   samplesForEvidence,
-  sprtExpectedN,
 } from "./stats.js";
 
 export type FrontierDesign = "unpaired" | "paired";
@@ -350,38 +348,41 @@ function requirePricing(cfg: FrontierConfig, where: string): void {
 }
 
 /**
- * Wald's SPRT expected sample number for a case where nothing moved, clamped
- * onto the gate's own batch grid. `evaluatePoint` no longer bills from it: an
- * unpaired point there is counted in the runs `shouldStop` takes, which this
- * figure misses either way because it ignores the suite size (#106).
+ * Expected runs `shouldStop` takes to stop an unpaired case where nothing
+ * moved, in a suite of `cases`, at `mde`, `fdr` and `futilityConfidence`: the
+ * per-case share `evaluatePoint` bills an unpaired point at.
  */
 export function typicalObservationsPerCase(
   rate: number,
   mde: number,
   cfg: FrontierConfig,
   baselineRuns: number,
+  cases: number,
 ): number {
-  // `makePlan` reaches this quantile through `baselineNullRate`, which refuses
-  // one outside (0,1). This handed it to `betaQuantile` directly, which answers
-  // 0 for a quantile at or below 0, 1 at or above 1, and about 0 for NaN, so the
-  // frontier priced the typical bill against a null rate nobody chose.
-  requireOpenProbability(cfg.nullQuantile, "nullQuantile", "typicalObservationsPerCase");
-  requireTrialGrid(cfg, "typicalObservationsPerCase");
-  // Unchecked, an mde of 0 or below priced a bill for an effect nobody can detect, and a bad rate or run count was refused under betaQuantile's name.
-  requireOpenProbability(rate, "rate", "typicalObservationsPerCase");
-  requireOpenProbability(mde, "mde", "typicalObservationsPerCase");
-  requireBaselineRuns(baselineRuns, "baselineRuns", "typicalObservationsPerCase");
-  const s = Math.round(rate * baselineRuns);
-  const p0 = betaQuantile(1 + s, 1 + baselineRuns - s, cfg.nullQuantile);
-  const p1 = Math.max(0.005, p0 - mde);
-  const raw = sprtExpectedN(rate, p0, p1, cfg.alpha, cfg.beta);
-  const n =
-    Number.isFinite(raw) && raw > 0
-      ? Math.min(cfg.maxTrials, Math.max(cfg.minTrials, Math.ceil(raw)))
-      : cfg.maxTrials;
-  const batched =
-    cfg.minTrials + Math.ceil(Math.max(0, n - cfg.minTrials) / cfg.batchSize) * cfg.batchSize;
-  return Math.min(cfg.maxTrials, batched);
+  const where = "typicalObservationsPerCase";
+  // `makePlan` reaches this quantile through `baselineNullRate`, which refuses one outside (0,1), so the frontier refuses it too.
+  requireOpenProbability(cfg.nullQuantile, "nullQuantile", where);
+  requireTrialGrid(cfg, where);
+  // Unchecked, an mde of 0 or below priced a bill for an effect nobody can detect, and a bad rate or run count was refused under another function's name.
+  requireOpenProbability(rate, "rate", where);
+  requireOpenProbability(mde, "mde", where);
+  requireBaselineRuns(baselineRuns, "baselineRuns", where);
+  if (!Number.isInteger(cases) || cases < 1) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `${where}: cases must be a positive integer, got ${cases}`,
+      {
+        detail: { cases, where },
+      },
+    );
+  }
+  requireOpenProbability(cfg.fdr, "fdr", where);
+  requireSettleConfidence(cfg, where);
+  const successes = Math.round(rate * baselineRuns);
+  return expectedStopRuns({ caseId: "typical", successes, trials: baselineRuns }, rate, cases, {
+    ...cfg,
+    mde,
+  });
 }
 
 export function evaluatePoint(
@@ -517,12 +518,7 @@ export function evaluatePoint(
   const typicalObservations =
     design === "paired"
       ? expectedSettlePairs(rate, cfg.pairCoupling, mde, cases, cfg)
-      : expectedStopRuns(
-          { caseId: "typical", successes: s, trials: effectiveBaselineRuns },
-          rate,
-          cases,
-          { ...cfg, mde },
-        );
+      : typicalObservationsPerCase(rate, mde, cfg, effectiveBaselineRuns, cases);
   const keep = screen === "none" ? cases : Math.max(1, Math.ceil(cases * cfg.screenKeepFraction));
 
   // Screening runs are graded by whichever grader the screen uses. A proxy

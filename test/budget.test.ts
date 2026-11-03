@@ -257,7 +257,7 @@ describe("the planner answers before anything is spent", () => {
       expect(() => expectedSequentialSamples(cases, baseline, plan), label).toThrow(config);
       expect(() => affordabilityGrid(0.85, 240, plan, 10), `grid ${label}`).toThrow(config);
       expect(() => computeFrontier(frontier), `computeFrontier ${label}`).toThrow(config);
-      expect(() => typicalObservationsPerCase(0.85, 0.15, frontier, 240), label).toThrow(config);
+      expect(() => typicalObservationsPerCase(0.85, 0.15, frontier, 240, 4), label).toThrow(config);
       expect(() => planCase({ id: "c0" }, baseline.get("c0"), plan, 4), label).toThrow(config);
     }
     const unpaired = { ...DEFAULT_PLAN, design: "unpaired" as const };
@@ -834,7 +834,7 @@ describe("the frontier", () => {
   });
 
   it("reports observations per case as a positive number", () => {
-    expect(typicalObservationsPerCase(0.85, 0.15, DEFAULT_FRONTIER, 240)).toBeGreaterThan(0);
+    expect(typicalObservationsPerCase(0.85, 0.15, DEFAULT_FRONTIER, 240, 4)).toBeGreaterThan(0);
   });
 
   it("prices a paired typical bill at the pairs to settle, as makePlan does", () => {
@@ -846,14 +846,12 @@ describe("the frontier", () => {
     };
     const frontier = (baselineRate: number, pairCoupling: number) => {
       const cfg = { ...DEFAULT_FRONTIER, baselineRate, pairCoupling };
-      return {
-        paired: evaluatePoint(100, 0.15, 240, "paired", "none", 0, cfg).typicalObservations,
-        sprt: typicalObservationsPerCase(baselineRate, 0.15, cfg, cfg.pairedBaselineRuns),
-      };
+      return evaluatePoint(100, 0.15, 240, "paired", "none", 0, cfg).typicalObservations;
     };
-    expect(frontier(0.85, 0.9)).toEqual({ paired: 35, sprt: 32 });
+    // The SPRT said 32 and 28.
+    expect(frontier(0.85, 0.9)).toBe(35);
     expect(planPairs(204, 240, 0.9)).toBe(35);
-    expect(frontier(0.9, 0.6)).toEqual({ paired: 43, sprt: 28 });
+    expect(frontier(0.9, 0.6)).toBe(43);
     expect(planPairs(216, 240, 0.6)).toBe(43);
     // At 85% over 60 runs and coupling 0.6, every case count at 15 points is paired.
     const grid = affordabilityGrid(
@@ -890,20 +888,20 @@ describe("the frontier", () => {
       const cfg = { ...DEFAULT_FRONTIER, baselineRate, futilityConfidence };
       return {
         runs: evaluatePoint(m, 0.15, runs, "unpaired", "none", 0, cfg).typicalObservations,
-        sprt: typicalObservationsPerCase(baselineRate, 0.15, cfg, runs),
+        perCase: typicalObservationsPerCase(baselineRate, 0.15, cfg, runs, m),
       };
     };
-    // The two cases #105 checked against a simulated shouldStop loop (58.3 and 17.1 runs).
-    expect(point(4, 240, 0.85)).toEqual({ runs: 58, sprt: 36 });
+    // The two cases #105 checked against a simulated shouldStop loop (58.3 and 17.1 runs); Wald said 36 and 28.
+    expect(point(4, 240, 0.85)).toEqual({ runs: 58, perCase: 58 });
     expect(planRuns(204, 240, 4)).toBe(58);
-    expect(point(50, 60, 0.9)).toEqual({ runs: 18, sprt: 28 });
+    expect(point(50, 60, 0.9)).toEqual({ runs: 18, perCase: 18 });
     expect(planRuns(54, 60, 50)).toBe(18);
     // The suite size sets the e-BH bar shouldStop stops at, which the SPRT figure ignored.
     expect(point(100, 240, 0.85).runs).toBe(planRuns(204, 240, 100));
-    expect(point(100, 240, 0.85).runs).toBe(49);
+    expect(point(100, 240, 0.85)).toEqual({ runs: 49, perCase: 49 });
     // A stricter futility level stops later here too.
     expect(point(4, 240, 0.85, 0.99).runs).toBe(planRuns(204, 240, 4, 0.99));
-    expect(point(4, 240, 0.85, 0.99).runs).toBe(82);
+    expect(point(4, 240, 0.85, 0.99)).toEqual({ runs: 82, perCase: 82 });
     // An unpaired grid cell: 20 cases at 85% over 240 runs and 15 points, arms uncoupled.
     const grid = affordabilityGrid(
       0.85,
@@ -942,7 +940,7 @@ describe("the frontier", () => {
       const cfg = { ...DEFAULT_FRONTIER, nullQuantile: bad };
       expect(() => computeFrontier(cfg), `computeFrontier q=${bad}`).toThrow(/nullQuantile/);
       expect(
-        () => typicalObservationsPerCase(0.85, 0.15, cfg, 240),
+        () => typicalObservationsPerCase(0.85, 0.15, cfg, 240, 4),
         `typicalObservationsPerCase q=${bad}`,
       ).toThrow(/nullQuantile/);
     }
@@ -1078,16 +1076,25 @@ describe("the frontier", () => {
     }
   });
 
-  it("refuses a rate, mde or baseline typicalObservationsPerCase cannot price", () => {
+  it("refuses a rate, mde, baseline, case count or level typicalObservationsPerCase cannot price", () => {
     // At 80% over 60 baseline runs an mde of 0 priced 96 runs and -0.1 priced 52.
-    const typical = (rate: number, mde: number, runs: number) =>
-      typicalObservationsPerCase(rate, mde, DEFAULT_FRONTIER, runs);
+    const typical = (rate: number, mde: number, runs: number, cases = 4, cfg = DEFAULT_FRONTIER) =>
+      typicalObservationsPerCase(rate, mde, cfg, runs, cases);
     for (const bad of [0, 1, -0.1, 1.5, NaN]) {
       expect(() => typical(bad, 0.15, 240), `rate ${bad}`).toThrow(/rate/);
       expect(() => typical(0.85, bad, 240), `mde ${bad}`).toThrow(/mde/);
     }
     for (const bad of [0, -5, 2.5, NaN, Infinity]) {
       expect(() => typical(0.85, 0.15, bad), `baselineRuns ${bad}`).toThrow(/baselineRuns/);
+      expect(() => typical(0.85, 0.15, 240, bad), `cases ${bad}`).toThrow(/cases/);
+    }
+    for (const bad of [0, 1, 2, -0.1, NaN]) {
+      const fdr = { ...DEFAULT_FRONTIER, fdr: bad };
+      const level = { ...DEFAULT_FRONTIER, futilityConfidence: bad };
+      expect(() => typical(0.85, 0.15, 240, 4, fdr), `fdr ${bad}`).toThrow(/fdr/);
+      expect(() => typical(0.85, 0.15, 240, 4, level), `level ${bad}`).toThrow(
+        /futilityConfidence/,
+      );
     }
   });
 

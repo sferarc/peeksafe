@@ -30,7 +30,12 @@ All notable changes to this project are documented here. The format follows
   240 baseline runs and 15 points take 49 runs a case, not 36, and an unpaired grid cell of 20 cases
   there expects 188 runs, not 152. On the frontier's defaults nothing fits the $100 typical budget
   any more; the cheapest certifiable point is 10 cases at 35 points on a 30-run baseline, $163.
-  `typicalObservationsPerCase` is still Wald's figure.
+- `typicalObservationsPerCase` still answered Wald's expected sample number after the frontier
+  stopped billing from it, so it said 36 runs for a case at 85% over 240 baseline runs where the
+  frontier bills 58. It now takes the suite size as a fifth argument, `cases`, and counts the runs
+  `shouldStop` takes to stop the case at `mde`, `fdr` and `futilityConfidence`, so it equals the
+  per-case share `evaluatePoint` bills an unpaired point at. It refuses a `cases` that is not a
+  positive integer and the `fdr` and `futilityConfidence` that `evaluatePoint` refuses.
 - A paired case's typical bill in `makePlan`, `evaluatePoint` (so `computeFrontier`) and
   `affordabilityGrid` was the first pair count at which the settle e-value on the mean trajectory
   ruled out a drop of `mde`, which ignores the variance. Near independence that was far off: at 85%
