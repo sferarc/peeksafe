@@ -19,6 +19,8 @@ All notable changes to this project are documented here. The format follows
   `universalTwoSampleLogE` refused a bad argument in the name of the helper they call (`gammaP`,
   `logGamma`, `twoSamplePriors`), so the message pointed at a call the caller never made. Each now
   checks its own arguments first and names itself in the refusal.
+- `expectedLogE` refused a bad baseline count, `mde` or `altConcentration` as `twoSamplePriors`. It now
+  checks them first and names itself in the refusal.
 
 ## 0.3.0 (2026-11-03)
 

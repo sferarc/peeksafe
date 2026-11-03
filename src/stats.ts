@@ -1303,6 +1303,9 @@ export function expectedLogE(
       detail: { n },
     });
   }
+  requireCounts(baselineSuccesses, baselineTrials, "expectedLogE");
+  requireConcentration(altConcentration, "altConcentration", "expectedLogE");
+  requireOpenProbability(mde, "mde", "expectedLogE");
   const { nullPrior: n0, altPrior: a1 } = twoSamplePriors(
     baselineSuccesses,
     baselineTrials,
