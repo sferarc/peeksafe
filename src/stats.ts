@@ -330,10 +330,16 @@ export function betaPosterior(
   prior: { alpha: number; beta: number } = { alpha: 1, beta: 1 },
 ): BetaPosterior {
   requireCounts(successes, successes + failures, "betaPosterior");
-  if (!(prior.alpha > 0) || !(prior.beta > 0)) {
+  // An infinite shape passed `> 0` and came back as NaN moments.
+  if (
+    !(prior.alpha > 0) ||
+    !(prior.beta > 0) ||
+    !Number.isFinite(prior.alpha) ||
+    !Number.isFinite(prior.beta)
+  ) {
     throw new PeeksafeError(
       "PEEKSAFE_E_STAT_DOMAIN",
-      "betaPosterior: prior parameters must be positive",
+      "betaPosterior: prior parameters must be finite and positive",
       {
         detail: { prior },
       },

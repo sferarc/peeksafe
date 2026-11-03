@@ -170,6 +170,19 @@ describe("betaPosterior", () => {
     close(betaMassBetween(betaPosterior(60, 60), 0.4, 0.6), 0.9734, 2e-3);
   });
 
+  it("refuses a prior shape that is not finite and positive instead of answering NaN moments", () => {
+    for (const prior of [
+      { alpha: Number.POSITIVE_INFINITY, beta: 1 },
+      { alpha: 1, beta: Number.POSITIVE_INFINITY },
+      { alpha: Number.NaN, beta: 1 },
+      { alpha: 0, beta: 1 },
+    ]) {
+      expect(() => betaPosterior(5, 3, prior), `${prior.alpha}, ${prior.beta}`).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_STAT_DOMAIN" }),
+      );
+    }
+  });
+
   it("refuses a credible level outside (0, 1) instead of answering [0, 1] or [1, 0]", () => {
     const post = betaPosterior(6, 4);
     for (const level of [95, 1.5, 1, 0, -1, Number.NaN]) {
