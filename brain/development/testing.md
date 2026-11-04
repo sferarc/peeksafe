@@ -22,6 +22,7 @@ Any figure in the README, a doc comment or a commit message must be reproducible
 | `test/cluster.test.ts` | Family grouping and interval widening |
 | `test/exports.test.ts` | Exercises every runtime export and fails when one is not exercised |
 | `test/skill.test.ts` | Compiles the package into a scratch `node_modules` and runs the `peeksafe-gate` skill's `gate.mjs` and `plan.mjs` (`skills/peeksafe-gate/SKILL.md`) unchanged, checking exit codes 0, 1 and 2, a baselined case with no candidate runs, and the README planning table |
+| `test/recipes.test.ts` | Runs every module and script in `docs/recipes.md` unchanged: the promptfoo, Vitest and JSON lines parsers against sample files in `test/fixtures/recipes` in each runner's documented format, and `ci.mjs` and `baseline.mjs` against the compiled package, checking exit codes 0, 1 and 2 |
 | `test/release-changelog.test.ts` | The `version` script that moves `Unreleased` in `CHANGELOG.md` ([[release]]) |
 
 ## Determinism

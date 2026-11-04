@@ -1,0 +1,343 @@
+{
+  "evalId": "eval-7Qm-2026-11-04T10:00:00",
+  "results": {
+    "version": 3,
+    "timestamp": "2026-11-04T10:00:00.000Z",
+    "prompts": [
+      {
+        "raw": "Answer the customer: {{question}}",
+        "label": "support",
+        "provider": "openai:gpt-4.1-mini"
+      }
+    ],
+    "results": [
+      {
+        "testIdx": 0,
+        "promptIdx": 0,
+        "promptId": "3f1c9a",
+        "provider": {
+          "id": "openai:gpt-4.1-mini"
+        },
+        "prompt": {
+          "raw": "Answer the customer: {{question}}",
+          "label": "support"
+        },
+        "vars": {
+          "question": "How long do I have to return an order?"
+        },
+        "testCase": {
+          "description": "refund window",
+          "vars": {
+            "question": "How long do I have to return an order?"
+          },
+          "assert": [
+            {
+              "type": "icontains",
+              "value": "30 days"
+            }
+          ]
+        },
+        "repeatIndex": 0,
+        "repeatGroupId": "test-0-vars-0",
+        "latencyMs": 812,
+        "namedScores": {},
+        "cost": 0.00021,
+        "response": {
+          "output": "..."
+        },
+        "error": null,
+        "failureReason": 0,
+        "success": true,
+        "score": 1,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "",
+              "assertion": {
+                "type": "icontains",
+                "value": "30 days"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "testIdx": 1,
+        "promptIdx": 0,
+        "promptId": "3f1c9a",
+        "provider": {
+          "id": "openai:gpt-4.1-mini"
+        },
+        "prompt": {
+          "raw": "Answer the customer: {{question}}",
+          "label": "support"
+        },
+        "vars": {
+          "question": "How long do I have to return an order?"
+        },
+        "testCase": {
+          "description": "refund window",
+          "vars": {
+            "question": "How long do I have to return an order?"
+          },
+          "assert": [
+            {
+              "type": "icontains",
+              "value": "30 days"
+            }
+          ]
+        },
+        "repeatIndex": 1,
+        "repeatGroupId": "test-0-vars-0",
+        "latencyMs": 812,
+        "namedScores": {},
+        "cost": 0.00021,
+        "response": {
+          "output": "..."
+        },
+        "error": null,
+        "failureReason": 0,
+        "success": true,
+        "score": 1,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "",
+              "assertion": {
+                "type": "icontains",
+                "value": "30 days"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "testIdx": 2,
+        "promptIdx": 0,
+        "promptId": "3f1c9a",
+        "provider": {
+          "id": "openai:gpt-4.1-mini"
+        },
+        "prompt": {
+          "raw": "Answer the customer: {{question}}",
+          "label": "support"
+        },
+        "vars": {
+          "question": "How long do I have to return an order?"
+        },
+        "testCase": {
+          "description": "refund window",
+          "vars": {
+            "question": "How long do I have to return an order?"
+          },
+          "assert": [
+            {
+              "type": "icontains",
+              "value": "30 days"
+            }
+          ]
+        },
+        "repeatIndex": 2,
+        "repeatGroupId": "test-0-vars-0",
+        "latencyMs": 812,
+        "namedScores": {},
+        "cost": 0.00021,
+        "response": {
+          "output": "..."
+        },
+        "error": "Expected output to contain \"30 days\"",
+        "failureReason": 1,
+        "success": false,
+        "score": 0,
+        "gradingResult": {
+          "pass": false,
+          "score": 0,
+          "reason": "Expected output to contain \"30 days\"",
+          "componentResults": [
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "",
+              "assertion": {
+                "type": "icontains",
+                "value": "30 days"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "testIdx": 3,
+        "promptIdx": 0,
+        "promptId": "3f1c9a",
+        "provider": {
+          "id": "openai:gpt-4.1-mini"
+        },
+        "prompt": {
+          "raw": "Answer the customer: {{question}}",
+          "label": "support"
+        },
+        "vars": {
+          "question": "Do you ship to Lisbon?"
+        },
+        "testCase": {
+          "vars": {
+            "question": "Do you ship to Lisbon?"
+          },
+          "assert": [
+            {
+              "type": "icontains",
+              "value": "yes"
+            }
+          ]
+        },
+        "repeatIndex": 0,
+        "repeatGroupId": "test-1-vars-0",
+        "latencyMs": 812,
+        "namedScores": {},
+        "cost": 0.00021,
+        "response": {
+          "output": "..."
+        },
+        "error": null,
+        "failureReason": 0,
+        "success": true,
+        "score": 1,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "",
+              "assertion": {
+                "type": "icontains",
+                "value": "30 days"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "testIdx": 4,
+        "promptIdx": 0,
+        "promptId": "3f1c9a",
+        "provider": {
+          "id": "openai:gpt-4.1-mini"
+        },
+        "prompt": {
+          "raw": "Answer the customer: {{question}}",
+          "label": "support"
+        },
+        "vars": {
+          "question": "Do you ship to Lisbon?"
+        },
+        "testCase": {
+          "vars": {
+            "question": "Do you ship to Lisbon?"
+          },
+          "assert": [
+            {
+              "type": "icontains",
+              "value": "yes"
+            }
+          ]
+        },
+        "repeatIndex": 1,
+        "repeatGroupId": "test-1-vars-0",
+        "latencyMs": 812,
+        "namedScores": {},
+        "cost": 0.00021,
+        "error": "API error: 429 Too Many Requests",
+        "failureReason": 2,
+        "success": false,
+        "score": 0,
+        "response": {
+          "error": "API error: 429 Too Many Requests"
+        },
+        "gradingResult": null
+      },
+      {
+        "testIdx": 5,
+        "promptIdx": 0,
+        "promptId": "3f1c9a",
+        "provider": {
+          "id": "openai:gpt-4.1-mini"
+        },
+        "prompt": {
+          "raw": "Answer the customer: {{question}}",
+          "label": "support"
+        },
+        "vars": {
+          "question": "Do you ship to Lisbon?"
+        },
+        "testCase": {
+          "vars": {
+            "question": "Do you ship to Lisbon?"
+          },
+          "assert": [
+            {
+              "type": "icontains",
+              "value": "yes"
+            }
+          ]
+        },
+        "repeatIndex": 2,
+        "repeatGroupId": "test-1-vars-0",
+        "latencyMs": 812,
+        "namedScores": {},
+        "cost": 0.00021,
+        "response": {
+          "output": "..."
+        },
+        "error": null,
+        "failureReason": 0,
+        "success": true,
+        "score": 1,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "",
+              "assertion": {
+                "type": "icontains",
+                "value": "30 days"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "stats": {
+      "successes": 3,
+      "failures": 2,
+      "errors": 1,
+      "tokenUsage": {
+        "total": 0,
+        "prompt": 0,
+        "completion": 0,
+        "cached": 0
+      }
+    }
+  },
+  "config": {
+    "description": "support evals"
+  },
+  "shareableUrl": null
+}
