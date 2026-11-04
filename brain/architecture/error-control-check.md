@@ -10,7 +10,7 @@ It is exact because the e-value depends on the candidate only through its counts
 
 ## `typeOneError(options)`
 
-`certifyProbability` with both rates set to `rate`. Added in #8 so a caller whose suite sits outside the tested grid can check error control on their own rates.
+`certifyProbability` with both rates set to `rate`. Added in #8 so a caller whose suite sits outside the tested grid can check error control on their own rates. Both share one internal `certify` that takes the caller's name, so a bad option refuses as `typeOneError: ...` rather than `certifyProbability: ...` (#136, `test/error-control.test.ts`).
 
 ## What the tests establish with it
 

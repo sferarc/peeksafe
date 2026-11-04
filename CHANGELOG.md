@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `typeOneError` checked only `rate` and refused every other bad option (`alpha`, `horizon`,
+  `baselineTrials`, `mde`, `altConcentration`, `evidence`) as `certifyProbability`. It now names itself
+  in those refusals.
 - `betaPosterior` let an infinite prior shape through its positivity check, so a prior of
   `{ alpha: Infinity, beta: 1 }` came back with `NaN` for `mean`, `mode`, `variance` and `sd`, and an
   infinite `beta` with a mean of 0. It now refuses a prior shape that is not finite and positive with

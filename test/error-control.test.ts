@@ -192,6 +192,25 @@ describe("typeOneError refuses what it cannot compute", () => {
       ).toThrow(expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" }));
     }
   });
+
+  it("refuses every option in its own name, not certifyProbability's", () => {
+    const ok = { rate: 0.5, baselineTrials: 60, alpha: 0.05, horizon: 100 };
+    for (const bad of [
+      { alpha: NaN },
+      { horizon: 0 },
+      { baselineTrials: 2.5 },
+      { mde: 2 },
+      { altConcentration: -1 },
+      { evidence: "neither" as "bayes" },
+    ]) {
+      expect(() => typeOneError({ ...ok, ...bad }), JSON.stringify(bad)).toThrow(
+        expect.objectContaining({ message: expect.stringMatching(/^typeOneError: /) }),
+      );
+    }
+    expect(() =>
+      certifyProbability({ ...ok, baselineRate: 0.5, candidateRate: 0.5, alpha: NaN }),
+    ).toThrow(expect.objectContaining({ message: expect.stringMatching(/^certifyProbability: /) }));
+  });
 });
 
 describe("where the bound is known not to hold", () => {
