@@ -11,7 +11,7 @@ Recorded 2026-10-02. Updated 2026-11-01: the trusted publisher is configured (#8
 
 ## Decision
 
-The first publish is a manual `npm publish` by the owner, because npm cannot set up a trusted publisher for a package that does not yet exist ([[development/release]]). Nothing in this repository should publish, tag or bump the version on the owner's behalf.
+The first publish is a manual `npm publish` by the owner, because npm cannot set up a trusted publisher for a package that does not yet exist ([[development/release]]). Nothing in this repository should publish, tag or bump the version on the owner's behalf. Superseded for later releases on 2026-11-04: agents bump and tag them ([[2026-11-04-agents-tag-releases]]).
 
 ## Version
 
@@ -21,4 +21,4 @@ The fold is not a move of headings. A first release has nothing to be a delta ag
 
 ## Tags are never pushed by accident
 
-The `v0.1.0` tag reached the remote because `push.followTags` was true and an agent pushed a branch. The tag was kept. `CONTRIBUTING.md` asks every clone to run `git config push.followTags false`; the maintainer's main checkout has it set, but git config is per clone, so the global setting stays on and a fresh clone can push tags again. Agents still never create or push tags.
+The `v0.1.0` tag reached the remote because `push.followTags` was true and an agent pushed a branch. The tag was kept. `CONTRIBUTING.md` asks every clone to run `git config push.followTags false`; the maintainer's main checkout has it set, but git config is per clone, so the global setting stays on and a fresh clone can push tags again. Agents push a tag only as the deliberate release step ([[2026-11-04-agents-tag-releases]]).
