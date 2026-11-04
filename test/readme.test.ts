@@ -356,6 +356,11 @@ describe("README: planning", () => {
     expect(byId["search/rerank"]!.baselineRunsNeeded).toBe(63);
   });
 
+  it("reads baselineRunsNeeded as a total, so 15 and 3 more runs than the 60 recorded", () => {
+    expect(byId["routing/fallback"]!.baselineRunsNeeded! - 60).toBe(15);
+    expect(byId["search/rerank"]!.baselineRunsNeeded! - 60).toBe(3);
+  });
+
   it("exposes the totals the README names", () => {
     expect(plan.totals).toHaveProperty("decidableUnpaired");
     expect(plan.totals).toHaveProperty("decidableBest");

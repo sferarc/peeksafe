@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- The README and the doc comment on `PlanCase.baselineRunsNeeded` read it as how many baseline runs
+  to add. It is the smallest total baseline size at which the unpaired design works, and a floor: a few
+  runs more can fall back under the bar. The README planning table's 75 and 63 are 15 and 3 more runs.
 - `groupByCluster` refused a non-finite value as `clustered mean`, a name no export has, and
   `clusterRobustMean`, `randomEffectsMean`, `clusteredEffect` and `clusterKeyDiagnostic` inherited that
   message. `clusteredEffect` also refused a bad `level` as `clusterRobustMean`. Each now names itself.
