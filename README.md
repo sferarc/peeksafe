@@ -92,7 +92,7 @@ result.soloThreshold;  // the bar a case clears on its own evidence, whatever th
 
 ## Use it in CI
 
-The whole integration is an exit code and a report.
+The whole integration is an exit code and a report. Building it with a coding agent? `npx skills add sferarc/peeksafe` installs the [`peeksafe-gate` skill](skills/peeksafe-gate/SKILL.md), which carries this script, the counts it needs and `makePlan`.
 
 ```ts
 import { gate, PeeksafeError } from 'peeksafe';
