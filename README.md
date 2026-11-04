@@ -69,6 +69,8 @@ result.newCases;                     // ['summary/new-case']
 
 `mde` is the drop, in rate, that counts as a regression. `fdr` is the false discovery rate you are willing to accept across the whole suite. Both default to the values above.
 
+Already running promptfoo or Vitest? The [recipes](docs/recipes.md) turn their result files, or one JSON line per run from a runner of your own, into these counts.
+
 ### Reading a case verdict
 
 Every case comes back with the evidence behind its decision, not just the decision:

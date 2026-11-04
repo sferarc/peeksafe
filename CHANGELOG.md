@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- `docs/recipes.md`: tested modules that turn promptfoo's JSON output, Vitest JSON reports and one JSON
+  line per run into the counts `gate` takes, with a CI script and a baseline script, linked from the
+  README's quick start.
+
 ### Fixed
 
 - The README and the doc comment on `PlanCase.baselineRunsNeeded` read it as how many baseline runs

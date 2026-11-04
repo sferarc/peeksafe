@@ -1,0 +1,106 @@
+{
+  "numFailedTests": 0,
+  "numFailedTestSuites": 0,
+  "numPassedTests": 3,
+  "numPassedTestSuites": 2,
+  "numPendingTests": 1,
+  "numPendingTestSuites": 0,
+  "numTodoTests": 0,
+  "numTotalTests": 4,
+  "numTotalTestSuites": 2,
+  "startTime": 1762250400000,
+  "success": true,
+  "testResults": [
+    {
+      "message": "",
+      "name": "/repo/evals/support.eval.ts",
+      "status": "passed",
+      "startTime": 1762250400000,
+      "endTime": 1762250400950,
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "support"
+          ],
+          "fullName": "support states the refund window",
+          "status": "passed",
+          "title": "states the refund window",
+          "meta": {},
+          "duration": 3,
+          "failureMessages": [],
+          "location": null,
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "support",
+            "locale"
+          ],
+          "fullName": "support locale answers in Portuguese",
+          "status": "passed",
+          "title": "answers in Portuguese",
+          "meta": {},
+          "duration": 3,
+          "failureMessages": [],
+          "location": null,
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [
+            "support"
+          ],
+          "fullName": "support escalates legal threats",
+          "status": "skipped",
+          "title": "escalates legal threats",
+          "meta": {},
+          "duration": 0,
+          "failureMessages": [],
+          "location": null,
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    },
+    {
+      "message": "",
+      "name": "/repo/evals/routing.eval.ts",
+      "status": "passed",
+      "startTime": 1762250400000,
+      "endTime": 1762250400950,
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "routing"
+          ],
+          "fullName": "routing falls back to the default route",
+          "status": "passed",
+          "title": "falls back to the default route",
+          "meta": {},
+          "duration": 3,
+          "failureMessages": [],
+          "location": null,
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  }
+}
