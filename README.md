@@ -2,11 +2,31 @@
 
 Statistically valid gates for non-deterministic eval suites. Stop early without losing error control.
 
+It is for teams that gate CI or releases on LLM or other non-deterministic eval suites and stop runs early to save cost.
+
 ```bash
 npm install peeksafe
 ```
 
 Zero runtime dependencies. TypeScript, ESM, Node 22 or newer.
+
+**Contents:**
+[The problem](#the-problem) ·
+[The part that is genuinely counterintuitive](#the-part-that-is-genuinely-counterintuitive) ·
+[What it costs, measured](#what-it-costs-measured) ·
+[Quick start](#quick-start) ·
+[Use it in CI](#use-it-in-ci) ·
+[Stopping early](#stopping-early) ·
+[When more runs will not help](#when-more-runs-will-not-help) ·
+[Planning: how many runs do I need](#planning-how-many-runs-do-i-need) ·
+[The paired alternative](#the-paired-alternative) ·
+[Suites are not independent draws](#suites-are-not-independent-draws) ·
+[What it refuses to do](#what-it-refuses-to-do) ·
+[API](#api) ·
+[Reproducing the numbers](#reproducing-the-numbers) ·
+[What this is not](#what-this-is-not) ·
+[References](#references) ·
+[Licence](#licence)
 
 ## The problem
 
