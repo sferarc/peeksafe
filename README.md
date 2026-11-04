@@ -114,11 +114,12 @@ try {
   }
   for (const id of result.newCases) console.log(`NEW ${id}: no baseline, not gated`);
 
-  process.exit(result.verdict === 'FAIL' ? 1 : 0);
+  // exitCode rather than exit(), which can cut off piped output on macOS.
+  process.exitCode = result.verdict === 'FAIL' ? 1 : 0;
 } catch (e) {
   // A refusal is a bug in the harness, not a regression. Do not let it read as a pass.
   if (e instanceof PeeksafeError) console.error(`${e.code}: ${e.message}\n${e.hint ?? ''}`);
-  process.exit(2);
+  process.exitCode = 2;
 }
 ```
 
@@ -295,7 +296,7 @@ for (const c of plan.cases) {
   c.detectability;        // 'UNPAIRED' | 'PAIRED_ONLY' | 'TOO_EXPENSIVE' | 'IMPOSSIBLE'
   c.unpaired.runs;        // what the default design costs, or Infinity
   c.paired.pairs;         // what the paired design costs
-  c.baselineRunsNeeded;   // baseline runs that would make unpaired work, or null
+  c.baselineRunsNeeded;   // smallest total baseline that makes unpaired work, or null
   c.design;               // 'unpaired' | 'paired' | null, the cheaper design that decides it
 }
 ```
@@ -309,7 +310,7 @@ summary/tone       IMPOSSIBLE     unpaired=Infinity paired=Infinity needBaseline
 search/rerank      PAIRED_ONLY    unpaired=Infinity paired=   53 needBaseline=63
 ```
 
-Read that as four different answers, not one number. `parsing/nested` has a 240-run baseline and needs 93 candidate runs. `routing/fallback` and `search/rerank` have thin baselines, so the unpaired design cannot do them at any budget, but 75 and 63 more baseline runs respectively would fix that, and pairing works today. `summary/tone` passes 10% of the time and cannot lose 15 points at all, so `sampleSizeTwoProportion(0.1, 0.15)` is `Infinity` rather than a plausible-looking 44.
+Read that as four different answers, not one number. `parsing/nested` has a 240-run baseline and needs 93 candidate runs. `routing/fallback` and `search/rerank` have thin baselines, so the unpaired design cannot do them at any budget, but baselines of 75 and 63 runs in total (15 and 3 more) would fix that, and pairing works today. `baselineRunsNeeded` is a floor, not a threshold: the ceiling is a sawtooth in the baseline size, so a few runs past it can fall back under the bar. `summary/tone` passes 10% of the time and cannot lose 15 points at all, so `sampleSizeTwoProportion(0.1, 0.15)` is `Infinity` rather than a plausible-looking 44.
 
 `plan.totals` carries the suite-level roll-up, including `decidableUnpaired` and `decidableBest`: how many cases each design can decide at all.
 

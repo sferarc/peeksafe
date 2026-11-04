@@ -21,7 +21,7 @@ Count runs, not cases. A case run 20 times with 17 passes is `{ successes: 17, t
 
 ## The CI gate
 
-This script is the whole integration. Exit 0 is a pass, 1 a certified regression, 2 a refusal.
+This script is the whole integration. Exit 0 is a pass, 1 a certified regression, 2 a refusal or a baselined case with no candidate runs.
 
 ```js
 // gate.mjs: node gate.mjs runs.json baseline.json
@@ -42,6 +42,8 @@ try {
     counts.set(run.caseId, c);
   }
   const cases = [...counts].map(([id, c]) => ({ id, ...c, baseline: baselines.get(id) }));
+  // A baselined case with no runs crashed, timed out or was filtered out: gate never sees it.
+  const missing = [...baselines.keys()].filter((id) => !counts.has(id));
 
   const result = gate(cases, { mde: 0.15, fdr: 0.05 });
   console.log(result.headline);
@@ -55,15 +57,19 @@ try {
     console.warn(`UNDETECTABLE ${c.id}: baseline too thin to certify a ${result.options.mde} drop`);
   }
   for (const id of result.newCases) console.log(`NEW ${id}: no baseline, not gated`);
+  for (const id of missing) console.error(`MISSING ${id}: baseline but no candidate runs`);
 
-  process.exit(result.verdict === "FAIL" ? 1 : 0);
+  // exitCode rather than exit(), which can cut off piped output on macOS.
+  process.exitCode = missing.length > 0 ? 2 : result.verdict === "FAIL" ? 1 : 0;
 } catch (e) {
   // A refusal is a bug in the harness, not a regression: never let it read as a pass.
   if (e instanceof PeeksafeError) console.error(`${e.code}: ${e.message}\n${e.hint ?? ""}`);
   else console.error(e);
-  process.exit(2);
+  process.exitCode = 2;
 }
 ```
+
+A case in the baseline with no candidate runs fails the gate with exit 2 rather than dropping out of it: a runner that crashed on every attempt must not read as a pass. To retire a case on purpose, record a new baseline without it.
 
 `mde` is the drop in pass rate that counts as a regression (0.15 is 15 points) and `fdr` the false discovery rate accepted across the suite. Both are the defaults; change them in one place and say why in the pull request.
 
@@ -98,7 +104,7 @@ for (const c of plan.cases) {
 }
 ```
 
-`detectability` is `UNPAIRED` (the default design works, `unpaired.runs` candidate runs), `PAIRED_ONLY` (only pairing each candidate run with a fresh baseline run works; `baselineRunsNeeded` says how many more baseline runs would make the default work), `TOO_EXPENSIVE` or `IMPOSSIBLE`. `Infinity` means no budget will do; never replace it with a cap.
+`detectability` is `UNPAIRED` (the default design works, `unpaired.runs` candidate runs), `PAIRED_ONLY` (only pairing each candidate run with a fresh baseline run works; `baselineRunsNeeded` is the smallest total baseline size at which the default would work, not an increment; it is a floor, since a few runs more can fall back under the bar), `TOO_EXPENSIVE` or `IMPOSSIBLE`. `Infinity` means no budget will do; never replace it with a cap.
 
 ## Stopping early and paired runs
 

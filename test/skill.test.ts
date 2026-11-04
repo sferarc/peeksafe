@@ -6,11 +6,11 @@
  * `peeksafe`, through the same exports map npm installs.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const skillPath = resolve("skills/peeksafe-gate/SKILL.md");
 const skill = readFileSync(skillPath, "utf8");
@@ -40,6 +40,10 @@ beforeAll(() => {
     { stdio: "pipe" },
   );
   for (const [name, body] of scripts()) writeFileSync(join(dir, name), body);
+});
+
+afterAll(() => {
+  if (dir) rmSync(dir, { recursive: true, force: true });
 });
 
 function run(script: string, files: Record<string, unknown>, args: string[]) {
@@ -105,6 +109,18 @@ describe("skill: gate.mjs", () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/^PASS/);
     expect(r.stderr).not.toContain("REGRESSED");
+  });
+
+  it("exits 2 and names a baselined case that produced no candidate runs", () => {
+    const r = run(
+      "gate.mjs",
+      { "runs.json": runsOf("parsing/nested", 88, 96), "baseline.json": baseline },
+      ["runs.json", "baseline.json"],
+    );
+    expect(r.status).toBe(2);
+    expect(r.stdout).toMatch(/^PASS/);
+    expect(r.stderr).toContain("MISSING routing/fallback: baseline but no candidate runs");
+    expect(r.stderr).not.toContain("MISSING parsing/nested");
   });
 
   it("exits 2 on a refusal rather than reading it as a pass", () => {

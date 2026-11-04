@@ -162,9 +162,10 @@ export interface PlanCase {
    */
   design: "unpaired" | "paired" | null;
   /**
-   * How many baseline runs this case would need for the *unpaired* design to
-   * work, or null if it already works. This is the actionable half of an
-   * "undetectable" verdict.
+   * The smallest total baseline size (not an increment over the current one)
+   * at which the *unpaired* design would work, or null if it already works.
+   * A floor, not a threshold: see `baselineRunsToClear`. This is the
+   * actionable half of an "undetectable" verdict.
    */
   baselineRunsNeeded: number | null;
   /**
