@@ -50,16 +50,20 @@ export interface CertifyProbabilityOptions extends Omit<TypeOneErrorOptions, "ra
  * baseline at a horizon of 600 takes tens of milliseconds.
  */
 export function certifyProbability(options: CertifyProbabilityOptions): number {
+  return certify(options, "certifyProbability");
+}
+
+function certify(options: CertifyProbabilityOptions, where: string): number {
   const { baselineRate, candidateRate: pc, baselineTrials: nb, alpha, horizon } = options;
   const mde = options.mde ?? DEFAULT_GATE_OPTIONS.mde;
   const concentration = options.altConcentration ?? DEFAULT_GATE_OPTIONS.altConcentration;
   const evidence = options.evidence ?? DEFAULT_GATE_OPTIONS.evidence;
-  requireEvidence(evidence, "certifyProbability");
-  requireOpenProbability(baselineRate, "baselineRate", "certifyProbability");
-  requireOpenProbability(pc, "candidateRate", "certifyProbability");
-  requireOpenProbability(alpha, "alpha", "certifyProbability");
-  requireOpenProbability(mde, "mde", "certifyProbability");
-  requirePositiveConfig(concentration, "altConcentration", "certifyProbability");
+  requireEvidence(evidence, where);
+  requireOpenProbability(baselineRate, "baselineRate", where);
+  requireOpenProbability(pc, "candidateRate", where);
+  requireOpenProbability(alpha, "alpha", where);
+  requireOpenProbability(mde, "mde", where);
+  requirePositiveConfig(concentration, "altConcentration", where);
   for (const [name, v] of [
     ["baselineTrials", nb],
     ["horizon", horizon],
@@ -67,7 +71,7 @@ export function certifyProbability(options: CertifyProbabilityOptions): number {
     if (!Number.isInteger(v) || v < 1) {
       throw new PeeksafeError(
         "PEEKSAFE_E_CONFIG",
-        `certifyProbability: ${name} must be a positive integer, got ${v}`,
+        `${where}: ${name} must be a positive integer, got ${v}`,
         {
           detail: { [name]: v },
         },
@@ -164,7 +168,7 @@ function universalFromBayes(rawLog: number, s: number, n: number, sb: number, nb
 export function typeOneError(options: TypeOneErrorOptions): number {
   const { rate, ...rest } = options;
   requireOpenProbability(rate, "rate", "typeOneError");
-  return certifyProbability({ ...rest, baselineRate: rate, candidateRate: rate });
+  return certify({ ...rest, baselineRate: rate, candidateRate: rate }, "typeOneError");
 }
 
 export interface PairedCertifyProbabilityOptions {
