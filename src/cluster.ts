@@ -135,12 +135,16 @@ function requireLevel(level: number, where: string): void {
 
 /** Group observations by cluster, preserving first-seen order. */
 export function groupByCluster(obs: ClusterObservation[]): Map<string, number[]> {
+  return group(obs, "groupByCluster");
+}
+
+function group(obs: ClusterObservation[], where: string): Map<string, number[]> {
   const m = new Map<string, number[]>();
   for (const o of obs) {
     if (!Number.isFinite(o.value)) {
       throw new PeeksafeError(
         "PEEKSAFE_E_STAT_DOMAIN",
-        `clustered mean: value for cluster "${o.cluster}" is not finite`,
+        `${where}: value for cluster "${o.cluster}" is not finite`,
         {
           detail: { cluster: o.cluster, value: o.value },
         },
@@ -220,7 +224,7 @@ export function iidMean(values: number[], level = 0.95): Interval {
  */
 export function clusterRobustMean(obs: ClusterObservation[], level = 0.95): ClusteredMean {
   requireLevel(level, "clusterRobustMean");
-  const groups = groupByCluster(obs);
+  const groups = group(obs, "clusterRobustMean");
   const n = obs.length;
   const G = groups.size;
   const sizes = [...groups.values()].map((xs) => xs.length);
@@ -355,7 +359,7 @@ export interface RandomEffectsMean extends Interval {
  */
 export function randomEffectsMean(obs: ClusterObservation[], level = 0.95): RandomEffectsMean {
   requireLevel(level, "randomEffectsMean");
-  const groups = groupByCluster(obs);
+  const groups = group(obs, "randomEffectsMean");
   const n = obs.length;
   const G = groups.size;
   const grand = n > 0 ? obs.reduce((a, o) => a + o.value, 0) / n : 0;
@@ -529,6 +533,9 @@ const fmtPts = (x: number) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}`;
  * a reader would conclude.
  */
 export function clusteredEffect(obs: ClusterObservation[], level = 0.95): ClusteredEffect {
+  // Checked before the estimators below, which would refuse the same input in their own names.
+  requireLevel(level, "clusteredEffect");
+  const groups = group(obs, "clusteredEffect");
   const cr2 = clusterRobustMean(obs, level);
   const re = randomEffectsMean(obs, level);
   const naive = iidMean(
@@ -536,7 +543,6 @@ export function clusteredEffect(obs: ClusterObservation[], level = 0.95): Cluste
     level,
   );
 
-  const groups = groupByCluster(obs);
   const families: FamilyEffect[] = [...groups.entries()]
     .map(([family, xs]) => {
       const m = xs.reduce((a, x) => a + x, 0) / xs.length;
@@ -741,6 +747,8 @@ export function clusterKeyDiagnostic(
       },
     );
   }
+  group(declared, "clusterKeyDiagnostic");
+  group(fallback, "clusterKeyDiagnostic");
   const d = summarise("declared", declared);
   const f = summarise("case-id", fallback);
 
