@@ -37,4 +37,4 @@ The `brain/` directory is an Obsidian vault: persistent notes on how the library
 - Run `pnpm lint`, `pnpm knip`, `pnpm typecheck`, `pnpm test` and `pnpm build` before opening a pull request. CI requires `Node 22`, `Node 24`, `Node 26`, `Approved stack` and `No Claude attribution`.
 - No runtime dependencies.
 - No em or en dashes in prose. Commit subjects name the problem, in the imperative, with a conventional prefix.
-- Never publish, tag or bump the version: releases are the owner's manual step (`brain/development/release.md`).
+- Releases follow `brain/development/release.md`: an agent bumps the version in a pull request and, once it merges, pushes the annotated `v*` tag on the merge commit as the sferarc-hq App. `release.yml` publishes from that tag; never run `npm publish` by hand.

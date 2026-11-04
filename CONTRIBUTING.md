@@ -18,7 +18,8 @@ CI runs `pnpm lint` either way.
 
 Run `git config push.followTags false` in your clone. With it on, pushing a branch
 also pushes any annotated tag reachable from it, and a pushed `v*` tag starts
-the `Release` workflow. Releases are tagged by the maintainer only
+the `Release` workflow. Releases are tagged on purpose, by the maintainer or the
+project's release bot, never as a side effect of a branch push
 (`brain/development/release.md`).
 
 The library needs Node 22 or newer. `mise install` provides the Node and pnpm
