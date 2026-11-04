@@ -447,8 +447,27 @@ export function tQuantile(p: number, df: number): number {
   return Math.sqrt((df * (1 - x)) / x);
 }
 
+// A posterior built by hand reached betaQuantile or ibeta unchecked and was refused in their name.
+function requirePosteriorShape(post: BetaPosterior, where: string): void {
+  if (
+    !(post.alpha > 0) ||
+    !(post.beta > 0) ||
+    !Number.isFinite(post.alpha) ||
+    !Number.isFinite(post.beta)
+  ) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: posterior alpha and beta must be finite and positive`,
+      {
+        detail: { alpha: post.alpha, beta: post.beta },
+      },
+    );
+  }
+}
+
 /** Equal-tailed credible interval of a Beta posterior. */
 export function betaCredibleInterval(post: BetaPosterior, level = 0.95): Interval {
+  requirePosteriorShape(post, "betaCredibleInterval");
   // betaQuantile clamps q to [0, 1], so a level of 95 or -1 came back as [0, 1] or [1, 0].
   requireOpenProbability(level, "level", "betaCredibleInterval");
   const tail = (1 - level) / 2;
@@ -461,6 +480,7 @@ export function betaCredibleInterval(post: BetaPosterior, level = 0.95): Interva
 
 /** P(a < θ < b) under a Beta posterior. */
 export function betaMassBetween(post: BetaPosterior, a: number, b: number): number {
+  requirePosteriorShape(post, "betaMassBetween");
   requireProbability(a, "a", "betaMassBetween");
   requireProbability(b, "b", "betaMassBetween");
   if (a > b) {
@@ -1628,6 +1648,9 @@ export function mcnemarSamplesForEvidence(
   requireConcentration(concentration, "concentration", "mcnemarSamplesForEvidence");
   requireSearchCap(maxPairs, "maxPairs", "mcnemarSamplesForEvidence");
   requireLogThreshold(logThreshold, "mcnemarSamplesForEvidence");
+  requireProbability(pBaseline, "pBaseline", "mcnemarSamplesForEvidence");
+  requireProbability(rho, "rho", "mcnemarSamplesForEvidence");
+  requireOpenProbability(mde, "mde", "mcnemarSamplesForEvidence");
   const { rate, theta } = pairedDiscordance(pBaseline, mde, rho);
   if (rate <= 0 || theta <= 0.5) return Infinity;
   const a1 = Math.max(0.35, concentration * theta);

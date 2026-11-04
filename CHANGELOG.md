@@ -24,6 +24,10 @@ All notable changes to this project are documented here. The format follows
 - `expectedLogEExact` refused a bad baseline count, `mde` or `altConcentration` as `twoSampleLogE`, and
   `samplesForEvidence` refused a bad `pTrue`, baseline count, `mde` or `altConcentration` as
   `evidenceCeilingLogE`. Both now check them first and name themselves in the refusal.
+- `mcnemarSamplesForEvidence` refused a bad `pBaseline`, `mde` or `rho` as `pairedDiscordance`, and
+  `betaCredibleInterval` and `betaMassBetween` refused a posterior whose `alpha` or `beta` is not finite
+  and positive as `betaQuantile` and `ibeta`. All three now check them first and name themselves in the
+  refusal.
 
 ## 0.3.0 (2026-11-03)
 

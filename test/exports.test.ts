@@ -7,6 +7,9 @@ import { describe, expect, it } from "vitest";
 import * as peeksafe from "../src/index.js";
 import {
   baselineNullRate,
+  betaCredibleInterval,
+  betaMassBetween,
+  betaPosterior,
   betaQuantile,
   clusteredEffect,
   clusterKeyDiagnostic,
@@ -226,7 +229,8 @@ describe("the rest of the statistical core", () => {
   });
 
   it("refuses in the name of the function called, not the helper it calls", () => {
-    // Each of these refused as gammaP, twoSamplePriors, logGamma, twoSampleLogE or evidenceCeilingLogE.
+    // Each of these refused as gammaP, twoSamplePriors, logGamma, twoSampleLogE, evidenceCeilingLogE,
+    // pairedDiscordance, betaQuantile or ibeta.
     for (const [where, call] of [
       ["erf", () => erf(NaN)],
       ["normalCdf", () => normalCdf(NaN)],
@@ -249,6 +253,16 @@ describe("the rest of the statistical core", () => {
       ["samplesForEvidence", () => samplesForEvidence(0.7, 85, 100, NaN, 3)],
       ["samplesForEvidence", () => samplesForEvidence(0.7, 85, 100, 0.15, 3, 1000, NaN)],
       ["samplesForEvidence", () => samplesForEvidence(0.7, 101, 100, 0.15, 3)],
+      ["mcnemarSamplesForEvidence", () => mcnemarSamplesForEvidence(NaN, 0.15, 0.3, 3)],
+      ["mcnemarSamplesForEvidence", () => mcnemarSamplesForEvidence(0.85, 0, 0.3, 3)],
+      ["mcnemarSamplesForEvidence", () => mcnemarSamplesForEvidence(0.85, 0.15, 1.5, 3)],
+      ["betaCredibleInterval", () => betaCredibleInterval({ ...betaPosterior(8, 2), alpha: 0 })],
+      ["betaCredibleInterval", () => betaCredibleInterval({ ...betaPosterior(8, 2), beta: NaN })],
+      ["betaMassBetween", () => betaMassBetween({ ...betaPosterior(8, 2), alpha: -1 }, 0.5, 0.9)],
+      [
+        "betaMassBetween",
+        () => betaMassBetween({ ...betaPosterior(8, 2), beta: Infinity }, 0.5, 0.9),
+      ],
     ] as const) {
       expect(call, where).toThrow(
         expect.objectContaining({
