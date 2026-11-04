@@ -17,6 +17,7 @@
  * If you change an exported signature, this file should fail before anything
  * else does. Fix the README, not the assertion.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   type BaselineStat,
@@ -615,5 +616,35 @@ describe("An always-valid alternative", () => {
       expect(Math.exp(twoSampleLogE(s, n, sb, nb, 0.15)) / bayes).toBeCloseTo(1, 2);
       expect(Math.exp(universalTwoSampleLogE(s, n, sb, nb, 0.15)) / universal).toBeCloseTo(1, 2);
     }
+  });
+});
+
+describe("README: contents list", () => {
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const headings = readme
+    .replace(/^```[\s\S]*?^```/gm, "")
+    .split("\n")
+    .filter((l) => l.startsWith("## "))
+    .map((l) => l.slice(3));
+  const contents = readme.match(/^\*\*Contents:\*\*\n((?:\[.*\n)+)/m)?.[1] ?? "";
+  const links = [...contents.matchAll(/\[([^\]]+)\]\(#([^)]+)\)/g)].map(([, text, slug]) => [
+    text,
+    slug,
+  ]);
+  const slugOf = (h: string) =>
+    h
+      .toLowerCase()
+      .replace(/[^a-z0-9 -]/g, "")
+      .replace(/ /g, "-");
+
+  it("links every top level section, in order, by its GitHub anchor", () => {
+    expect(headings.length).toBeGreaterThan(10);
+    expect(links).toEqual(headings.map((h) => [h, slugOf(h)]));
+  });
+
+  it("sits above the first section, after the audience line", () => {
+    const first = readme.indexOf("## The problem");
+    expect(readme.indexOf("It is for teams that gate CI")).toBeLessThan(first);
+    expect(readme.indexOf("**Contents:**")).toBeLessThan(first);
   });
 });

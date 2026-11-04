@@ -11,7 +11,7 @@ Any figure in the README, a doc comment or a commit message must be reproducible
 | File | Purpose |
 | --- | --- |
 | `test/paper.test.ts` | Produces and prints the README's measured figures from seeded draws. Not a regression suite: if `src/rand.ts`, the statistics or the simulation change, these numbers move and the README must follow |
-| `test/readme.test.ts` | Runs every README example and asserts every number quoted as output |
+| `test/readme.test.ts` | Runs every README example and asserts every number quoted as output; also checks the contents list at the top links every `##` section in order |
 | `test/error-control.test.ts` | Exact type I error over a grid, improved candidates, the three known failing corners, and the `shouldStop` then `gate` loop end to end |
 | `test/paired.test.ts` | The paired e-value's error control over discordance sequences, improved candidates, paired cases in `gate`, `shouldStopPaired`, and `pairedCertifyProbability` |
 | `test/universal.test.ts` | The universal statistic: construction, error control in the corners, and the power comparison grid, including the reshaped alternative's upper bound |
