@@ -13,6 +13,7 @@ import {
   betaQuantile,
   clusteredEffect,
   clusterKeyDiagnostic,
+  clusterRobustMean,
   compareEstimators,
   costShares,
   DEFAULT_AXES,
@@ -32,6 +33,7 @@ import {
   fmtRate,
   gammaP,
   gate,
+  groupByCluster,
   hash32,
   logBetaPdf,
   MIN_TRUSTWORTHY_CLUSTERS,
@@ -43,6 +45,7 @@ import {
   pairedLogE,
   pairPhi,
   probabilityMoved,
+  randomEffectsMean,
   samplesForEvidence,
   sprtExpectedN,
   streamFor,
@@ -230,7 +233,11 @@ describe("the rest of the statistical core", () => {
 
   it("refuses in the name of the function called, not the helper it calls", () => {
     // Each of these refused as gammaP, twoSamplePriors, logGamma, twoSampleLogE, evidenceCeilingLogE,
-    // pairedDiscordance, betaQuantile or ibeta.
+    // pairedDiscordance, betaQuantile or ibeta, and the cluster ones as "clustered mean" or clusterRobustMean.
+    const clustered = [
+      { cluster: "a", value: 0.1 },
+      { cluster: "b", value: NaN },
+    ];
     for (const [where, call] of [
       ["erf", () => erf(NaN)],
       ["normalCdf", () => normalCdf(NaN)],
@@ -263,6 +270,12 @@ describe("the rest of the statistical core", () => {
         "betaMassBetween",
         () => betaMassBetween({ ...betaPosterior(8, 2), beta: Infinity }, 0.5, 0.9),
       ],
+      ["groupByCluster", () => groupByCluster(clustered)],
+      ["clusterRobustMean", () => clusterRobustMean(clustered)],
+      ["randomEffectsMean", () => randomEffectsMean(clustered)],
+      ["clusteredEffect", () => clusteredEffect(clustered)],
+      ["clusteredEffect", () => clusteredEffect([{ cluster: "a", value: 0.1 }], NaN)],
+      ["clusterKeyDiagnostic", () => clusterKeyDiagnostic(clustered, clustered)],
     ] as const) {
       expect(call, where).toThrow(
         expect.objectContaining({

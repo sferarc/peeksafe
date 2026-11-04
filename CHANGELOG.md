@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `groupByCluster` refused a non-finite value as `clustered mean`, a name no export has, and
+  `clusterRobustMean`, `randomEffectsMean`, `clusteredEffect` and `clusterKeyDiagnostic` inherited that
+  message. `clusteredEffect` also refused a bad `level` as `clusterRobustMean`. Each now names itself.
 - `typeOneError` checked only `rate` and refused every other bad option (`alpha`, `horizon`,
   `baselineTrials`, `mde`, `altConcentration`, `evidence`) as `certifyProbability`. It now names itself
   in those refusals.
