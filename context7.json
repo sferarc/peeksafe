@@ -1,0 +1,15 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "peeksafe",
+  "description": "Statistically valid gates for non-deterministic eval suites, such as LLM evals in CI. A zero-dependency TypeScript library: pass and fail counts per case in, a suite verdict with false discovery rate control out. Stop each case early with shouldStop without losing error control, and size runs and baselines with makePlan.",
+  "excludeFolders": [".claude", ".github", "brain", "scripts", "src", "test"],
+  "excludeFiles": ["AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", "ROADMAP.md"],
+  "rules": [
+    "peeksafe takes pass and fail counts and returns a verdict; it runs no evals and has no runner, no config file and no CLI. Run the suite yourself, count successes and trials per case, then call gate.",
+    "Call gate(cases, { mde: 0.15, fdr: 0.05 }) with cases shaped { id, successes, trials, baseline: { caseId, successes, trials } }. A case without a baseline is listed in result.newCases and not gated.",
+    "To stop a case early, call shouldStop(counts, baseline, { suiteSize, maxTrials }) after each batch and stop when it returns stop: true. Never re-test p-values after each batch and apply Benjamini-Hochberg.",
+    "In CI set process.exitCode to 1 when result.verdict is 'FAIL' and log result.headline. Catch PeeksafeError and exit 2: a refusal is a bug in the harness, never a pass.",
+    "A case with undetectable: true has a baseline too thin to certify an mde drop. It needs more baseline runs, not more candidate runs; makePlan reports baselineRunsNeeded.",
+    "When the baseline reruns beside the candidate on the same inputs, give gate a case { id, paired: { bothPass, worse, better, bothFail } } and stop it early with shouldStopPaired(table, { suiteSize })."
+  ]
+}
