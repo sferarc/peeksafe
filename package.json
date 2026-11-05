@@ -10,7 +10,16 @@
     "false-discovery-rate",
     "llm",
     "statistics",
-    "ci"
+    "ci",
+    "eval",
+    "llm-evals",
+    "regression-testing",
+    "flaky-tests",
+    "ab-testing",
+    "benjamini-hochberg",
+    "e-bh",
+    "early-stopping",
+    "significance"
   ],
   "license": "Apache-2.0",
   "author": "Alexis Rico",

@@ -12,6 +12,12 @@ All notable changes to this project are documented here. The format follows
   line per run into the counts `gate` takes, with a CI script and a baseline script, linked from the
   README's quick start.
 
+### Changed
+
+- The npm `keywords` add `eval`, `llm-evals`, `regression-testing`, `flaky-tests`, `ab-testing`,
+  `benjamini-hochberg`, `e-bh`, `early-stopping` and `significance`, the terms people search when an eval
+  suite is flaky or a gate needs a multiple-testing correction.
+
 ### Fixed
 
 - The README and the doc comment on `PlanCase.baselineRunsNeeded` read it as how many baseline runs
