@@ -11,6 +11,8 @@ All notable changes to this project are documented here. The format follows
 - `docs/recipes.md`: tested modules that turn promptfoo's JSON output, Vitest JSON reports and one JSON
   line per run into the counts `gate` takes, with a CI script and a baseline script, linked from the
   README's quick start.
+- `gateReport(result)` and the `GateReport`, `CaseReport` and `JsonNumber` types: the gate result as
+  JSON can carry it, with non-finite numbers written as strings.
 
 ### Changed
 
@@ -20,6 +22,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `JSON.stringify` wrote a paired case's `ceiling` of `Infinity` as `null`, so a CI artifact read "no
+  ceiling" where the truth is "no limit". A gate result's `toJSON` now writes `"Infinity"`, `"-Infinity"`
+  and `"NaN"` as strings, which `Number()` reads back.
 - The README and the doc comment on `PlanCase.baselineRunsNeeded` read it as how many baseline runs
   to add. It is the smallest total baseline size at which the unpaired design works, and a floor: a few
   runs more can fall back under the bar. The README planning table's 75 and 63 are 15 and 3 more runs.

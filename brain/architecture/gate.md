@@ -18,6 +18,8 @@ Each `GateCase` carries `id`, candidate `successes` and `trials`, and an optiona
 
 ## Results worth reading correctly
 
+- A result serialises through its own `toJSON`, a non-enumerable property that calls `gateReport` (`src/gate.ts`). JSON has no `Infinity`, and `JSON.stringify` wrote a paired `ceiling` as `null`, which reads as "no ceiling" (#149). `gateReport` writes every non-finite number as its `String` form and leaves the rest alone; a spread copy loses `toJSON`, so it is exported too. `test/gate.test.ts` and `test/readme.test.ts` round trip a paired case.
+
 - `undetectable` describes the baseline, not this run. `undetectable: true` with `regressed: true` is consistent: the drop was much larger than `mde` (README, "Reading a case verdict").
 - `threshold` is the e-BH bar given the number of discoveries; `soloThreshold` is the bar a case clears on its own evidence.
 

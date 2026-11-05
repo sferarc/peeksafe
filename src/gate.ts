@@ -189,6 +189,39 @@ export interface GateResult {
   headline: string;
 }
 
+/** A number as JSON can hold it: finite as is, the rest as the string `String` gives, which `Number` reads back. */
+export type JsonNumber = number | "Infinity" | "-Infinity" | "NaN";
+
+/** A `CaseVerdict` as `gateReport` writes it. A paired case's `ceiling` is `"Infinity"`. */
+export type CaseReport = Omit<CaseVerdict, "ceiling" | "logE"> & {
+  ceiling: JsonNumber;
+  logE: JsonNumber;
+};
+
+/** A `GateResult` as `gateReport` writes it, and as `JSON.stringify(result)` does. */
+export type GateReport = Omit<GateResult, "cases" | "regressed"> & {
+  cases: CaseReport[];
+  regressed: CaseReport[];
+};
+
+const jsonSafe = (v: unknown): unknown => {
+  if (typeof v === "number") return Number.isFinite(v) ? v : String(v);
+  if (Array.isArray(v)) return v.map(jsonSafe);
+  if (v !== null && typeof v === "object") {
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, jsonSafe(x)]));
+  }
+  return v;
+};
+
+/**
+ * A copy of `result` that survives JSON: `JSON.stringify` writes `Infinity` as
+ * `null`, which a reader of a CI artifact takes for "no ceiling" where the truth
+ * is "no limit". Every non-finite number becomes a string instead.
+ */
+export function gateReport(result: GateResult): GateReport {
+  return jsonSafe(result) as GateReport;
+}
+
 /**
  * Decide which cases regressed.
  *
@@ -361,7 +394,7 @@ export function gate(
           .join(", ")}${regressed.length > 3 ? ", …" : ""})`) +
     (caveats.length > 0 ? `. Read with care: ${caveats.join("; ")}.` : "");
 
-  return {
+  const result: GateResult = {
     verdict: regressed.length === 0 ? "PASS" : "FAIL",
     cases: verdicts,
     regressed,
@@ -371,4 +404,7 @@ export function gate(
     options: opts,
     headline,
   };
+  // Not enumerable, so equality checks and spreads see only the fields.
+  Object.defineProperty(result, "toJSON", { value: () => gateReport(result) });
+  return result;
 }

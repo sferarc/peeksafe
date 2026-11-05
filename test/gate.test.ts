@@ -15,7 +15,9 @@
 import { describe, expect, it } from "vitest";
 import {
   type GateCase,
+  type GateReport,
   gate,
+  gateReport,
   logGamma,
   MAX_ALT_CONCENTRATION,
   makeRand,
@@ -308,5 +310,57 @@ describe("an improvement is not a regression", () => {
       });
       expect(r.verdict, `${s}/${n} against ${sb}/${nb}`).toBe("PASS");
     }
+  });
+});
+
+describe("a gate result saved as JSON", () => {
+  // JSON has no Infinity: a plain object wrote a paired ceiling as null, read back as "no ceiling".
+  const result = gate([
+    { id: "paired/broken", paired: { bothPass: 70, worse: 22, better: 4, bothFail: 4 } },
+    { id: "unpaired", successes: 80, trials: 100, baseline: baselineOf("unpaired", 90, 100) },
+  ]);
+
+  it("keeps a paired case's infinite ceiling through JSON.stringify and JSON.parse", () => {
+    expect(result.regressed.map((c) => c.id)).toEqual(["paired/broken"]);
+    expect(result.cases[0]!.ceiling).toBe(Infinity);
+    const parsed = JSON.parse(JSON.stringify(result)) as GateReport;
+    expect(parsed.cases[0]!.ceiling).toBe("Infinity");
+    expect(Number(parsed.cases[0]!.ceiling)).toBe(Infinity);
+    expect(parsed.regressed.map((c) => Number(c.ceiling))).toEqual(
+      result.regressed.map((c) => c.ceiling),
+    );
+  });
+
+  it("leaves every finite number and every other field as gate returned it", () => {
+    const parsed = JSON.parse(JSON.stringify(result)) as GateReport;
+    const asJson = (c: (typeof result.cases)[number]) => ({
+      ...c,
+      ceiling: c.design === "paired" ? "Infinity" : c.ceiling,
+    });
+    expect(parsed).toEqual({
+      ...result,
+      cases: result.cases.map(asJson),
+      regressed: result.regressed.map(asJson),
+    });
+    expect(Number.isFinite(parsed.cases[1]!.ceiling)).toBe(true);
+  });
+
+  it("writes the same report through gateReport, for a result spread into a larger object", () => {
+    expect(gateReport(result)).toEqual(JSON.parse(JSON.stringify(result)));
+    const artifact = JSON.parse(JSON.stringify({ pr: 1, gate: gateReport(result) }));
+    expect(artifact.gate.cases[0].ceiling).toBe("Infinity");
+  });
+
+  it("writes -Infinity and NaN as strings too", () => {
+    const odd = { ...result, threshold: -Infinity, soloThreshold: Number.NaN };
+    const report = gateReport(odd);
+    expect(report.threshold).toBe("-Infinity");
+    expect(report.soloThreshold).toBe("NaN");
+    expect(Number(report.threshold)).toBe(-Infinity);
+  });
+
+  it("keeps toJSON off the result's own fields", () => {
+    expect(Object.keys(result)).not.toContain("toJSON");
+    expect(Object.keys(gateReport(result))).not.toContain("toJSON");
   });
 });

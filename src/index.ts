@@ -11,6 +11,7 @@
  * ## 1. The decision
  *
  *   gate(cases, options)   which cases regressed, valid at any stopping time
+ *   gateReport(result)     the same verdict with Infinity kept through JSON
  *
  * You bring counts. It brings e-values and e-BH. Nothing here knows or cares how
  * you ran the evals, and nothing here will gate a case that has no baseline.
@@ -109,12 +110,16 @@ export {
 } from "./frontier.js";
 /* ── 1. the decision ─────────────────────────────────────────────────────── */
 export {
+  type CaseReport,
   type CaseVerdict,
   DEFAULT_GATE_OPTIONS,
   type GateCase,
   type GateOptions,
+  type GateReport,
   type GateResult,
   gate,
+  gateReport,
+  type JsonNumber,
   type PairedGateCase,
 } from "./gate.js";
 /* ── 2. the budget ───────────────────────────────────────────────────────── */

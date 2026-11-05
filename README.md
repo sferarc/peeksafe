@@ -154,6 +154,8 @@ budget (thin), which needs more baseline runs, not more candidate runs; 1 case(s
 and were not gated (new).
 ```
 
+To keep the result as a CI artifact, write `JSON.stringify(result)`. JSON has no `Infinity`, and a plain object would have a paired case's `ceiling` (no limit) written as `null`, so the result's `toJSON` writes every non-finite number as the string `"Infinity"`, `"-Infinity"` or `"NaN"`, which `Number()` reads back. The shape is `GateReport`: a `GateResult` whose cases are `CaseReport`s, with `ceiling` and `logE` typed `JsonNumber`. A copy made with a spread (`{ ...result }`) drops `toJSON`; pass the result through `gateReport(result)` first, which returns the same JSON safe object.
+
 ## Stopping early
 
 This is the reason the library exists. Stop each case whenever you like, for any reason, including "it already looks bad". The guarantee does not depend on the rule you used, because the statistic is an e-value rather than a p-value: a non-negative statistic with mean at most 1 under the null, so Ville's inequality bounds `P(sup_n E_n >= 1/a) <= a` over the whole trajectory. The multiplicity correction is e-BH (Wang and Ramdas), which consumes e-values directly and controls FDR under arbitrary dependence between cases.
@@ -473,7 +475,7 @@ A case with no baseline is not an error, though. It comes back in `newCases`, ta
 
 Four layers. Most callers need the first.
 
-**The decision.** `gate` for a whole suite from final counts or pair tables, `shouldStop` and `shouldStopPaired` for one case mid-run, and the types around them.
+**The decision.** `gate` for a whole suite from final counts or pair tables, `gateReport` for its result as JSON can carry it, `shouldStop` and `shouldStopPaired` for one case mid-run, and the types around them.
 
 **The budget.** `makePlan`, `planCase`, `affordabilityGrid`, `computeFrontier`, `enumerateFrontier`.
 
