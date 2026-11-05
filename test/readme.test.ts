@@ -31,6 +31,7 @@ import {
   evidenceCeilingSlope,
   expectedSequentialSamples,
   gate,
+  gateReport,
   makePlan,
   makeRand,
   mcnemarSamplesForEvidence,
@@ -103,6 +104,19 @@ describe("README: quick start", () => {
     }
     // the CI snippet prints result.options.mde in its warning line
     expect(result.options.mde).toBe(0.15);
+  });
+
+  it("keeps a paired ceiling through JSON as the README says, and gateReport survives a spread", () => {
+    const withPair = gate([
+      { id: "p", paired: { bothPass: 70, worse: 22, better: 4, bothFail: 4 } },
+    ]);
+    const saved = JSON.parse(JSON.stringify(withPair));
+    expect(saved.cases[0].ceiling).toBe("Infinity");
+    expect(Number(saved.cases[0].ceiling)).toBe(Infinity);
+    expect(JSON.parse(JSON.stringify({ ...withPair })).cases[0].ceiling).toBeNull();
+    expect(JSON.parse(JSON.stringify(gateReport({ ...withPair }))).cases[0].ceiling).toBe(
+      "Infinity",
+    );
   });
 });
 
