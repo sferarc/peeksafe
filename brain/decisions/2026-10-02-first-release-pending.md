@@ -21,4 +21,4 @@ The fold is not a move of headings. A first release has nothing to be a delta ag
 
 ## Tags are never pushed by accident
 
-The `v0.1.0` tag reached the remote because `push.followTags` was true and an agent pushed a branch. The tag was kept. `CONTRIBUTING.md` asks every clone to run `git config push.followTags false`; the maintainer's main checkout has it set, but git config is per clone, so the global setting stays on and a fresh clone can push tags again. Agents push a tag only as the deliberate release step ([[2026-11-04-agents-tag-releases]]).
+The `v0.1.0` tag reached the remote because `push.followTags` was true and an agent pushed a branch. The tag was kept. `CONTRIBUTING.md` asks every clone to run `git config push.followTags false`; the maintainer's main checkout has it set, but git config is per clone, so the global setting stays on and a fresh clone can push tags again. Since 2026-11-05 nobody pushes a release tag by hand; `release.yml` creates it ([[2026-11-05-publish-on-version-merge]]).

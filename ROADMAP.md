@@ -10,8 +10,8 @@ Tracking: [#91](https://github.com/sferarc/peeksafe/issues/91), closed.
 
 `0.1.0` is on npm, published by hand on 2026-10-21. `CHANGELOG.md` has a dated `0.1.0` section,
 `package.json` is at `0.1.0` and the `v0.1.0` tag exists. The trusted publisher on npmjs.com was
-configured on 2026-11-01 ([#89](https://github.com/sferarc/peeksafe/issues/89)), so the next release
-publishes from a `v*` tag through `release.yml` (`brain/development/release.md`).
+configured on 2026-11-01 ([#89](https://github.com/sferarc/peeksafe/issues/89)), so later releases
+publish through `release.yml` when their version bump merges (`brain/development/release.md`).
 
 ## 2. Later (done)
 

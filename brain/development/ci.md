@@ -22,4 +22,4 @@ As read from the GitHub API on 2026-10-26: the five required status checks above
 
 ## Related
 
-- [[release]] runs the same gate again on the tagged commit
+- [[release]] runs the same gate again on the commit it publishes

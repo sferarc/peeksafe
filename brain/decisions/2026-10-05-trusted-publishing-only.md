@@ -8,12 +8,12 @@ Recorded 2026-10-05.
 
 ## Why
 
-A long-lived publish token in repository secrets is the credential an attacker would want, and a step that writes it to a file is the kind of change a reviewer has to catch every time the workflow is touched. With trusted publishing the only thing that can publish is this workflow, on this repository, from a tag.
+A long-lived publish token in repository secrets is the credential an attacker would want, and a step that writes it to a file is the kind of change a reviewer has to catch every time the workflow is touched. With trusted publishing the only thing that can publish is this workflow, on this repository. Since 2026-11-05 it publishes from a version bump reaching `main`, not from a tag ([[2026-11-05-publish-on-version-merge]]).
 
 ## Consequences
 
 - The first release stays manual ([[2026-10-02-first-release-pending]]), because npm cannot configure a trusted publisher for a package that does not exist.
-- A tag pushed before the trusted publisher is configured on npmjs.com fails at the publish step with an auth error.
+- A release run without the trusted publisher configured on npmjs.com fails at the publish step with an auth error.
 
 ## What would reopen it
 

@@ -1,7 +1,9 @@
 name: Release
 
-# Publishing is deliberately manual: push a tag when you mean it. Nothing here
-# fires on a merge to main, so a release is always something a person decided.
+# A merged version bump publishes itself. Every push to main asks whether
+# package.json names a version that CHANGELOG.md has a section for and npm does
+# not list; only then does it publish and tag that commit. Any other push to
+# main publishes nothing.
 #
 # main only takes pull requests, so the version bump goes through one:
 #
@@ -9,22 +11,50 @@ name: Release
 #       bumps package.json, and the `version` script moves CHANGELOG.md's
 #       Unreleased section under the new version
 #   commit those two files, open a pull request, merge it
-#   git tag -a vX.Y.Z -m vX.Y.Z <merge commit> && git push origin vX.Y.Z
 #
+# Nobody pushes a tag: this workflow creates the annotated vX.Y.Z tag on the
+# commit it published. A publish that failed is retried by re-running the
+# failed jobs, or by the next push to main.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
 permissions:
   contents: read
+
+# Two pushes landing close together must not both reach npm publish.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 # Actions are pinned to full commit SHAs because the sferarc organisation
 # requires it. A version tag is mutable, so a tag pin trusts whoever can move
 # the tag. Update the SHA and the trailing comment together.
 
 jobs:
+  check:
+    name: Is this a release
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.pending.outputs.release }}
+      version: ${{ steps.pending.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
+
+      # A registry error fails this step instead of reading as "not published".
+      - name: Version bumped and not on npm
+        id: pending
+        run: |
+          set -euo pipefail
+          PUBLISHED="$(npm view peeksafe versions --json)"
+          node scripts/release-pending.mjs "$PUBLISHED"
+
   publish:
     name: Publish to npm
+    needs: check
+    if: needs.check.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,23 +70,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # The tag is the thing a human typed and package.json is the thing npm
-      # publishes under. They disagree exactly often enough to be worth a gate:
-      # a tag pushed before `pnpm version` ran publishes the previous version
-      # under a new tag, and nothing downstream ever notices.
-      - name: Tag matches package.json version
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME#v}"
-          PKG="$(node -p 'require("./package.json").version')"
-          if [ "$TAG" != "$PKG" ]; then
-            echo "::error title=Version mismatch::tag is v$TAG, package.json is $PKG"
-            exit 1
-          fi
-          echo "publishing $PKG"
-
-      # The full CI gate again rather than trusting the run on main. A tag can
-      # point at any commit, including one CI never saw.
+      # The full CI gate again rather than trusting the pull request's run:
+      # a squash merge produces a commit CI on the pull request never saw.
       - name: Typecheck
         run: pnpm typecheck
 
@@ -90,11 +105,12 @@ jobs:
           fi
 
       # npm, not pnpm, for the registry calls from here on: these are the
-      # steps that only run on a tag, so nothing exercises them before a
-      # release, and npm is the client npm documents trusted publishing for.
+      # steps that only run on a release, so nothing exercises them before
+      # one, and npm is the client npm documents trusted publishing for.
       #
-      # Refuse to republish a version that already exists, rather than letting
-      # npm answer with a 403 that reads like an auth problem.
+      # Checked again because a publish can land between the check job and
+      # this one, and npm would answer with a 403 that reads like an auth
+      # problem.
       - name: Version is not already published
         run: |
           set -euo pipefail
@@ -126,8 +142,8 @@ jobs:
       #
       # npm cannot configure a trusted publisher for a package that does not
       # exist yet, so the first release is a manual `npm publish` by the owner
-      # (brain/development/release.md). A tag pushed before the trusted
-      # publisher is configured fails here with an auth error, by design.
+      # (brain/development/release.md). Without the trusted publisher this
+      # fails here with an auth error, by design.
       #
       # It publishes the tarball pnpm packed and the step above checked. Run on
       # the directory, npm would pack its own and ship `catalog:` specifiers.
@@ -136,3 +152,35 @@ jobs:
           set -euo pipefail
           TARBALL="$(ls peeksafe-*.tgz)"
           npm publish "./$TARBALL" --provenance --access public
+
+  # Tagged after the publish, so a vX.Y.Z tag always names a version npm has.
+  # A tag pushed with GITHUB_TOKEN starts no other workflow.
+  tag:
+    name: Tag the release
+    needs: [check, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Push annotated tag
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+          # The last match is the peeled commit when the tag is annotated.
+          EXISTING="$(git ls-remote --tags origin | awk -v t="refs/tags/$TAG" '$2 == t || $2 == t "^{}" { c = $1 } END { print c }')"
+          if [ "$EXISTING" = "$GITHUB_SHA" ]; then
+            echo "$TAG is already on $GITHUB_SHA"
+            exit 0
+          fi
+          if [ -n "$EXISTING" ]; then
+            echo "::error title=Tag exists::$TAG is on $EXISTING, but npm has $VERSION from $GITHUB_SHA"
+            exit 1
+          fi
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            tag -a "$TAG" -m "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
