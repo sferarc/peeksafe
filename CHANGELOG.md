@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 0.4.0 (2026-11-05)
+
 ### Added
 
 - `docs/recipes.md`: tested modules that turn promptfoo's JSON output, Vitest JSON reports and one JSON
