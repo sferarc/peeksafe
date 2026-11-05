@@ -34,6 +34,31 @@ takes ([#105](https://github.com/sferarc/peeksafe/issues/105) for `makePlan`,
 takes, as the bill does, instead of Wald's SPRT number: `expectedSequentialSamples` ([#115](https://github.com/sferarc/peeksafe/issues/115))
 and `typicalObservationsPerCase` ([#116](https://github.com/sferarc/peeksafe/issues/116)).
 
+## 3. Adoption path (agent work done)
+
+Tracking: [#145](https://github.com/sferarc/peeksafe/issues/145).
+
+The path from reading the README to gating an existing eval suite. Done:
+[#144](https://github.com/sferarc/peeksafe/issues/144), tested recipes in `docs/recipes.md` that turn
+promptfoo, Vitest and JSON lines results into the counts `gate` takes,
+[#141](https://github.com/sferarc/peeksafe/issues/141), an audience line and a contents list at the top
+of the README, and [#142](https://github.com/sferarc/peeksafe/issues/142), eval and CI gating keywords
+on the npm listing. Waiting on the owner: [#143](https://github.com/sferarc/peeksafe/issues/143), a
+public launch post, and [sferarc/hq#890](https://github.com/sferarc/hq/issues/890), staying free and
+linking GitHub Sponsors.
+
+## 4. Findable and usable by agents (agent work done)
+
+Tracking: [#150](https://github.com/sferarc/peeksafe/issues/150).
+
+Done: [#148](https://github.com/sferarc/peeksafe/issues/148), the `peeksafe-gate` agent skill,
+[#149](https://github.com/sferarc/peeksafe/issues/149), a gate result that survives `JSON.stringify`
+through `gateReport`, [#146](https://github.com/sferarc/peeksafe/issues/146) and
+[#156](https://github.com/sferarc/peeksafe/issues/156), a `context7.json` and the Context7 entry
+`/sferarc/peeksafe`, and [#147](https://github.com/sferarc/peeksafe/issues/147), an `AGENTS.md` for
+agents other than Claude Code. `0.4.0`, published on 2026-11-05, carries this work to npm. The last
+child is the launch decision in [#143](https://github.com/sferarc/peeksafe/issues/143).
+
 ## Not planned
 
 A runner, graders, a baseline store, CI adapters or a CLI. peeksafe takes counts and returns
