@@ -4,7 +4,7 @@
  * Its rules are handed to coding agents verbatim, so each API fact they state
  * is checked against the README, which `test/readme.test.ts` executes.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 interface Context7Config {
@@ -37,6 +37,11 @@ describe("context7.json", () => {
 
   it("excludes folders that exist, so a rename does not start indexing notes and tests", () => {
     for (const folder of config.excludeFolders) expect(existsSync(folder), folder).toBe(true);
+  });
+
+  it("excludes every root-level note but the README, since setting excludeFiles drops Context7's defaults", () => {
+    const notes = readdirSync(".").filter((file) => /\.mdx?$/.test(file) && file !== "README.md");
+    for (const note of notes) expect(config.excludeFiles, note).toContain(note);
   });
 
   it("states only API facts the README still carries", () => {

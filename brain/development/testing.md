@@ -23,7 +23,7 @@ Any figure in the README, a doc comment or a commit message must be reproducible
 | `test/exports.test.ts` | Exercises every runtime export and fails when one is not exercised |
 | `test/skill.test.ts` | Compiles the package into a scratch `node_modules` and runs the `peeksafe-gate` skill's `gate.mjs` and `plan.mjs` (`skills/peeksafe-gate/SKILL.md`) unchanged, checking exit codes 0, 1 and 2, a baselined case with no candidate runs, and the README planning table |
 | `test/recipes.test.ts` | Runs every module and script in `docs/recipes.md` unchanged: the promptfoo, Vitest and JSON lines parsers against sample files in `test/fixtures/recipes` in each runner's documented format, and `ci.mjs` and `baseline.mjs` against the compiled package, checking exit codes 0, 1 and 2 |
-| `test/context7.test.ts` | `context7.json`, which Context7 reads when it indexes the repository: the schema's length limits (one rule over 255 characters makes Context7 drop every rule), that each excluded folder exists, and that each API fact its agent rules state is still in the README |
+| `test/context7.test.ts` | `context7.json`, which Context7 reads when it indexes the repository: the schema's length limits (one rule over 255 characters makes Context7 drop every rule), that each excluded folder exists, that every root-level `.md` or `.mdx` file but `README.md` is excluded (an `excludeFiles` list replaces Context7's default exclusions, which cover `CHANGELOG.md`), and that each API fact its agent rules state is still in the README |
 | `test/release-changelog.test.ts` | The `version` script that moves `Unreleased` in `CHANGELOG.md` ([[release]]) |
 
 ## Determinism
