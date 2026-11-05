@@ -1,6 +1,6 @@
 # Agents bump and tag releases
 
-Recorded 2026-11-04 (#122).
+Recorded 2026-11-04 (#122). Updated 2026-11-05: the tag push is gone, the workflow publishes and tags a merged bump itself ([[2026-11-05-publish-on-version-merge]]); agents still open the bump pull request.
 
 ## Decision
 
