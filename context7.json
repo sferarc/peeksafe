@@ -3,7 +3,14 @@
   "projectTitle": "peeksafe",
   "description": "Statistically valid gates for non-deterministic eval suites, such as LLM evals in CI. A zero-dependency TypeScript library: pass and fail counts per case in, a suite verdict with false discovery rate control out. Stop each case early with shouldStop without losing error control, and size runs and baselines with makePlan.",
   "excludeFolders": [".claude", ".github", "brain", "scripts", "src", "test"],
-  "excludeFiles": ["AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", "ROADMAP.md"],
+  "excludeFiles": [
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "RESEARCH-NOTES.md",
+    "ROADMAP.md"
+  ],
   "rules": [
     "peeksafe takes pass and fail counts and returns a verdict; it runs no evals and has no runner, no config file and no CLI. Run the suite yourself, count successes and trials per case, then call gate.",
     "Call gate(cases, { mde: 0.15, fdr: 0.05 }) with cases shaped { id, successes, trials, baseline: { caseId, successes, trials } }. A case without a baseline is listed in result.newCases and not gated.",
