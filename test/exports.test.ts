@@ -127,6 +127,11 @@ describe("statistics", () => {
         /discordant: bothPass must be a non-negative integer/,
       );
     }
+    for (const missing of [undefined, null]) {
+      const table = missing as unknown as Parameters<typeof discordant>[0];
+      expect(() => discordant(table)).toThrow(/discordant: the pair table is missing/);
+      expect(() => pairPhi(table)).toThrow(/pairPhi: the pair table is missing/);
+    }
   });
 
   it("pairedDiscordance matches the coupled and independent limits", () => {

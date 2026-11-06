@@ -244,6 +244,18 @@ describe("shouldStopPaired", () => {
     );
   });
 
+  it("refuses a missing pair table with a coded error instead of a TypeError", () => {
+    // A loop that looks the table up by id passes undefined for a case not run yet.
+    for (const missing of [undefined, null]) {
+      expect(() => shouldStopPaired(missing as unknown as PairedCounts, { suiteSize: 1 })).toThrow(
+        expect.objectContaining({
+          code: "PEEKSAFE_E_STAT_DOMAIN",
+          message: expect.stringMatching(/^shouldStopPaired: the pair table is missing/),
+        }),
+      );
+    }
+  });
+
   const draw = (rand: () => number, pb: number, pc: number, c: PairedCounts) => {
     const b = rand() < pb;
     const k = rand() < pc;

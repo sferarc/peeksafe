@@ -157,6 +157,15 @@ describe("it refuses the same things gate refuses", () => {
     ],
     ["PEEKSAFE_E_STAT_DOMAIN", () => shouldStop({ successes: 9, trials: 2 }, FAT, opts)],
     [
+      // A loop that looks the counts up by id passes undefined for a case not run yet; it threw a bare TypeError.
+      "PEEKSAFE_E_STAT_DOMAIN",
+      () => shouldStop(undefined as unknown as { successes: number; trials: number }, FAT, opts),
+    ],
+    [
+      "PEEKSAFE_E_STAT_DOMAIN",
+      () => shouldStop(null as unknown as { successes: number; trials: number }, FAT, opts),
+    ],
+    [
       "PEEKSAFE_E_CONFIG",
       () => shouldStop({ successes: 1, trials: 2 }, FAT, { ...opts, suiteSize: 0 }),
     ],

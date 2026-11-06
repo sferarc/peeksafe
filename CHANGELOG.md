@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- `shouldStop` and `shouldStopPaired` read their counts before checking they were there, so an undefined
+  or null `observed` or pair table, which a stopping loop passes for a case it has not run yet, threw a
+  bare `TypeError`. Both now refuse it with `PEEKSAFE_E_STAT_DOMAIN`, and so do `discordant` and
+  `pairPhi`, which share the pair table check.
+
 ## 0.4.3 (2026-11-06)
 
 ### Fixed
