@@ -15,6 +15,9 @@ All notable changes to this project are documented here. The format follows
   before checking they were there, so an undefined case list or entry, a missing baseline map, or a missing
   config threw a bare `TypeError`. Each now refuses with `PEEKSAFE_E_CONFIG` and a hint naming the expected
   shape; a missing case entry in `makePlan` carries its position in `detail.index`.
+- `typeOneError`, `certifyProbability` and `pairedCertifyProbability` destructured their options before
+  checking they were there, so a call with no options threw a bare `TypeError`. Each now refuses with
+  `PEEKSAFE_E_CONFIG` and a hint naming the required fields.
 
 ## 0.4.4 (2026-11-06)
 

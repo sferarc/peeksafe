@@ -10,6 +10,7 @@
 
 import {
   PeeksafeError,
+  requireObject,
   requireOpenProbability,
   requirePositiveConfig,
   requireProbability,
@@ -50,6 +51,12 @@ export interface CertifyProbabilityOptions extends Omit<TypeOneErrorOptions, "ra
  * baseline at a horizon of 600 takes tens of milliseconds.
  */
 export function certifyProbability(options: CertifyProbabilityOptions): number {
+  requireObject(
+    options,
+    "options",
+    "certifyProbability",
+    "pass { baselineRate, candidateRate, baselineTrials, alpha, horizon }",
+  );
   return certify(options, "certifyProbability");
 }
 
@@ -166,6 +173,12 @@ function universalFromBayes(rawLog: number, s: number, n: number, sb: number, nb
  * the gate keeps its promise for this case.
  */
 export function typeOneError(options: TypeOneErrorOptions): number {
+  requireObject(
+    options,
+    "options",
+    "typeOneError",
+    "pass { rate, baselineTrials, alpha, horizon }",
+  );
   const { rate, ...rest } = options;
   requireOpenProbability(rate, "rate", "typeOneError");
   return certify({ ...rest, baselineRate: rate, candidateRate: rate }, "typeOneError");
@@ -189,6 +202,12 @@ export interface PairedCertifyProbabilityOptions {
  * `horizon` pairs, however it was stopped. The power when the candidate is lower.
  */
 export function pairedCertifyProbability(options: PairedCertifyProbabilityOptions): number {
+  requireObject(
+    options,
+    "options",
+    "pairedCertifyProbability",
+    "pass { baselineRate, candidateRate, alpha, horizon }",
+  );
   const { baselineRate: pb, candidateRate: pc, alpha, horizon } = options;
   const rho = options.coupling ?? 0;
   requireOpenProbability(pb, "baselineRate", "pairedCertifyProbability");
