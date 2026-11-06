@@ -242,6 +242,27 @@ export function gate(
   requireEvidence(opts.evidence, "gate");
   requireAltConcentration(opts.altConcentration, opts.evidence, "gate");
 
+  // Both of these crashed as a TypeError, past every check that names a code.
+  if (!Array.isArray(cases)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `gate: the cases must be an array, got ${cases === null ? "null" : typeof cases}`,
+      { detail: { where: "gate" }, hint: "pass gate([{ id, successes, trials, baseline }, ...])" },
+    );
+  }
+  for (const [index, c] of cases.entries()) {
+    if (c == null) {
+      throw new PeeksafeError(
+        "PEEKSAFE_E_CONFIG",
+        `gate: case ${index} is missing, got ${String(c)}`,
+        {
+          detail: { where: "gate", index },
+          hint: "a list built by looking cases up by id holds undefined for a case not run yet; filter it out or run it first",
+        },
+      );
+    }
+  }
+
   const seen = new Set<string>();
   for (const c of cases) {
     if (seen.has(c.id)) {

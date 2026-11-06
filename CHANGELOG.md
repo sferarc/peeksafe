@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- `gate` read each case's `id` before checking the list was there, so an undefined or null `cases`, or an
+  undefined entry in a list built by looking cases up by id, threw a bare `TypeError`. It now refuses both
+  with `PEEKSAFE_E_CONFIG`, and names the position of a missing entry in `detail.index`.
+
 ## 0.4.4 (2026-11-06)
 
 ### Fixed
