@@ -749,6 +749,23 @@ export function clusterKeyDiagnostic(
   }
   group(declared, "clusterKeyDiagnostic");
   group(fallback, "clusterKeyDiagnostic");
+  // Compared as sorted lists so a caller may build the two groupings in different orders.
+  const declaredValues = declared.map((o) => o.value).sort((x, y) => x - y);
+  const fallbackValues = fallback.map((o) => o.value).sort((x, y) => x - y);
+  const mismatch = declaredValues.findIndex((v, i) => v !== fallbackValues[i]);
+  if (mismatch !== -1) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      "clusterKeyDiagnostic: the two groupings must cover the same observations (their values differ)",
+      {
+        detail: {
+          declared: declaredValues[mismatch],
+          fallback: fallbackValues[mismatch],
+        },
+        hint: "group the same value array twice; do not filter one of them",
+      },
+    );
+  }
   const d = summarise("declared", declared);
   const f = summarise("case-id", fallback);
 

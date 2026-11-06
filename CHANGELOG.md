@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- `clusterKeyDiagnostic` compared only the lengths of its two groupings, so two groupings of different
+  values got a verdict comparing two unrelated suites. It now refuses them with `PEEKSAFE_E_STAT_DOMAIN`
+  unless both carry the same values, in any order.
+
 ## 0.4.0 (2026-11-05)
 
 ### Added
