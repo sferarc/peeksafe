@@ -284,3 +284,22 @@ export function requireUniqueCaseIds(cases: readonly { id: string }[], where: st
     seen.add(c.id);
   }
 }
+
+/** A missing argument crashed as a TypeError on its first property read, past every check that names a code. */
+export function requireObject(
+  v: unknown,
+  name: string,
+  where: string,
+  hint: string,
+  detail: Record<string, unknown> = {},
+): void {
+  if (v == null || typeof v !== "object") {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      v == null
+        ? `${where}: ${name} is missing, got ${String(v)}`
+        : `${where}: ${name} must be an object, got a ${typeof v}`,
+      { detail: { where, ...detail }, hint },
+    );
+  }
+}

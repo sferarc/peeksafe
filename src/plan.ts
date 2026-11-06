@@ -37,6 +37,7 @@ import {
   PeeksafeError,
   requireCounts,
   requireErrorRates,
+  requireObject,
   requireOpenProbability,
   requireProbability,
   requireRunCeiling,
@@ -332,6 +333,13 @@ export function planCase(
   cfg: PlanConfig,
   m: number,
 ): PlanCase {
+  requireObject(c, "the case", "planCase", "pass planCase({ id }, baseline, cfg, m)");
+  requireObject(
+    cfg,
+    "the config",
+    "planCase",
+    "pass a PlanConfig, e.g. { ...DEFAULT_PLAN, mde: 0.1 }",
+  );
   // Exported on its own, so it refuses what makePlan refuses before calling it: unchecked, a -5/60 baseline was IMPOSSIBLE and a price of -1 billed -$152.
   if (b) requireCounts(b.successes, b.trials, `planCase(${c.id}).baseline`);
   requireErrorRates(cfg.alpha, cfg.beta, "planCase");
@@ -709,6 +717,49 @@ export function makePlan(
   cfg: PlanConfig = DEFAULT_PLAN,
   pilots: Map<string, PairedCounts> = new Map(),
 ): Plan {
+  // Each of these crashed as a TypeError on its first read, past every check that names a code.
+  if (!Array.isArray(cases)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `makePlan: the cases must be an array, got ${cases === null ? "null" : typeof cases}`,
+      { detail: { where: "makePlan" }, hint: "pass makePlan([{ id }, ...], baseline)" },
+    );
+  }
+  for (const [index, c] of cases.entries()) {
+    requireObject(
+      c,
+      `case ${index}`,
+      "makePlan",
+      "a list built by looking cases up by id holds undefined for a missing case; filter it out first",
+      { index },
+    );
+  }
+  if (!(baseline instanceof Map)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `makePlan: the baseline must be a Map, got ${baseline === null ? "null" : typeof baseline}`,
+      {
+        detail: { where: "makePlan" },
+        hint: "build it with toBaselineMap(baselines); pass new Map() when there is no baseline yet",
+      },
+    );
+  }
+  requireObject(
+    cfg,
+    "the config",
+    "makePlan",
+    "pass a PlanConfig, or leave it out for DEFAULT_PLAN",
+  );
+  if (!(pilots instanceof Map)) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_CONFIG",
+      `makePlan: the pilots must be a Map, got ${pilots === null ? "null" : typeof pilots}`,
+      {
+        detail: { where: "makePlan" },
+        hint: "pass a Map of case id to pair table, or leave it out",
+      },
+    );
+  }
   // Open interval: mde = 0 asks for a zero-point drop and fdr = 0 asks for a
   // bar of Infinity. Both used to be accepted and produce a plan in which
   // nothing is decidable, for a reason the printed message blamed on the
