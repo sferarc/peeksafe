@@ -40,6 +40,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # A high or critical advisory in what the package ships fails the check.
+      # Accepted ones go in auditConfig.ignoreGhsas in pnpm-workspace.yaml; an
+      # --ignore flag here would rewrite that file and exit 0 without auditing.
+      # One leg is enough: the lockfile is the same on all three.
+      - name: Runtime advisories
+        if: matrix.node == '26'
+        run: pnpm audit --prod --audit-level high
+
       - name: Lint
         run: pnpm lint
 

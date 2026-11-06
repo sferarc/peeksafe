@@ -2,6 +2,7 @@
 
 Dated records of choices a later change could undo by accident. Each says what was decided, why, and what would reopen it. Newest first.
 
+- [[2026-11-06-audit-ignore-list]]: accepted advisories live in `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml`, not in `pnpm audit --ignore` flags
 - [[2026-11-05-publish-on-version-merge]]: `release.yml` publishes and tags a version bump when it reaches `main`, with no tag push
 - [[2026-11-04-agents-tag-releases]]: agents bump the version and push the release tag as the sferarc-hq App
 - [[2026-10-05-plan-design-per-case]]: `makePlan` recommends a design per case, priced at a pilot's measured coupling
