@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 0.4.2 (2026-11-06)
+
 ### Fixed
 
 - `gate` gated a case that carried both a `paired` table and unpaired `successes`, `trials` or `baseline`
