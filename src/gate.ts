@@ -222,6 +222,9 @@ export function gateReport(result: GateResult): GateReport {
   return jsonSafe(result) as GateReport;
 }
 
+// JSON from a runner can write an absent pair table as null; `!== undefined` gated that as paired and crashed.
+const isPaired = (c: GateCase | PairedGateCase): c is PairedGateCase => c.paired != null;
+
 /**
  * Decide which cases regressed.
  *
@@ -248,7 +251,19 @@ export function gate(
       });
     }
     seen.add(c.id);
-    if (c.paired) {
+    if (isPaired(c)) {
+      // Only the pair table is read, so counts or a baseline beside it were dropped without a word.
+      const u = c as { successes?: unknown; trials?: unknown; baseline?: unknown };
+      if (u.successes != null || u.trials != null || u.baseline != null) {
+        throw new PeeksafeError(
+          "PEEKSAFE_E_CONFIG",
+          `gate: case ${c.id} carries both a pair table and unpaired counts`,
+          {
+            detail: { id: c.id },
+            hint: "send a paired case as { id, paired } and an unpaired one as { id, successes, trials, baseline }",
+          },
+        );
+      }
       requirePairedCounts(c.paired, `gate(${c.id}).paired`);
       continue;
     }
@@ -269,7 +284,7 @@ export function gate(
   }
 
   const hasBaseline = (c: GateCase | PairedGateCase): boolean =>
-    c.paired !== undefined || (c.baseline !== undefined && c.baseline.trials > 0);
+    isPaired(c) || (c.baseline != null && c.baseline.trials > 0);
   const newCases = cases.filter((c) => !hasBaseline(c)).map((c) => c.id);
   const gated = cases.filter(hasBaseline);
 
@@ -288,9 +303,9 @@ export function gate(
   // Testing these anyway clamps the alternative onto a rate near zero, which is
   // where the case already sits, and the false positive rate then exceeds `fdr`.
   // A paired case has an exact null and never needs this.
-  const impossible = gated.map((c) => !c.paired && cannotDropBy(c.baseline!, opts.mde));
+  const impossible = gated.map((c) => !isPaired(c) && cannotDropBy(c.baseline!, opts.mde));
   const logEs = gated.map((c, i) => {
-    if (c.paired) return pairedLogE(c.paired.worse, discordant(c.paired));
+    if (isPaired(c)) return pairedLogE(c.paired.worse, discordant(c.paired));
     return impossible[i]
       ? 0
       : logEvidence(
@@ -309,7 +324,7 @@ export function gate(
 
   const verdicts: CaseVerdict[] = gated.map((c, i) => {
     const shared = { id: c.id, regressed: ebh.rejected[i]!, evalue: evalues[i]!, logE: logEs[i]! };
-    if (c.paired) {
+    if (isPaired(c)) {
       const p = c.paired;
       const pairs = p.bothPass + p.worse + p.better + p.bothFail;
       return {

@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  type GateCase,
   gate,
   makeRand,
   type PairedCounts,
@@ -184,6 +185,37 @@ describe("gate takes paired cases", () => {
         { id: "a", successes: 1, trials: 1, baseline: { caseId: "a", successes: 1, trials: 1 } },
       ]),
     ).toThrow(expect.objectContaining({ code: "PEEKSAFE_E_CASE_DUPLICATE" }));
+  });
+
+  it("refuses a case that carries both a pair table and unpaired counts rather than dropping the counts", () => {
+    // A JavaScript caller building cases from runner JSON can send both shapes; the types cannot stop it.
+    const both = {
+      id: "b",
+      successes: 0,
+      trials: 10,
+      baseline: { caseId: "b", successes: 9, trials: 10 },
+      paired: table(5, 0, 0, 0),
+    } as unknown as PairedGateCase;
+    expect(() => gate([both])).toThrow(expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" }));
+    expect(() => gate([both])).toThrow(/case b carries both a pair table and unpaired counts/);
+    const countsOnly = {
+      id: "c",
+      trials: 10,
+      paired: table(5, 0, 0, 0),
+    } as unknown as PairedGateCase;
+    expect(() => gate([countsOnly])).toThrow(
+      expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" }),
+    );
+  });
+
+  it("reads a null pair table as no pair table, as JSON writes an absent one", () => {
+    const fromJson = JSON.parse(
+      '[{"id":"new","successes":5,"trials":10,"paired":null},' +
+        '{"id":"old","successes":5,"trials":10,"baseline":{"caseId":"old","successes":9,"trials":10},"paired":null}]',
+    ) as GateCase[];
+    const r = gate(fromJson);
+    expect(r.newCases).toEqual(["new"]);
+    expect(r.cases.map((c) => [c.id, c.design])).toEqual([["old", "unpaired"]]);
   });
 });
 
