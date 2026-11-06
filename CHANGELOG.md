@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- `gate` gated a case that carried both a `paired` table and unpaired `successes`, `trials` or `baseline`
+  on the pair table alone and dropped the rest without a word. It now refuses such a case with
+  `PEEKSAFE_E_CONFIG`. A case with `paired: null`, as JSON writes an absent pair table, is read as
+  unpaired; without a baseline it threw a `TypeError` instead of being listed under `newCases`.
+
 ## 0.4.1 (2026-11-06)
 
 ### Fixed
