@@ -60,6 +60,7 @@
 import {
   PeeksafeError,
   requireErrorRates,
+  requireObject,
   requireOpenProbability,
   requireProbability,
   requireRunCeiling,
@@ -394,6 +395,12 @@ export function evaluatePoint(
   screenRunsPerCase: number,
   cfg: FrontierConfig,
 ): FrontierPoint {
+  requireObject(
+    cfg,
+    "the config",
+    "evaluatePoint",
+    "pass a FrontierConfig, e.g. { ...DEFAULT_FRONTIER, budgetUsd: 5 }",
+  );
   // Strictly open: an MDE of 0 means "detect a zero-point drop", which every
   // design correctly refuses, but it refuses with a message about the evidence
   // ceiling, which sends the reader looking for a baseline problem that is not
@@ -642,6 +649,18 @@ export function enumerateFrontier(
   cfg: FrontierConfig,
   axes: FrontierAxes = DEFAULT_AXES,
 ): FrontierPoint[] {
+  requireObject(
+    cfg,
+    "the config",
+    "enumerateFrontier",
+    "pass a FrontierConfig, e.g. { ...DEFAULT_FRONTIER, budgetUsd: 5 }",
+  );
+  requireObject(
+    axes,
+    "the axes",
+    "enumerateFrontier",
+    "pass FrontierAxes, or leave them out for DEFAULT_AXES",
+  );
   requirePricing(cfg, "frontier");
   for (const [name, xs] of Object.entries(axes) as Array<[string, unknown[]]>) {
     if (!Array.isArray(xs) || xs.length === 0) {
@@ -723,6 +742,19 @@ export function computeFrontier(
   cfg: FrontierConfig,
   axes: FrontierAxes = DEFAULT_AXES,
 ): FrontierResult {
+  // Checked here too so the refusal names the function the caller called.
+  requireObject(
+    cfg,
+    "the config",
+    "computeFrontier",
+    "pass a FrontierConfig, e.g. { ...DEFAULT_FRONTIER, budgetUsd: 5 }",
+  );
+  requireObject(
+    axes,
+    "the axes",
+    "computeFrontier",
+    "pass FrontierAxes, or leave them out for DEFAULT_AXES",
+  );
   const points = enumerateFrontier(cfg, axes);
   const feasible = points.filter((p) => p.feasible);
   const affordable = points.filter((p) => p.recommendable);

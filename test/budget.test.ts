@@ -211,6 +211,45 @@ describe("the planner answers before anything is spent", () => {
     expect(planCase({ id: "a" }, ok, DEFAULT_PLAN, 10).paired.runs).toBe(152);
   });
 
+  it("refuses missing input to makePlan, planCase and computeFrontier with a code, not a TypeError", () => {
+    // Each crashed on its first property read: makePlan(undefined) on 'length',
+    // makePlan([undefined]) on 'id', a missing baseline map on 'get', and
+    // planCase or computeFrontier with no config on 'alpha' and 'budgetUsd'.
+    const { cases, baseline } = suite(4, 0.85, 60);
+    const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
+    for (const [label, f] of [
+      ["makePlan(undefined)", () => makePlan(undefined as never, baseline)],
+      ["makePlan(null)", () => makePlan(null as never, baseline)],
+      ["makePlan([undefined])", () => makePlan([undefined as never], baseline)],
+      ["no baseline map", () => makePlan(cases, undefined as never)],
+      ["plain object baseline", () => makePlan(cases, {} as never)],
+      ["null config", () => makePlan(cases, baseline, null as never)],
+      ["null pilots", () => makePlan(cases, baseline, DEFAULT_PLAN, null as never)],
+      ["planCase(undefined)", () => planCase(undefined as never, undefined, DEFAULT_PLAN, 4)],
+      ["planCase no config", () => planCase({ id: "a" }, undefined, undefined as never, 4)],
+      ["computeFrontier(undefined)", () => computeFrontier(undefined as never)],
+      ["computeFrontier null axes", () => computeFrontier(DEFAULT_FRONTIER, null as never)],
+      [
+        "evaluatePoint no config",
+        () => evaluatePoint(20, 0.1, 60, "unpaired", "none", 0, undefined as never),
+      ],
+    ] as const) {
+      expect(f, label).toThrow(config);
+    }
+    expect(() => makePlan([cases[0]!, undefined as never], baseline)).toThrow(
+      expect.objectContaining({ detail: { where: "makePlan", index: 1 } }),
+    );
+    expect(() => planCase(undefined as never, undefined, DEFAULT_PLAN, 4)).toThrow(
+      /^planCase: the case is missing/,
+    );
+    expect(() => computeFrontier(undefined as never)).toThrow(
+      /^computeFrontier: the config is missing/,
+    );
+    // The defaults still stand in for a left-out config, pilots and axes.
+    expect(makePlan(cases, baseline).cases).toHaveLength(4);
+    expect(makePlan(cases, new Map()).cases).toHaveLength(4);
+  });
+
   it("refuses a run ceiling below one run rather than calling every case undecidable", () => {
     // The planners search up to eight times the ceiling. At NaN or 0 that search
     // never ran, so both designs answered Infinity and every case came back

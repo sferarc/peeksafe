@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format follows
 - `gate` read each case's `id` before checking the list was there, so an undefined or null `cases`, or an
   undefined entry in a list built by looking cases up by id, threw a bare `TypeError`. It now refuses both
   with `PEEKSAFE_E_CONFIG`, and names the position of a missing entry in `detail.index`.
+- `makePlan`, `planCase`, `evaluatePoint`, `enumerateFrontier` and `computeFrontier` read their arguments
+  before checking they were there, so an undefined case list or entry, a missing baseline map, or a missing
+  config threw a bare `TypeError`. Each now refuses with `PEEKSAFE_E_CONFIG` and a hint naming the expected
+  shape; a missing case entry in `makePlan` carries its position in `detail.index`.
 
 ## 0.4.4 (2026-11-06)
 
