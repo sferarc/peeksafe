@@ -234,6 +234,17 @@ export function requirePairedCounts(
   p: { bothPass: number; worse: number; better: number; bothFail: number },
   where: string,
 ): void {
+  // A loop that looks the table up by id passes undefined for a case not run yet; that crashed as a TypeError.
+  if (p == null) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `${where}: the pair table is missing, got ${String(p)}`,
+      {
+        detail: { where },
+        hint: "pass { bothPass, worse, better, bothFail }, all zero before the first pair",
+      },
+    );
+  }
   for (const name of ["bothPass", "worse", "better", "bothFail"] as const) {
     const v = p[name];
     if (!Number.isInteger(v) || v < 0) {

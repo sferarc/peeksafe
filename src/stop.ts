@@ -193,6 +193,17 @@ export function shouldStop(
   options: StopOptions,
 ): StopDecision {
   const opts = { ...DEFAULT_STOP_OPTIONS, ...definedOptions(options) };
+  // A loop that looks the counts up by id passes undefined for a case not run yet; that crashed as a TypeError.
+  if (observed == null) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_STAT_DOMAIN",
+      `shouldStop: the observed counts are missing, got ${String(observed)}`,
+      {
+        detail: { where: "shouldStop" },
+        hint: "pass { successes, trials }, both zero before the first run",
+      },
+    );
+  }
   requireCounts(observed.successes, observed.trials, "shouldStop");
   // The README loop passes `baseline[id]`, which is undefined for a new case; that crashed as a TypeError.
   if (baseline == null) {
