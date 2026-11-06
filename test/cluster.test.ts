@@ -205,6 +205,22 @@ describe("the interval widens when it should", () => {
     expect(() => clusterKeyDiagnostic(a, b)).toThrow(/same observations/);
   });
 
+  it("refuses two groupings of the same size whose values differ", () => {
+    // Only the lengths used to be compared, so two unrelated suites got a verdict.
+    const declared = correlated(4, 5, 0.1, "values");
+    const fallback = correlated(4, 5, 0.1, "other").map((o, i) => ({
+      cluster: `case${i}`,
+      value: o.value,
+    }));
+    expect(() => clusterKeyDiagnostic(declared, fallback)).toThrow(/same observations/);
+  });
+
+  it("accepts the same observations grouped in a different order", () => {
+    const fallback = correlated(4, 5, 0.1, "order");
+    const declared = fallback.map((o, i) => ({ cluster: `case${i}`, value: o.value })).reverse();
+    expect(clusterKeyDiagnostic(declared, fallback).declared.clusters).toBe(20);
+  });
+
   it("random effects returns a finite estimate on well-separated families", () => {
     const obs = correlated(10, 8, 0.4, "re");
     const re = randomEffectsMean(obs);
