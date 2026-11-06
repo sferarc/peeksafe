@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 0.4.4 (2026-11-06)
+
 ### Fixed
 
 - `shouldStop` and `shouldStopPaired` read their counts before checking they were there, so an undefined
