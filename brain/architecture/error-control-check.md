@@ -20,4 +20,6 @@ It is exact because the e-value depends on the candidate only through its counts
 
 The same question for a paired case. The paired e-value depends only on the worse and discordant counts, so the crossing set is tabulated once and a dynamic program steps over (discordant, worse). `coupling` mixes shared-draw pairs (discordances only inside the rate gap) with independent ones. `test/paired.test.ts` checks every unchanged rate stays under alpha at coupling 0, 0.5 and 1, and pins the README's power table.
 
+All three functions refuse a missing options object with `PEEKSAFE_E_CONFIG` through `requireObject` in `src/errors.ts`, with a hint naming the required fields; before #195 each crashed with a bare `TypeError` on the destructure (`test/error-control.test.ts`, "refuses missing options with a code and a hint, not a TypeError").
+
 Outside the grid nothing is proven. That is a stated limitation, not an oversight.

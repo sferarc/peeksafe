@@ -24,6 +24,7 @@ import {
   logMarginalBetaBinomial,
   MAX_ALT_CONCENTRATION,
   makeRand,
+  pairedCertifyProbability,
   shouldStop,
   twoSampleLogE,
   twoSamplePriors,
@@ -210,6 +211,35 @@ describe("typeOneError refuses what it cannot compute", () => {
     expect(() =>
       certifyProbability({ ...ok, baselineRate: 0.5, candidateRate: 0.5, alpha: NaN }),
     ).toThrow(expect.objectContaining({ message: expect.stringMatching(/^certifyProbability: /) }));
+  });
+
+  it("refuses missing options with a code and a hint, not a TypeError", () => {
+    // Each crashed destructuring its options: typeOneError on 'rate', the certify checks on 'baselineRate'.
+    for (const missing of [undefined, null]) {
+      for (const [where, f] of [
+        ["typeOneError", () => typeOneError(missing as never)],
+        ["certifyProbability", () => certifyProbability(missing as never)],
+        ["pairedCertifyProbability", () => pairedCertifyProbability(missing as never)],
+      ] as const) {
+        expect(f, `${where}(${missing})`).toThrow(
+          expect.objectContaining({
+            code: "PEEKSAFE_E_CONFIG",
+            message: `${where}: options is missing, got ${missing}`,
+            detail: { where },
+            hint: expect.stringContaining("alpha, horizon"),
+          }),
+        );
+      }
+    }
+    expect(() => typeOneError(5 as never)).toThrow(
+      expect.objectContaining({ message: "typeOneError: options must be an object, got a number" }),
+    );
+    expect(() => typeOneError(undefined as never)).toThrow(
+      expect.objectContaining({ hint: expect.stringContaining("rate") }),
+    );
+    expect(() => certifyProbability(undefined as never)).toThrow(
+      expect.objectContaining({ hint: expect.stringContaining("baselineRate, candidateRate") }),
+    );
   });
 });
 
