@@ -146,6 +146,15 @@ describe("it refuses the same things gate refuses", () => {
       "PEEKSAFE_E_BASELINE_MISSING",
       () => shouldStop({ successes: 1, trials: 2 }, { caseId: "c", successes: 0, trials: 0 }, opts),
     ],
+    [
+      // The README loop passes `baseline[id]`, undefined for a new case; it threw a bare TypeError.
+      "PEEKSAFE_E_BASELINE_MISSING",
+      () => shouldStop({ successes: 1, trials: 2 }, undefined as unknown as BaselineStat, opts),
+    ],
+    [
+      "PEEKSAFE_E_BASELINE_MISSING",
+      () => shouldStop({ successes: 1, trials: 2 }, null as unknown as BaselineStat, opts),
+    ],
     ["PEEKSAFE_E_STAT_DOMAIN", () => shouldStop({ successes: 9, trials: 2 }, FAT, opts)],
     [
       "PEEKSAFE_E_CONFIG",
