@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- `shouldStop` read the baseline's counts before checking it was there, so an undefined or null baseline,
+  which the README's stopping loop passes for a new case as `baseline[id]`, threw a bare `TypeError`. It
+  now refuses it with `PEEKSAFE_E_BASELINE_MISSING`, as it refuses a zero-trial baseline.
+
 ## 0.4.2 (2026-11-06)
 
 ### Fixed

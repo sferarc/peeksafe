@@ -194,6 +194,17 @@ export function shouldStop(
 ): StopDecision {
   const opts = { ...DEFAULT_STOP_OPTIONS, ...definedOptions(options) };
   requireCounts(observed.successes, observed.trials, "shouldStop");
+  // The README loop passes `baseline[id]`, which is undefined for a new case; that crashed as a TypeError.
+  if (baseline == null) {
+    throw new PeeksafeError(
+      "PEEKSAFE_E_BASELINE_MISSING",
+      `shouldStop: this case has no baseline (got ${String(baseline)}), so there is nothing to test against`,
+      {
+        detail: { trials: observed.trials },
+        hint: "a case with no baseline is not gated at all; gate() returns it in newCases; skip it in the stopping loop",
+      },
+    );
+  }
   requireCounts(baseline.successes, baseline.trials, "shouldStop.baseline");
   requireOpenProbability(opts.mde, "mde", "shouldStop");
   requireOpenProbability(opts.fdr, "fdr", "shouldStop");
