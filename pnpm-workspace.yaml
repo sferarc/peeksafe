@@ -2,6 +2,12 @@ allowBuilds:
   # lefthook's postinstall fetches its binary.
   lefthook: true
 
+# Advisories the CI audit accepts. One GHSA per entry, with a comment giving the
+# reason and the condition that ends the exception. `pnpm audit --ignore` writes
+# here without a reason, so edit this list by hand.
+auditConfig:
+  ignoreGhsas: []
+
 catalog:
   '@biomejs/biome': 2.5.15
   # Held at the oldest Node in `engines` so the types cannot offer an API that a
