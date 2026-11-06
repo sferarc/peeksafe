@@ -97,6 +97,20 @@ describe("the gate refuses rather than inventing", () => {
     ).toThrow(/integers/);
   });
 
+  it("refuses a missing case list or case entry with a code rather than a TypeError", () => {
+    const config = expect.objectContaining({ code: "PEEKSAFE_E_CONFIG" });
+    for (const cases of [undefined, null, { id: "a" }]) {
+      expect(() => gate(cases as unknown as GateCase[])).toThrow(config);
+    }
+    const ok: GateCase = { id: "a", successes: 9, trials: 10, baseline: baselineOf("a", 9, 10) };
+    for (const missing of [undefined, null]) {
+      const cases = [ok, missing] as unknown as GateCase[];
+      expect(() => gate(cases)).toThrow(
+        expect.objectContaining({ code: "PEEKSAFE_E_CONFIG", detail: { where: "gate", index: 1 } }),
+      );
+    }
+  });
+
   it("rejects a duplicate case id rather than merging two cases into one", () => {
     const dup: GateCase[] = [
       { id: "same", successes: 50, trials: 60, baseline: baselineOf("same", 51, 60) },
