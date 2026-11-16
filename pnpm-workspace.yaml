@@ -9,13 +9,13 @@ auditConfig:
   ignoreGhsas: []
 
 catalog:
-  '@biomejs/biome': 2.5.15
+  '@biomejs/biome': 2.6.8
   # Held at the oldest Node in `engines` so the types cannot offer an API that a
   # supported runtime lacks. Move it when `engines.node` moves.
-  '@types/node': 22.20.5
-  knip: 6.39.0
-  lefthook: 2.1.16
+  '@types/node': 26.6.6
+  knip: 6.45.1
+  lefthook: 2.2.2
   typescript: 7.0.2
-  vitest: 5.0.3
+  vitest: 5.1.0
 
 catalogMode: strict
