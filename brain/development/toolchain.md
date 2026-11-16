@@ -3,7 +3,7 @@
 ## Node
 
 - `package.json` `engines.node` is `>=22` (#3).
-- `mise.toml` pins Node `26.10.0` and pnpm `12.8.1`, and `mise.lock` records their checksums per platform. With mise installed, `mise install` in the repo root provides both. After changing a version in `mise.toml`, run `mise lock` and commit both files.
+- `mise.toml` pins Node `26.13.1` and pnpm `12.8.1`, and `mise.lock` records their checksums per platform. With mise installed, `mise install` in the repo root provides both. After changing a version in `mise.toml`, run `mise lock` and commit both files.
 - CI tests on Node 22, 24 and 26 ([[ci]]). The release workflow builds on the Node in `mise.toml` ([[release]]).
 
 ## Commands
@@ -34,7 +34,7 @@ Versions live in the `catalog` of `pnpm-workspace.yaml` and `package.json` refer
 
 A transitive dev dependency is not in the catalog. `pnpm update <name>` re-resolves it at any depth within its parents' ranges and leaves `package.json` and the catalog alone; on 2026-11-06 it moved vite from 8.3.2 to 8.3.5 (under vitest) and zod from 4.6.5 to 4.6.7 (under knip) to clear two high advisories (#173). CI audits only the runtime tree ([[ci]]), so check the dev tree by hand with `pnpm audit --dev --audit-level high`.
 
-Dev dependencies only: `@biomejs/biome`, `knip`, `lefthook`, `typescript` 7 (the native compiler; its output matched TypeScript 5.9 file for file when it was adopted), `vitest` 5 (needs Node `^22.12.0` or `>=24`) and `@types/node` 22, held at the oldest supported Node so the types cannot offer an API that `engines` does not guarantee. A runtime dependency needs a stated reason in the pull request (`CONTRIBUTING.md`), and CI fails if one appears in the packed tarball.
+Dev dependencies only: `@biomejs/biome`, `knip`, `lefthook`, `typescript` 7 (the native compiler; its output matched TypeScript 5.9 file for file when it was adopted), `vitest` 5 (needs Node `^22.12.0` or `>=24`) and `@types/node` 22, held at the oldest supported Node so the types cannot offer an API that `engines` does not guarantee. `updateConfig.ignoreDependencies` in `pnpm-workspace.yaml` keeps HQ's weekly `pnpm update --latest` off it, so it moves only by hand when `engines.node` moves (#204). A runtime dependency needs a stated reason in the pull request (`CONTRIBUTING.md`), and CI fails if one appears in the packed tarball.
 
 ## Style rules that are easy to miss
 
