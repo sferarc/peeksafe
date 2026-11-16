@@ -19,3 +19,8 @@ catalog:
   vitest: 5.1.0
 
 catalogMode: strict
+
+# HQ's weekly update leaves these alone; see the hold on the catalog entry.
+updateConfig:
+  ignoreDependencies:
+    - '@types/node'
